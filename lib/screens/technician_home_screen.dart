@@ -4,8 +4,19 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/technician_location_service.dart';
+import '../services/dashboard_service.dart';
 import '../theme/app_colors.dart';
 import '../services/chat_service.dart';
+import '../models/booking_model.dart';
+import '../models/dashboard_metrics.dart';
+import '../widgets/dashboard/dashboard_header.dart';
+import '../widgets/dashboard/live_status_card.dart';
+import '../widgets/dashboard/job_card.dart';
+import '../widgets/dashboard/analytics_card.dart';
+import '../widgets/dashboard/ai_insights_card.dart';
+import '../widgets/dashboard/activity_feed.dart';
+import '../widgets/dashboard/quick_actions.dart';
+import 'technician_premium_dashboard.dart';
 import 'settings_screen.dart';
 import 'messages_screen.dart';
 import 'chat_screen.dart';
@@ -19,7 +30,6 @@ class TechnicianHomeScreen extends StatefulWidget {
 class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> with WidgetsBindingObserver {
   late PageController _pageController;
   int _currentIndex = 0;
-  final List<Widget> _screens = const [TechnicianDashboard(), MessagesScreen(), TechnicianJobsScreen(), TechnicianProfileScreen(), SettingsScreen()];
 
   @override
   void initState() { super.initState(); _pageController = PageController(); WidgetsBinding.instance.addObserver(this); }
@@ -28,6 +38,14 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> with Widget
 
   void _onPageChanged(int index) { if (_currentIndex != index) { setState(() => _currentIndex = index); HapticFeedback.lightImpact(); } }
   void _onNavItemTapped(int index) { if (_currentIndex != index) { HapticFeedback.lightImpact(); _pageController.animateToPage(index, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut); } }
+
+  List<Widget> get _screens => [
+    TechnicianPremiumDashboard(onNavigateTab: _onNavItemTapped),
+    const MessagesScreen(),
+    const TechnicianJobsScreen(),
+    const TechnicianProfileScreen(),
+    const SettingsScreen(),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -82,73 +100,123 @@ class TechnicianDashboard extends StatefulWidget {
 
 class _TechnicianDashboardState extends State<TechnicianDashboard> with WidgetsBindingObserver {
   final _locationService = TechnicianLocationService();
+  bool _isOnline = false;
 
   @override
-  void initState() { super.initState(); WidgetsBinding.instance.addObserver(this); _locationService.startPublishing(); }
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _locationService.startPublishing();
+    _loadOnlineStatus();
+  }
+
   @override
-  void dispose() { _locationService.stopPublishing(); WidgetsBinding.instance.removeObserver(this); super.dispose(); }
+  void dispose() {
+    _locationService.stopPublishing();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     switch (state) {
-      case AppLifecycleState.resumed: _locationService.startPublishing(); break;
-      case AppLifecycleState.paused: case AppLifecycleState.inactive: case AppLifecycleState.detached: case AppLifecycleState.hidden: _locationService.stopPublishing(); break;
+      case AppLifecycleState.resumed:
+        _locationService.startPublishing();
+        break;
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        _locationService.stopPublishing();
+        break;
     }
+  }
+
+  Future<void> _loadOnlineStatus() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    if (mounted) {
+      setState(() => _isOnline = doc.data()?['isOnline'] ?? false);
+    }
+  }
+
+  void _toggleOnlineStatus(bool value) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    setState(() => _isOnline = value);
+    FirebaseFirestore.instance.collection('users').doc(uid).update({'isOnline': value});
   }
 
   @override
   Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return const SizedBox.shrink();
+
     return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Dashboard', style: GoogleFonts.spaceGrotesk(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
-          const SizedBox(height: 4),
-          Text('Welcome back', style: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurfaceVariant)),
-          const SizedBox(height: 24),
-          Row(children: [
-            Expanded(child: _statCard('Active Jobs', '3', Icons.work_outline_rounded)),
-            const SizedBox(width: 12),
-            Expanded(child: _statCard('Completed', '47', Icons.check_circle_outline_rounded)),
-          ]),
-          const SizedBox(height: 24),
-          Text('Active Jobs', style: GoogleFonts.spaceGrotesk(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
-          const SizedBox(height: 12),
-          _jobCard('AC Repair', 'Downtown', '\$120'),
-          const SizedBox(height: 8),
-          _jobCard('Plumbing Fix', 'Uptown', '\$85'),
-        ]),
+      child: StreamBuilder(
+        stream: DashboardService.instance.getDashboardMetrics(uid),
+        initialData: DashboardMetrics.empty(),
+        builder: (context, metricsSnapshot) {
+          final metrics = metricsSnapshot.data ?? DashboardMetrics.empty();
+
+          return SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DashboardHeader(
+                  technicianId: uid,
+                  performanceBadge: metrics.performanceBadge,
+                  isOnline: _isOnline,
+                ),
+                const SizedBox(height: AppColors.space24),
+                LiveStatusCard(
+                  metrics: metrics,
+                  onStatusToggle: _toggleOnlineStatus,
+                ),
+                const SizedBox(height: AppColors.space24),
+                StreamBuilder<List<BookingModel>>(
+                  stream: DashboardService.instance.getTodayBookings(uid),
+                  builder: (context, jobsSnapshot) {
+                    final jobs = jobsSnapshot.data ?? [];
+                    return JobsSection(bookings: jobs);
+                  },
+                ),
+                const SizedBox(height: AppColors.space24),
+                AnalyticsSection(metrics: metrics),
+                const SizedBox(height: AppColors.space24),
+                StreamBuilder<List<AIInsight>>(
+                  stream: DashboardService.instance.getAIInsights(uid),
+                  builder: (context, insightsSnapshot) {
+                    final insights = insightsSnapshot.data ?? [];
+                    return AIInsightsSection(insights: insights);
+                  },
+                ),
+                const SizedBox(height: AppColors.space24),
+                StreamBuilder<List<ActivityItem>>(
+                  stream: DashboardService.instance.getRecentActivity(uid),
+                  builder: (context, activitySnapshot) {
+                    final activities = activitySnapshot.data ?? [];
+                    return ActivityFeed(activities: activities);
+                  },
+                ),
+                const SizedBox(height: AppColors.space24),
+                QuickActions(
+                  isOnline: _isOnline,
+                  onGoOnline: () => _toggleOnlineStatus(!_isOnline),
+                  onViewNearbyJobs: () {},
+                  onUpdateAvailability: () {},
+                  onOpenMessages: () {},
+                  onEmergencySupport: () {},
+                ),
+                const SizedBox(height: AppColors.space40),
+              ],
+            ),
+          );
+        },
       ),
-    );
-  }
-
-  Widget _statCard(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.divider)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(icon, color: AppColors.neonAccent, size: 24),
-        const SizedBox(height: 12),
-        Text(value, style: GoogleFonts.spaceGrotesk(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
-        Text(label, style: GoogleFonts.inter(fontSize: 13, color: AppColors.onSurfaceVariant)),
-      ]),
-    );
-  }
-
-  Widget _jobCard(String title, String location, String price) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.divider)),
-      child: Row(children: [
-        Container(width: 44, height: 44, decoration: BoxDecoration(color: AppColors.neonAccent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-          child: Icon(Icons.build_outlined, color: AppColors.neonAccent, size: 20)),
-        const SizedBox(width: 14),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
-          Text(location, style: GoogleFonts.inter(fontSize: 13, color: AppColors.onSurfaceVariant)),
-        ])),
-        Text(price, style: GoogleFonts.spaceGrotesk(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.neonAccent)),
-      ]),
     );
   }
 }
@@ -213,15 +281,33 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) return Center(child: CircularProgressIndicator(color: AppColors.neonAccent));
           final docs = snapshot.data?.docs ?? [];
-          if (docs.isEmpty) return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.inbox_rounded, size: 48, color: AppColors.onSurfaceVariant.withValues(alpha: 0.2)),
-            const SizedBox(height: 12),
-            Text('No requests yet', style: GoogleFonts.inter(fontSize: 15, color: AppColors.onSurfaceVariant)),
-          ]));
+          if (docs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.inbox_rounded,
+                    size: 48,
+                    color: AppColors.onSurfaceVariant.withValues(alpha: 0.2),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No requests yet',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
 
           return ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            itemCount: docs.length, separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemCount: docs.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final data = docs[index].data() as Map<String, dynamic>;
               final desc = data['problemDescription'] as String? ?? 'Needs repair';
