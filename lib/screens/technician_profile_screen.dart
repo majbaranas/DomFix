@@ -5,8 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/booking_service.dart';
 import '../theme/app_colors.dart';
 import 'chat_screen.dart';
+import 'booking_flow_screen.dart';
 
 // ─── DATA MODEL (unchanged) ─────────────────────────────
 class TechnicianProfile {
@@ -16,6 +18,7 @@ class TechnicianProfile {
   final int reviewCount, jobsCompleted, experienceYears;
   final double? distanceKm;
   final bool isAvailable;
+  final List<String> specialties;
   final List<PortfolioItem> portfolio;
   final List<ReviewItem> reviews;
 
@@ -23,7 +26,7 @@ class TechnicianProfile {
     required this.id, required this.name, this.photoUrl, required this.job,
     required this.bio, required this.rating, required this.reviewCount,
     required this.jobsCompleted, required this.experienceYears, required this.replyTime,
-    this.distanceKm, required this.isAvailable, required this.portfolio, required this.reviews,
+    this.distanceKm, required this.isAvailable, required this.specialties, required this.portfolio, required this.reviews,
   });
 
   factory TechnicianProfile.fromFirestore(String id, Map<String, dynamic> data) {
@@ -34,6 +37,10 @@ class TechnicianProfile {
       reviewerName: e['reviewerName'] ?? 'Anonymous', reviewerPhoto: e['reviewerPhoto'],
       rating: (e['rating'] as num?)?.toInt() ?? 5, comment: e['comment'] ?? '', timeAgo: e['timeAgo'] ?? '',
     )).toList();
+    final specialties = (data['specialties'] as List<dynamic>? ?? const [])
+        .map((value) => value.toString().trim())
+        .where((value) => value.isNotEmpty)
+        .toList();
     String job = data['speciality'] ?? data['job'] ?? '';
     if (job.isEmpty) { final specs = data['specialties'] as List<dynamic>?; if (specs != null && specs.isNotEmpty) job = specs.first.toString(); }
     if (job.isEmpty) job = 'Technician';
@@ -43,7 +50,7 @@ class TechnicianProfile {
       rating: (data['rating'] as num?)?.toDouble() ?? 4.5, reviewCount: (data['reviewCount'] as num?)?.toInt() ?? 0,
       jobsCompleted: (data['jobsCompleted'] as num?)?.toInt() ?? 0, experienceYears: (data['experienceYears'] as num?)?.toInt() ?? 1,
       replyTime: data['replyTime'] ?? '< 30m', distanceKm: (data['distance'] as num?)?.toDouble(),
-      isAvailable: data['isAvailable'] ?? false, portfolio: portfolio, reviews: reviews,
+      isAvailable: data['isAvailable'] ?? false, specialties: specialties, portfolio: portfolio, reviews: reviews,
     );
   }
 }
@@ -67,6 +74,7 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
   TechnicianProfile? _profile;
   bool _loading = true;
   String? _error;
+  bool _openingChat = false;
 
   @override
   void initState() { super.initState(); _fetchProfile(); }
@@ -302,7 +310,7 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
         children: [
           Expanded(
             child: GestureDetector(
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(otherUserId: p.id, otherUserName: p.name, otherUserRole: 'technician'))),
+              onTap: _openingChat ? null : () => _openMessageChat(p),
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.divider)),
@@ -314,8 +322,33 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
           Expanded(
             flex: 2,
             child: GestureDetector(
-              onTap: () => showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
-                builder: (context) => _BookingBottomSheet(technician: p)),
+              onTap: () => Navigator.of(context).push(
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) {
+                    return BookingFlowScreen(
+                      technicianId: p.id,
+                      technicianName: p.name,
+                      technicianPhotoUrl: p.photoUrl,
+                      technicianRole: p.job,
+                      availableServices: p.specialties.isNotEmpty ? p.specialties : [p.job],
+                      technicianRating: p.rating,
+                      experienceYears: p.experienceYears,
+                      replyTime: p.replyTime,
+                    );
+                  },
+                  transitionDuration: const Duration(milliseconds: 320),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+                    return FadeTransition(
+                      opacity: curved,
+                      child: SlideTransition(
+                        position: Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(curved),
+                        child: child,
+                      ),
+                    );
+                  },
+                ),
+              ),
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 decoration: BoxDecoration(color: AppColors.neonAccent, borderRadius: BorderRadius.circular(12)),
@@ -326,6 +359,58 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _openMessageChat(TechnicianProfile p) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Please sign in to message this technician.',
+              style: GoogleFonts.inter(),
+            ),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _openingChat = true);
+    try {
+      await BookingService.instance.ensureConversationShell(
+        clientId: user.uid,
+        technicianId: p.id,
+        technicianName: p.name,
+      );
+
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            otherUserId: p.id,
+            otherUserName: p.name,
+            otherUserRole: 'technician',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open chat: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _openingChat = false);
+      }
+    }
   }
 
   Widget _buildSkeleton() {

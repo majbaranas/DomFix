@@ -1,10 +1,12 @@
+import 'dart:async';
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import '../theme/app_colors.dart';
+import '../services/chat_moderation_service.dart';
 import '../services/chat_service.dart';
 import '../services/cloudinary_service.dart';
 import '../models/message_model.dart';
@@ -34,7 +36,10 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isSending = false;
   bool _isRecording = false;
   bool _isUploading = false;
+  bool _isFullAccess = false;
+  bool _chatAccessLoaded = false;
   double _uploadProgress = 0.0;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _chatDocSubscription;
 
   @override
   void initState() {
@@ -45,14 +50,64 @@ class _ChatScreenState extends State<ChatScreen> {
     _chatId = ChatService.generateChatId(currentUserId, otherUserId);
     _messagesStream = _chatService.getMessagesStream(_chatId);
     _messageController.addListener(() { setState(() {}); });
+    _loadChatAccessState();
+    _listenToChatAccessChanges();
     _markMessagesAsSeenAndResetCount();
     Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) _chatService.diagnosticChatAccess(_chatId);
+      if (mounted) {
+        _chatService.diagnosticChatAccess(_chatId);
+      }
     });
   }
 
   @override
-  void dispose() { _messageController.dispose(); _scrollController.dispose(); super.dispose(); }
+  void dispose() {
+    _chatDocSubscription?.cancel();
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadChatAccessState() async {
+    try {
+      final doc = await FirebaseFirestore.instance.collection('chats').doc(_chatId).get();
+      _applyChatAccess(doc.data());
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isFullAccess = false;
+        _chatAccessLoaded = true;
+      });
+    }
+  }
+
+  void _listenToChatAccessChanges() {
+    _chatDocSubscription?.cancel();
+    _chatDocSubscription = FirebaseFirestore.instance
+        .collection('chats')
+        .doc(_chatId)
+        .snapshots()
+        .listen((doc) {
+      _applyChatAccess(doc.data());
+    });
+  }
+
+  void _applyChatAccess(Map<String, dynamic>? data) {
+    final chatData = data ?? <String, dynamic>{};
+    final accessLevel = chatData['accessLevel'] as String? ?? 'limited';
+    final bookingStatus = chatData['bookingStatus'] as String? ?? 'none';
+    final fullAccess = accessLevel == 'full' ||
+        bookingStatus == 'pending' ||
+        bookingStatus == 'confirmed' ||
+        bookingStatus == 'accepted' ||
+        chatData['bookingId'] != null;
+
+    if (!mounted) return;
+    setState(() {
+      _isFullAccess = fullAccess;
+      _chatAccessLoaded = true;
+    });
+  }
 
   Future<void> _markMessagesAsSeenAndResetCount() async {
     try {
@@ -64,6 +119,22 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty || _isSending) return;
     final messageText = _messageController.text.trim();
+
+    if (!_isFullAccess) {
+      final moderation = ChatModerationService.validateLimitedMessage(messageText);
+      if (!moderation.allowed) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(moderation.message ?? 'Message blocked'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+        return;
+      }
+    }
+
     _messageController.clear();
     setState(() => _isSending = true);
     try {
@@ -91,6 +162,8 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           _buildHeader(),
           Expanded(child: _buildChatArea()),
+          if (!_chatAccessLoaded) _buildAccessLoadingBanner(),
+          if (_chatAccessLoaded && !_isFullAccess) _buildLimitedBanner(),
           _buildInputSection(),
         ],
       ),
@@ -203,23 +276,58 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildInputSection() {
-    if (_isRecording) return Padding(padding: const EdgeInsets.all(12), child: AudioRecorderWidget(onAudioRecorded: _handleAudioRecorded, onCancel: () => setState(() => _isRecording = false)));
-    if (_isUploading) return Container(
-      margin: const EdgeInsets.all(12), padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
-      child: Row(children: [
-        CircularProgressIndicator(value: _uploadProgress, color: AppColors.neonAccent, strokeWidth: 2),
-        const SizedBox(width: 12),
-        Text('Uploading... ${(_uploadProgress * 100).toInt()}%', style: GoogleFonts.inter(fontSize: 13, color: AppColors.onSurface)),
-      ]),
-    );
+    if (_isRecording) {
+      return Padding(
+        padding: const EdgeInsets.all(12),
+        child: AudioRecorderWidget(
+          onAudioRecorded: _handleAudioRecorded,
+          onCancel: () => setState(() => _isRecording = false),
+        ),
+      );
+    }
+    if (_isUploading) {
+      return Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            CircularProgressIndicator(
+              value: _uploadProgress,
+              color: AppColors.neonAccent,
+              strokeWidth: 2,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Uploading... ${(_uploadProgress * 100).toInt()}%',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: AppColors.onSurface,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       padding: EdgeInsets.fromLTRB(12, 8, 12, MediaQuery.of(context).padding.bottom + 8),
       decoration: BoxDecoration(color: AppColors.background, border: Border(top: BorderSide(color: AppColors.divider))),
       child: Row(
         children: [
-          GestureDetector(onTap: _showMediaOptions, child: Icon(Icons.add_circle_outline_rounded, color: AppColors.onSurfaceVariant, size: 24)),
+          GestureDetector(
+            onTap: _isFullAccess ? _showMediaOptions : _showLockedFeatureHint,
+            child: Icon(
+              Icons.add_circle_outline_rounded,
+              color: _isFullAccess
+                  ? AppColors.onSurfaceVariant
+                  : AppColors.onSurfaceVariant.withValues(alpha: 0.35),
+              size: 24,
+            ),
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Container(
@@ -238,7 +346,9 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           const SizedBox(width: 8),
           GestureDetector(
-            onTap: _messageController.text.trim().isEmpty ? () => setState(() => _isRecording = true) : (_isSending ? null : _sendMessage),
+            onTap: _messageController.text.trim().isEmpty
+                ? (_isFullAccess ? () => setState(() => _isRecording = true) : _showLockedFeatureHint)
+                : (_isSending ? null : _sendMessage),
             child: Container(
               width: 40, height: 40,
               decoration: BoxDecoration(color: AppColors.neonAccent, borderRadius: BorderRadius.circular(20)),
@@ -250,7 +360,110 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Widget _buildLimitedBanner() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.neonAccent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.lock_outline_rounded,
+              color: AppColors.neonAccent,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Limited chat mode',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Booking unlocks images, voice notes, and richer messaging.',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAccessLoadingBanner() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.neonAccent,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Checking booking access...',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLockedFeatureHint() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Book first to unlock media and voice notes.'),
+        backgroundColor: AppColors.surfaceContainerHigh,
+      ),
+    );
+  }
+
   void _showMediaOptions() {
+    if (!_isFullAccess) {
+      _showLockedFeatureHint();
+      return;
+    }
     showModalBottomSheet(context: context, backgroundColor: Colors.transparent, builder: (context) => Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(color: AppColors.background, borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
@@ -279,6 +492,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // ─── Media handlers (logic unchanged) ─────────────────
   Future<void> _handleAudioRecorded(File audioFile, int duration) async {
+    if (!_isFullAccess) {
+      _showLockedFeatureHint();
+      return;
+    }
     setState(() { _isRecording = false; _isUploading = true; _uploadProgress = 0.0; });
     try {
       if (!await audioFile.exists()) throw Exception('Audio file does not exist');
@@ -292,6 +509,10 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _pickImage() async {
+    if (!_isFullAccess) {
+      _showLockedFeatureHint();
+      return;
+    }
     try {
       final XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: 70);
       if (image != null) await _sendImageMessage(File(image.path), image.name);
@@ -299,6 +520,10 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _takePhoto() async {
+    if (!_isFullAccess) {
+      _showLockedFeatureHint();
+      return;
+    }
     try {
       final XFile? photo = await _imagePicker.pickImage(source: ImageSource.camera, imageQuality: 70);
       if (photo != null) await _sendImageMessage(File(photo.path), photo.name);
@@ -306,6 +531,10 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _pickFile() async {
+    if (!_isFullAccess) {
+      _showLockedFeatureHint();
+      return;
+    }
     try {
       final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'zip']);
       if (result != null && result.files.single.path != null) await _sendFileMessage(File(result.files.single.path!), result.files.single.name);
@@ -313,6 +542,10 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sendImageMessage(File imageFile, String fileName) async {
+    if (!_isFullAccess) {
+      _showLockedFeatureHint();
+      return;
+    }
     setState(() { _isUploading = true; _uploadProgress = 0.0; });
     try {
       if (!await imageFile.exists()) throw Exception('Image file does not exist');
@@ -325,6 +558,10 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sendFileMessage(File file, String fileName) async {
+    if (!_isFullAccess) {
+      _showLockedFeatureHint();
+      return;
+    }
     setState(() { _isUploading = true; _uploadProgress = 0.0; });
     try {
       if (!await file.exists()) throw Exception('File does not exist');
