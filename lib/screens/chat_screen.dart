@@ -96,10 +96,16 @@ class _ChatScreenState extends State<ChatScreen> {
     final chatData = data ?? <String, dynamic>{};
     final accessLevel = chatData['accessLevel'] as String? ?? 'limited';
     final bookingStatus = chatData['bookingStatus'] as String? ?? 'none';
+    final normalizedStatus = bookingStatus.toLowerCase().trim();
     final fullAccess = accessLevel == 'full' ||
-        bookingStatus == 'pending' ||
-        bookingStatus == 'confirmed' ||
-        bookingStatus == 'accepted' ||
+        normalizedStatus == 'pending' ||
+        normalizedStatus == 'confirmed' ||
+        normalizedStatus == 'accepted' ||
+        normalizedStatus == 'on_the_way' ||
+        normalizedStatus == 'arrived' ||
+        normalizedStatus == 'in_progress' ||
+        normalizedStatus == 'completed' ||
+        normalizedStatus == 'cancelled' ||
         chatData['bookingId'] != null;
 
     if (!mounted) return;
@@ -337,7 +343,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 controller: _messageController,
                 style: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurface),
                 decoration: InputDecoration(
-                  hintText: 'Type a message...', hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurfaceVariant.withValues(alpha: 0.4)),
+                  hintText: _isFullAccess
+                      ? 'Type a message...'
+                      : 'Text only until booking is confirmed',
+                  hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurfaceVariant.withValues(alpha: 0.4)),
                   border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(vertical: 12)),
                 maxLines: null, textCapitalization: TextCapitalization.sentences,
                 onSubmitted: (_) => _sendMessage(),
@@ -388,19 +397,12 @@ class _ChatScreenState extends State<ChatScreen> {
           const SizedBox(width: 12),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Limited chat mode',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.onSurface,
-                  ),
-                ),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text('Text only mode', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
                 const SizedBox(height: 4),
                 Text(
-                  'Booking unlocks images, voice notes, and richer messaging.',
+                  'Share photos, voice notes, and files after the booking is confirmed.',
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     color: AppColors.onSurfaceVariant,
@@ -453,7 +455,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showLockedFeatureHint() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Book first to unlock media and voice notes.'),
+        content: Text('Book first to unlock photos, voice notes, and files.'),
         backgroundColor: AppColors.surfaceContainerHigh,
       ),
     );

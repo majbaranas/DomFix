@@ -54,57 +54,69 @@ class DashboardService {
         final data = doc.data();
         final status = (data['status'] as String? ?? 'pending').toLowerCase();
         final isActiveJob =
-            status == 'pending' || status == 'accepted' || status == 'in_progress';
+            status == 'pending' ||
+            status == 'accepted' ||
+            status == 'in_progress';
         if (isActiveJob) activeJobs++;
         totalJobs++;
       }
 
-      final completionRate = totalJobs > 0 ? (completedJobs / totalJobs * 100) : 0.0;
+      final completionRate = totalJobs > 0
+          ? (completedJobs / totalJobs * 100)
+          : 0.0;
       final performanceBadge = _getPerformanceBadge(completionRate, rating);
       final weeklyData = await _getWeeklyEarningsData(technicianId, weekStart);
 
       if (!controller.isClosed) {
-        controller.add(DashboardMetrics(
-          todayEarnings: todayEarnings,
-          weeklyEarnings: weeklyEarnings,
-          activeJobsCount: activeJobs,
-          completedJobsCount: completedJobs,
-          completionRate: completionRate,
-          customerRating: rating,
-          responseTimeMinutes: 0,
-          cancellationRate: totalJobs > 0 ? ((totalJobs - completedJobs) / totalJobs * 100) : 0,
-          weeklyEarningsData: weeklyData,
-          isOnline: isOnline,
-          performanceBadge: performanceBadge,
-          lastUpdated: DateTime.now(),
-        ));
+        controller.add(
+          DashboardMetrics(
+            todayEarnings: todayEarnings,
+            weeklyEarnings: weeklyEarnings,
+            activeJobsCount: activeJobs,
+            completedJobsCount: completedJobs,
+            completionRate: completionRate,
+            customerRating: rating,
+            responseTimeMinutes: 0,
+            cancellationRate: totalJobs > 0
+                ? ((totalJobs - completedJobs) / totalJobs * 100)
+                : 0,
+            weeklyEarningsData: weeklyData,
+            isOnline: isOnline,
+            performanceBadge: performanceBadge,
+            lastUpdated: DateTime.now(),
+          ),
+        );
       }
     }
 
     controller = StreamController<DashboardMetrics>.broadcast(
       onListen: () {
-        userSub = _firestore.collection('users').doc(technicianId).snapshots().listen((userDoc) async {
-          userData = userDoc.data();
-          await emitMetrics();
-        });
+        userSub = _firestore
+            .collection('users')
+            .doc(technicianId)
+            .snapshots()
+            .listen((userDoc) async {
+              userData = userDoc.data();
+              await emitMetrics();
+            });
 
         bookingsSub = _firestore
             .collection('bookings')
             .where('technicianId', isEqualTo: technicianId)
             .snapshots()
             .listen((snapshot) async {
-          bookingDocs = snapshot.docs;
-          await emitMetrics();
-        });
+              bookingDocs = snapshot.docs;
+              await emitMetrics();
+            });
 
         jobsSub = _firestore
             .collection('jobs')
             .where('technicianId', isEqualTo: technicianId)
             .snapshots()
             .listen((snapshot) async {
-          jobDocs = snapshot.docs;
-          await emitMetrics();
-        });
+              jobDocs = snapshot.docs;
+              await emitMetrics();
+            });
       },
       onCancel: () async {
         await userSub?.cancel();
@@ -125,12 +137,27 @@ class DashboardService {
     return _firestore
         .collection('bookings')
         .where('technicianId', isEqualTo: technicianId)
-        .where('status', whereIn: ['pending', 'confirmed', 'accepted'])
+        .where(
+          'status',
+          whereIn: [
+            'pending',
+            'confirmed',
+            'accepted',
+            'on_the_way',
+            'arrived',
+            'in_progress',
+            'in progress',
+          ],
+        )
         .snapshots()
         .map((snapshot) {
           final bookings = snapshot.docs
               .map((doc) => BookingModel.fromFirestore(doc))
-              .where((b) => b.scheduledAt.isAfter(todayStart) && b.scheduledAt.isBefore(tomorrowStart))
+              .where(
+                (b) =>
+                    b.scheduledAt.isAfter(todayStart) &&
+                    b.scheduledAt.isBefore(tomorrowStart),
+              )
               .toList();
           bookings.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
           return bookings;
@@ -152,16 +179,27 @@ class DashboardService {
       for (final doc in bookingDocs) {
         final booking = BookingModel.fromFirestore(doc);
         final updatedAt = booking.updatedAt ?? booking.createdAt;
-        activities.add(ActivityItem(
-          id: 'booking_${booking.id}',
-          type: booking.status == 'completed' ? 'booking' : 'booking',
-          title: booking.status == 'completed' ? 'Job completed' : 'Booking request',
-          description: booking.serviceName.isNotEmpty
-              ? booking.serviceName
-              : booking.description,
-          timestamp: updatedAt,
-          metadata: '\$${booking.technicianFee.toStringAsFixed(0)}',
-        ));
+        final bookingStatus = booking.normalizedStatus;
+        activities.add(
+          ActivityItem(
+            id: 'booking_${booking.id}',
+            type: 'booking',
+            title: switch (bookingStatus) {
+              'accepted' => 'Booking accepted',
+              'on_the_way' => 'Technician on the way',
+              'arrived' => 'Technician arrived',
+              'in_progress' => 'Job started',
+              'completed' => 'Job completed',
+              'cancelled' || 'rejected' => 'Booking cancelled',
+              _ => 'Booking request',
+            },
+            description: booking.serviceName.isNotEmpty
+                ? booking.serviceName
+                : booking.description,
+            timestamp: updatedAt,
+            metadata: '\$${booking.technicianFee.toStringAsFixed(0)}',
+          ),
+        );
       }
 
       for (final doc in jobDocs) {
@@ -169,17 +207,26 @@ class DashboardService {
         final createdAt =
             (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
         final status = (data['status'] as String? ?? 'pending').toLowerCase();
-        final urgency = (data['urgency'] as String? ?? 'Standard');
-        activities.add(ActivityItem(
-          id: 'job_${doc.id}',
-          type: status == 'accepted' ? 'booking' : 'message',
-          title: status == 'accepted'
-              ? 'Request accepted'
-              : 'New booking request',
-          description: (data['problemDescription'] as String? ?? 'Technician request'),
-          timestamp: createdAt,
-          metadata: urgency,
-        ));
+        final urgency = (data['urgency'] as String? ?? 'Medium');
+        activities.add(
+          ActivityItem(
+            id: 'job_${doc.id}',
+            type: status == 'completed' ? 'booking' : 'message',
+            title: switch (status) {
+              'accepted' => 'Request accepted',
+              'on_the_way' => 'Technician on the way',
+              'arrived' => 'Technician arrived',
+              'in_progress' => 'Job started',
+              'completed' => 'Job completed',
+              'rejected' || 'cancelled' => 'Request declined',
+              _ => 'New booking request',
+            },
+            description:
+                (data['problemDescription'] as String? ?? 'Technician request'),
+            timestamp: createdAt,
+            metadata: urgency,
+          ),
+        );
       }
 
       activities.sort((a, b) => b.timestamp.compareTo(a.timestamp));
@@ -196,18 +243,18 @@ class DashboardService {
             .where('technicianId', isEqualTo: technicianId)
             .snapshots()
             .listen((snapshot) {
-          bookingDocs = snapshot.docs;
-          emitActivity();
-        });
+              bookingDocs = snapshot.docs;
+              emitActivity();
+            });
 
         jobsSub = _firestore
             .collection('jobs')
             .where('technicianId', isEqualTo: technicianId)
             .snapshots()
             .listen((snapshot) {
-          jobDocs = snapshot.docs;
-          emitActivity();
-        });
+              jobDocs = snapshot.docs;
+              emitActivity();
+            });
       },
       onCancel: () async {
         await bookingsSub?.cancel();
@@ -225,47 +272,55 @@ class DashboardService {
       final insights = <AIInsight>[];
 
       if (metrics.activeJobsCount > 3) {
-        insights.add(AIInsight(
-          id: 'high_demand',
-          title: 'High Demand Detected',
-          description: 'Multiple bookings in your area right now',
-          icon: '⚡',
-          category: 'opportunity',
-          metric: metrics.activeJobsCount.toDouble(),
-        ));
+        insights.add(
+          AIInsight(
+            id: 'high_demand',
+            title: 'High Demand Detected',
+            description: 'Multiple bookings in your area right now',
+            icon: '⚡',
+            category: 'opportunity',
+            metric: metrics.activeJobsCount.toDouble(),
+          ),
+        );
       }
 
       if (metrics.completionRate > 95) {
-        insights.add(AIInsight(
-          id: 'excellent_performance',
-          title: 'Excellent Performance',
-          description: 'You\'re performing better than 95% of technicians',
-          icon: '🏆',
-          category: 'performance',
-          metric: metrics.completionRate,
-        ));
+        insights.add(
+          AIInsight(
+            id: 'excellent_performance',
+            title: 'Excellent Performance',
+            description: 'You\'re performing better than 95% of technicians',
+            icon: '🏆',
+            category: 'performance',
+            metric: metrics.completionRate,
+          ),
+        );
       }
 
       if (metrics.todayEarnings > 200) {
-        insights.add(AIInsight(
-          id: 'great_earnings',
-          title: 'Great Earning Day',
-          description: 'You\'re on track for your best day this week',
-          icon: '💰',
-          category: 'earnings',
-          metric: metrics.todayEarnings,
-        ));
+        insights.add(
+          AIInsight(
+            id: 'great_earnings',
+            title: 'Great Earning Day',
+            description: 'You\'re on track for your best day this week',
+            icon: '💰',
+            category: 'earnings',
+            metric: metrics.todayEarnings,
+          ),
+        );
       }
 
       if (metrics.customerRating >= 4.8) {
-        insights.add(AIInsight(
-          id: 'top_rated',
-          title: 'Top Rated Technician',
-          description: 'Your customer satisfaction is excellent',
-          icon: '⭐',
-          category: 'rating',
-          metric: metrics.customerRating,
-        ));
+        insights.add(
+          AIInsight(
+            id: 'top_rated',
+            title: 'Top Rated Technician',
+            description: 'Your customer satisfaction is excellent',
+            icon: '⭐',
+            category: 'rating',
+            metric: metrics.customerRating,
+          ),
+        );
       }
 
       yield insights;
@@ -279,7 +334,10 @@ class DashboardService {
     return 'Active';
   }
 
-  Future<List<double>> _getWeeklyEarningsData(String technicianId, DateTime weekStart) async {
+  Future<List<double>> _getWeeklyEarningsData(
+    String technicianId,
+    DateTime weekStart,
+  ) async {
     final data = List<double>.filled(7, 0.0);
     final bookings = await _firestore
         .collection('bookings')

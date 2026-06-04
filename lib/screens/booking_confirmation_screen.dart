@@ -82,7 +82,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen>
                     color: AppColors.onSurface,
                   ),
                   Text(
-                    'Booking confirmed',
+                    'Booking sent',
                     style: GoogleFonts.spaceGrotesk(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -119,7 +119,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen>
                         ),
                         const SizedBox(height: 24),
                         Text(
-                          'Your booking is live',
+                        'Your booking request is live',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.spaceGrotesk(
                             fontSize: 28,
@@ -138,7 +138,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen>
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Full chat is unlocked. You can now share images, send voice notes, and stay in real-time contact with ${widget.technicianName}.',
+                          'Full chat is unlocked now. You can share photos, send voice notes, and stay in real-time contact with ${widget.technicianName}.',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.inter(
                             fontSize: 14,
@@ -265,7 +265,7 @@ class _InfoCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Conversation unlocked for service coordination',
+                          'Conversation unlocked for service coordination',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         color: AppColors.onSurfaceVariant,
@@ -286,10 +286,35 @@ class _InfoCard extends StatelessWidget {
             value: booking.scheduledTimeLabel,
           ),
           const SizedBox(height: 10),
-          _InfoRow(label: 'Status', value: booking.status.toUpperCase()),
+          _InfoRow(
+            label: 'Status',
+            value: _formatStatus(booking.status),
+          ),
         ],
       ),
     );
+  }
+
+  String _formatStatus(String status) {
+    switch (status.toLowerCase().trim()) {
+      case 'pending':
+        return 'Pending review';
+      case 'accepted':
+        return 'Accepted';
+      case 'on_the_way':
+        return 'On the way';
+      case 'arrived':
+        return 'Arrived';
+      case 'in_progress':
+        return 'In progress';
+      case 'completed':
+        return 'Completed';
+      case 'cancelled':
+      case 'rejected':
+        return 'Cancelled';
+      default:
+        return status;
+    }
   }
 }
 

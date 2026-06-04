@@ -130,9 +130,12 @@ class _ChatListItem extends StatelessWidget {
         final userData = userSnapshot.data?.exists == true ? userSnapshot.data!.data() as Map<String, dynamic> : <String, dynamic>{};
         final name = userData['name'] ?? userData['email'] ?? 'Unknown';
         final photoUrl = userData['profileImage'] ?? userData['photoUrl'];
+        final isLimitedChat =
+            (chatData['accessLevel'] as String? ?? 'limited') != 'full' &&
+            chatData['bookingId'] == null;
         final lastMessage = (chatData['lastMessage'] as String?)?.trim().isNotEmpty == true
             ? chatData['lastMessage'] as String
-            : 'New conversation';
+            : (isLimitedChat ? 'Text only until booking' : 'New conversation');
         final timestamp = chatData['lastMessageTime'] as Timestamp?;
         final unreadCount = chatService.getUnreadCount(chatData);
         final isUnread = unreadCount > 0;

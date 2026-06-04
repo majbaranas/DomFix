@@ -59,7 +59,11 @@ class BookingService {
     return accessLevel == 'full' ||
         bookingStatus == 'pending' ||
         bookingStatus == 'confirmed' ||
-        bookingStatus == 'accepted';
+        bookingStatus == 'accepted' ||
+        bookingStatus == 'on_the_way' ||
+        bookingStatus == 'arrived' ||
+        bookingStatus == 'in_progress' ||
+        bookingStatus == 'completed';
   }
 
   Future<BookingModel> createBooking({
@@ -81,7 +85,9 @@ class BookingService {
     required double platformFee,
   }) async {
     final chatId = chatIdFor(clientId, technicianId);
-    final bookingRef = _firestore.collection('bookings').doc(bookingId);
+    final bookingRef = bookingId == null
+        ? _firestore.collection('bookings').doc()
+        : _firestore.collection('bookings').doc(bookingId);
     final booking = BookingModel(
       id: bookingRef.id,
       chatId: chatId,
@@ -108,6 +114,9 @@ class BookingService {
     final batch = _firestore.batch();
     final bookingRefFirestore = bookingRef;
     final chatRef = _firestore.collection('chats').doc(chatId);
+    final clientNotificationRef = _firestore.collection('notifications').doc();
+    final technicianNotificationRef =
+        _firestore.collection('notifications').doc();
 
     batch.set(bookingRefFirestore, booking.toFirestore());
     batch.set(
@@ -122,11 +131,57 @@ class BookingService {
         'accessLevel': 'full',
         'canShareImages': true,
         'canUseVoiceNotes': true,
-        'lastMessage': 'Booking confirmed for $serviceName',
+        'lastMessage': 'Booking request sent for $serviceName',
         'lastMessageTime': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
+    );
+
+    batch.set(
+      clientNotificationRef,
+      {
+        'recipientId': clientId,
+        'senderId': clientId,
+        'type': 'booking_submitted',
+        'title': 'Booking request sent',
+        'body':
+            'We sent your $serviceName request to $technicianName and unlocked chat.',
+        'bookingId': booking.id,
+        'chatId': chatId,
+        'status': 'pending',
+        'serviceName': serviceName,
+        'urgency': urgency,
+        'metadata': {
+          'scheduledTimeLabel': scheduledTimeLabel,
+        },
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+    );
+
+    batch.set(
+      technicianNotificationRef,
+      {
+        'recipientId': technicianId,
+        'senderId': clientId,
+        'type': 'booking_request',
+        'title': 'New booking request',
+        'body': '$serviceName requested for $scheduledTimeLabel',
+        'bookingId': booking.id,
+        'chatId': chatId,
+        'status': 'pending',
+        'serviceName': serviceName,
+        'urgency': urgency,
+        'metadata': {
+          'scheduledAt': Timestamp.fromDate(scheduledAt),
+          'description': description,
+        },
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
     );
 
     await batch.commit();

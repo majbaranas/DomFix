@@ -47,15 +47,24 @@ class BookingModel {
     this.updatedAt,
   });
 
-  bool get isActive =>
-      status == 'pending' || status == 'confirmed' || status == 'accepted';
+  String get normalizedStatus => status.toLowerCase().trim();
+
+  bool get isActive {
+    return normalizedStatus == 'pending' ||
+        normalizedStatus == 'confirmed' ||
+        normalizedStatus == 'accepted' ||
+        normalizedStatus == 'on_the_way' ||
+        normalizedStatus == 'arrived' ||
+        normalizedStatus == 'in_progress' ||
+        normalizedStatus == 'in progress';
+  }
 
   factory BookingModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    final scheduledAt = (data['scheduledAt'] as Timestamp?)?.toDate() ??
-        DateTime.now();
-    final createdAt = (data['createdAt'] as Timestamp?)?.toDate() ??
-        DateTime.now();
+    final scheduledAt =
+        (data['scheduledAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+    final createdAt =
+        (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
     final updatedAt = (data['updatedAt'] as Timestamp?)?.toDate();
 
     return BookingModel(
@@ -75,10 +84,8 @@ class BookingModel {
       imageUrls: List<String>.from(data['imageUrls'] ?? const []),
       estimatedDurationMinutes:
           (data['estimatedDurationMinutes'] as num?)?.toInt() ?? 60,
-      estimatedPriceMin:
-          (data['estimatedPriceMin'] as num?)?.toDouble() ?? 0.0,
-      estimatedPriceMax:
-          (data['estimatedPriceMax'] as num?)?.toDouble() ?? 0.0,
+      estimatedPriceMin: (data['estimatedPriceMin'] as num?)?.toDouble() ?? 0.0,
+      estimatedPriceMax: (data['estimatedPriceMax'] as num?)?.toDouble() ?? 0.0,
       technicianFee: (data['technicianFee'] as num?)?.toDouble() ?? 0.0,
       platformFee: (data['platformFee'] as num?)?.toDouble() ?? 0.0,
       createdAt: createdAt,

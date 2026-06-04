@@ -7,7 +7,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/booking_service.dart';
-import '../services/chat_service.dart';
 import '../services/firebase_storage_service.dart';
 import '../theme/app_colors.dart';
 import 'booking_confirmation_screen.dart';
@@ -53,7 +52,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
   DateTime _selectedDate = DateTime.now();
   _AvailabilitySlot? _selectedSlot;
   String? _selectedService;
-  String _urgency = 'Normal';
+  String _urgency = 'Medium';
   List<_AvailabilitySlot> _slots = [];
   int _currentStep = 0;
   bool _isSubmitting = false;
@@ -293,7 +292,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
                     : 90;
 
     final urgencyMultiplier = switch (_urgency) {
-      'Urgent' => 1.18,
+      'High' => 1.18,
       'Emergency' => 1.42,
       _ => 1.0,
     };
@@ -411,16 +410,6 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         technicianFee: estimate.technicianFee,
         platformFee: estimate.platformFee,
       );
-
-      try {
-        await ChatService().sendMessage(
-          receiverId: widget.technicianId,
-          text:
-              'Booking confirmed for ${_selectedService!} on ${_formatDate(_selectedDate)} at ${_selectedSlot!.label}.',
-        );
-      } catch (e) {
-        debugPrint('[BookingFlow] Unable to send booking summary message: $e');
-      }
 
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
@@ -1072,11 +1061,12 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         ),
         const SizedBox(height: 10),
         Row(
-          children: ['Normal', 'Urgent', 'Emergency'].map((urgency) {
+          children: ['Low', 'Medium', 'High', 'Emergency'].map((urgency) {
             final selected = _urgency == urgency;
             final color = switch (urgency) {
-              'Urgent' => const Color(0xFFFFB84D),
+              'High' => const Color(0xFFFFB84D),
               'Emergency' => AppColors.emergency,
+              'Low' => Colors.cyanAccent,
               _ => AppColors.neonAccent,
             };
             return Expanded(

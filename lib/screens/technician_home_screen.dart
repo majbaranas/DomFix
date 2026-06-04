@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/technician_location_service.dart';
 import '../services/dashboard_service.dart';
+import '../services/notification_service.dart';
 import '../theme/app_colors.dart';
 import '../services/chat_service.dart';
 import '../models/booking_model.dart';
@@ -228,36 +229,439 @@ class TechnicianJobsScreen extends StatefulWidget {
 }
 
 class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
-  String _timeAgo(Timestamp? t) {
-    if (t == null) return 'Just now';
-    final diff = DateTime.now().difference(t.toDate());
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final NotificationService _notificationService = NotificationService.instance;
+  final Map<String, Future<DocumentSnapshot<Map<String, dynamic>>>>
+      _clientFutureCache = {};
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> _clientDoc(String userId) {
+    return _clientFutureCache.putIfAbsent(
+      userId,
+      () => _firestore.collection('users').doc(userId).get(),
+    );
+  }
+
+  String _timeAgo(DateTime timestamp) {
+    final diff = DateTime.now().difference(timestamp);
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     return '${diff.inDays}d ago';
   }
 
-  void _showJobDialog(Map<String, dynamic> data) {
-    showDialog(context: context, builder: (ctx) => AlertDialog(
-      backgroundColor: AppColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text('Review Request', style: GoogleFonts.spaceGrotesk(color: AppColors.onSurface, fontWeight: FontWeight.w700)),
-      content: Text(data['problemDescription'] ?? 'No description.', style: GoogleFonts.inter(color: AppColors.onSurfaceVariant, height: 1.5)),
-      actions: [
-        TextButton(onPressed: () async { Navigator.pop(ctx); await FirebaseFirestore.instance.collection('jobs').doc(data['jobId']).update({'status': 'rejected'}); },
-          child: Text('Reject', style: TextStyle(color: AppColors.error))),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: AppColors.neonAccent, foregroundColor: AppColors.onPrimary, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-          onPressed: () async {
-            Navigator.pop(ctx);
-            final String jobId = data['jobId'];
-            await FirebaseFirestore.instance.collection('jobs').doc(jobId).update({'status': 'accepted'});
-            try { await ChatService().sendMessage(receiverId: data['userId'], text: data['problemDescription']); } catch (_) {}
-            if (mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(otherUserId: data['userId'], otherUserName: 'Client', otherUserRole: 'client')));
-          },
-          child: const Text('Accept'),
+  String _statusLabel(String status) {
+    switch (_normalizeStatus(status)) {
+      case 'accepted':
+        return 'Accepted';
+      case 'confirmed':
+        return 'Confirmed';
+      case 'on_the_way':
+        return 'On the way';
+      case 'arrived':
+        return 'Arrived';
+      case 'in_progress':
+        return 'In progress';
+      case 'completed':
+        return 'Completed';
+      case 'rejected':
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return 'Pending';
+    }
+  }
+
+  int _urgencyPriority(String urgency) {
+    switch (urgency.toLowerCase().trim()) {
+      case 'emergency':
+        return 0;
+      case 'high':
+      case 'urgent':
+        return 1;
+      case 'medium':
+      case 'normal':
+      case 'standard':
+        return 2;
+      case 'low':
+        return 3;
+      default:
+        return 2;
+    }
+  }
+
+  Color _urgencyColor(String urgency) {
+    switch (urgency.toLowerCase().trim()) {
+      case 'emergency':
+        return AppColors.emergency;
+      case 'high':
+      case 'urgent':
+        return Colors.orangeAccent;
+      case 'medium':
+      case 'standard':
+      case 'normal':
+        return AppColors.neonAccent;
+      case 'low':
+        return Colors.cyanAccent;
+      default:
+        return Colors.cyanAccent;
+    }
+  }
+
+  String _normalizeStatus(String status) {
+    final lower = status.toLowerCase().trim();
+    if (lower == 'in progress') return 'in_progress';
+    if (lower == 'on the way') return 'on_the_way';
+    return lower;
+  }
+
+  bool _isPending(_TechnicianQueueItem item) {
+    return _normalizeStatus(item.status) == 'pending';
+  }
+
+  bool _isActive(_TechnicianQueueItem item) {
+    final normalized = _normalizeStatus(item.status);
+    if (item.isBooking) {
+      return normalized == 'accepted' ||
+          normalized == 'confirmed' ||
+          normalized == 'on_the_way' ||
+          normalized == 'arrived' ||
+          normalized == 'in_progress';
+    }
+    return normalized == 'accepted' ||
+        normalized == 'on_the_way' ||
+        normalized == 'arrived' ||
+        normalized == 'in_progress' ||
+        normalized == 'confirmed';
+  }
+
+  int _compareRequests(_TechnicianQueueItem a, _TechnicianQueueItem b) {
+    final urgencyA = _urgencyPriority(a.urgency);
+    final urgencyB = _urgencyPriority(b.urgency);
+    if (urgencyA != urgencyB) return urgencyA.compareTo(urgencyB);
+
+    final statusA = a.workflowPriority;
+    final statusB = b.workflowPriority;
+    if (statusA != statusB) return statusA.compareTo(statusB);
+
+    return b.updatedAt.compareTo(a.updatedAt);
+  }
+
+  Future<void> _acceptRequest(_TechnicianQueueItem item) async {
+    if (item.isBooking) {
+      await _updateBookingStatus(item.booking!, 'accepted');
+    } else {
+      await _updateJobStatus(item, 'accepted');
+    }
+  }
+
+  Future<void> _declineRequest(_TechnicianQueueItem item) async {
+    if (item.isBooking) {
+      await _updateBookingStatus(item.booking!, 'rejected');
+    } else {
+      await _updateJobStatus(item, 'rejected');
+    }
+  }
+
+  Future<void> _advanceRequest(_TechnicianQueueItem item) async {
+    if (item.isBooking) {
+      final current = _normalizeStatus(item.status);
+      final next = switch (current) {
+        'pending' => 'accepted',
+        'accepted' || 'confirmed' => 'on_the_way',
+        'on_the_way' => 'arrived',
+        'arrived' => 'in_progress',
+        'in_progress' => 'completed',
+        _ => current,
+      };
+      if (next == current) return;
+      await _updateBookingStatus(item.booking!, next);
+    } else {
+      final current = _normalizeStatus(item.status);
+      final next = switch (current) {
+        'pending' => 'accepted',
+        'accepted' => 'in_progress',
+        'in_progress' => 'completed',
+        _ => current,
+      };
+      if (next == current) return;
+      await _updateJobStatus(item, next);
+    }
+  }
+
+  Future<void> _updateJobStatus(_TechnicianQueueItem item, String status) async {
+    final normalized = _normalizeStatus(status);
+    await _firestore.collection('jobs').doc(item.id).update({
+      'status': normalized,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    final technicianId = FirebaseAuth.instance.currentUser?.uid;
+    if (technicianId != null && technicianId.isNotEmpty) {
+      final chatId = ChatService.generateChatId(item.clientId, technicianId);
+      await _firestore.collection('chats').doc(chatId).set({
+        'participants': [item.clientId, technicianId],
+        'bookingStatus': normalized,
+        'accessLevel': normalized == 'rejected' ? 'limited' : 'full',
+        'canShareImages': normalized != 'rejected',
+        'canUseVoiceNotes': normalized != 'rejected',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+
+    await _sendQueueNotification(
+      recipientId: item.clientId,
+      senderId: FirebaseAuth.instance.currentUser?.uid ?? item.clientId,
+      type: 'job_$normalized',
+      title: _statusLabel(normalized),
+      body: item.serviceTitle,
+      jobId: item.id,
+      status: normalized,
+      serviceName: item.serviceTitle,
+      urgency: item.urgency,
+    );
+  }
+
+  Future<void> _updateBookingStatus(BookingModel booking, String status) async {
+    final normalized = _normalizeStatus(status);
+    await _firestore.collection('bookings').doc(booking.id).update({
+      'status': normalized,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await _firestore.collection('chats').doc(booking.chatId).set({
+      'participants': [booking.clientId, booking.technicianId],
+      'bookingId': booking.id,
+      'bookingStatus': normalized,
+      'accessLevel': normalized == 'rejected' ? 'limited' : 'full',
+      'canShareImages': normalized != 'rejected',
+      'canUseVoiceNotes': normalized != 'rejected',
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await _sendQueueNotification(
+      recipientId: booking.clientId,
+      senderId: FirebaseAuth.instance.currentUser?.uid ?? booking.technicianId,
+      type: 'booking_$normalized',
+      title: _statusLabel(normalized),
+      body: booking.serviceName,
+      bookingId: booking.id,
+      chatId: booking.chatId,
+      status: normalized,
+      serviceName: booking.serviceName,
+      urgency: booking.urgency,
+      metadata: {
+        'scheduledAt': booking.scheduledAt.toIso8601String(),
+        'scheduledTimeLabel': booking.scheduledTimeLabel,
+      },
+    );
+  }
+
+  Future<void> _sendQueueNotification({
+    required String recipientId,
+    required String senderId,
+    required String type,
+    required String title,
+    required String body,
+    String? bookingId,
+    String? chatId,
+    String? jobId,
+    String? status,
+    String? serviceName,
+    String? urgency,
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      await _notificationService.createNotification(
+        recipientId: recipientId,
+        senderId: senderId,
+        type: type,
+        title: title,
+        body: body,
+        bookingId: bookingId,
+        chatId: chatId,
+        jobId: jobId,
+        status: status,
+        serviceName: serviceName,
+        urgency: urgency,
+        metadata: metadata,
+      );
+    } catch (e) {
+      debugPrint('[TechnicianJobsScreen] Notification write failed: $e');
+    }
+  }
+
+  void _openChat(String clientId, String clientName) {
+    if (clientId.isEmpty) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          otherUserId: clientId,
+          otherUserName: clientName,
+          otherUserRole: 'client',
         ),
+      ),
+    );
+  }
+
+  List<_TechnicianQueueItem> _mergeRequests(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> jobDocs,
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> bookingDocs,
+  ) {
+    final items = <_TechnicianQueueItem>[
+      ...jobDocs.map(_TechnicianQueueItem.fromJobDoc),
+      ...bookingDocs.map((doc) => _TechnicianQueueItem.fromBooking(
+            BookingModel.fromFirestore(doc),
+          )),
+    ];
+    items.sort(_compareRequests);
+    return items;
+  }
+
+  Widget _buildSection({
+    required String title,
+    required String subtitle,
+    required List<_TechnicianQueueItem> items,
+    required bool emptyIsActive,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.onSurface,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: AppColors.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (items.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: Text(
+                emptyIsActive ? 'No active jobs yet.' : 'No requests right now.',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: AppColors.onSurfaceVariant,
+                ),
+              ),
+            ),
+          )
+        else
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: items.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final item = items[index];
+              return _QueueCard(
+                item: item,
+                clientFuture: _clientDoc(item.clientId),
+                timeAgo: _timeAgo(item.updatedAt),
+                statusLabel: _statusLabel(item.status),
+                urgencyLabel: item.urgency,
+                urgencyColor: _urgencyColor(item.urgency),
+                onAccept: () => _acceptRequest(item),
+                onDecline: () => _declineRequest(item),
+                onPrimaryAction: () => _advanceRequest(item),
+                primaryActionLabel: _primaryActionLabel(item),
+                primaryActionIcon: _primaryActionIcon(item),
+                onMessage: (name) => _openChat(item.clientId, name),
+              );
+            },
+          ),
       ],
-    ));
+    );
+  }
+
+  String _primaryActionLabel(_TechnicianQueueItem item) {
+    final status = _normalizeStatus(item.status);
+    if (!item.isBooking) {
+      switch (status) {
+        case 'pending':
+          return 'Accept';
+        case 'accepted':
+          return 'Start job';
+        case 'in_progress':
+          return 'Complete';
+        default:
+          return 'Update';
+      }
+    }
+
+    switch (status) {
+      case 'pending':
+        return 'Accept';
+      case 'accepted':
+      case 'confirmed':
+        return 'On the way';
+      case 'on_the_way':
+        return 'Arrived';
+      case 'arrived':
+        return 'Start job';
+      case 'in_progress':
+        return 'Complete';
+      default:
+        return 'Update';
+    }
+  }
+
+  IconData _primaryActionIcon(_TechnicianQueueItem item) {
+    final status = _normalizeStatus(item.status);
+    if (!item.isBooking) {
+      switch (status) {
+        case 'pending':
+          return Icons.check_rounded;
+        case 'accepted':
+          return Icons.play_arrow_rounded;
+        case 'in_progress':
+          return Icons.check_circle_rounded;
+        default:
+          return Icons.sync_rounded;
+      }
+    }
+
+    switch (status) {
+      case 'pending':
+        return Icons.check_rounded;
+      case 'accepted':
+      case 'confirmed':
+        return Icons.navigation_rounded;
+      case 'on_the_way':
+        return Icons.location_on_rounded;
+      case 'arrived':
+        return Icons.play_arrow_rounded;
+      case 'in_progress':
+        return Icons.check_circle_rounded;
+      default:
+        return Icons.sync_rounded;
+    }
   }
 
   @override
@@ -265,97 +669,512 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return const SizedBox.shrink();
 
-    return SafeArea(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Padding(padding: const EdgeInsets.fromLTRB(20, 20, 20, 0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Nearby Requests', style: GoogleFonts.spaceGrotesk(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
-        const SizedBox(height: 4),
-        Row(children: [
-          Container(width: 6, height: 6, decoration: BoxDecoration(color: AppColors.success, shape: BoxShape.circle)),
-          const SizedBox(width: 8),
-          Text('Searching for jobs', style: GoogleFonts.inter(fontSize: 13, color: AppColors.onSurfaceVariant)),
-        ]),
-      ])),
-      const SizedBox(height: 16),
-      Expanded(child: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('jobs').where('technicianId', isEqualTo: uid).where('status', isEqualTo: 'pending').snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) return Center(child: CircularProgressIndicator(color: AppColors.neonAccent));
-          final docs = snapshot.data?.docs ?? [];
-          if (docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.inbox_rounded,
-                    size: 48,
-                    color: AppColors.onSurfaceVariant.withValues(alpha: 0.2),
+    return SafeArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Jobs',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.onSurface,
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'No requests yet',
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      color: AppColors.onSurfaceVariant,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Live requests update automatically. Emergency jobs appear first.',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _firestore
+                  .collection('jobs')
+                  .where('technicianId', isEqualTo: uid)
+                  .snapshots(),
+              builder: (context, jobsSnapshot) {
+                final jobDocs = jobsSnapshot.data?.docs ?? const [];
+                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: _firestore
+                      .collection('bookings')
+                      .where('technicianId', isEqualTo: uid)
+                      .snapshots(),
+                  builder: (context, bookingsSnapshot) {
+                    final bookingDocs = bookingsSnapshot.data?.docs ?? const [];
+                    final items = _mergeRequests(jobDocs, bookingDocs);
+                    final pending = items.where(_isPending).toList();
+                    final active = items.where(_isActive).toList();
+                    final allEmpty = pending.isEmpty && active.isEmpty;
+
+                    if (jobsSnapshot.connectionState == ConnectionState.waiting &&
+                        bookingsSnapshot.connectionState ==
+                            ConnectionState.waiting) {
+                      return Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.neonAccent,
+                        ),
+                      );
+                    }
+
+                    if (allEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.inbox_rounded,
+                              size: 48,
+                              color: AppColors.onSurfaceVariant
+                                  .withValues(alpha: 0.2),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No requests yet',
+                              style: GoogleFonts.inter(
+                                fontSize: 15,
+                                color: AppColors.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return ListView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.only(bottom: 24),
+                      children: [
+                        _buildSection(
+                          title: 'Active Jobs',
+                          subtitle: 'Work that needs attention right now',
+                          items: active,
+                          emptyIsActive: true,
+                        ),
+                        const SizedBox(height: 18),
+                        _buildSection(
+                          title: 'New Requests',
+                          subtitle: 'Accept or decline with one tap',
+                          items: pending,
+                          emptyIsActive: false,
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TechnicianQueueItem {
+  final String id;
+  final bool isBooking;
+  final BookingModel? booking;
+  final Map<String, dynamic>? jobData;
+  final String clientId;
+  final String serviceTitle;
+  final String urgency;
+  final String status;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final double distanceKm;
+  final String? estimatedPrice;
+
+  const _TechnicianQueueItem._({
+    required this.id,
+    required this.isBooking,
+    required this.clientId,
+    required this.serviceTitle,
+    required this.urgency,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.distanceKm,
+    required this.estimatedPrice,
+    this.booking,
+    this.jobData,
+  });
+
+  factory _TechnicianQueueItem.fromJobDoc(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data();
+    final createdAt =
+        (data['createdAt'] as Timestamp?)?.toDate() ??
+        (data['updatedAt'] as Timestamp?)?.toDate() ??
+        DateTime.now();
+    final updatedAt = (data['updatedAt'] as Timestamp?)?.toDate() ?? createdAt;
+    return _TechnicianQueueItem._(
+      id: doc.id,
+      isBooking: false,
+      jobData: data,
+      clientId: (data['userId'] ?? data['clientId'] ?? '').toString(),
+      serviceTitle: (data['serviceName'] ??
+              data['problemDescription'] ??
+              'Service request')
+          .toString(),
+      urgency: (data['urgency'] ?? 'Medium').toString(),
+      status: (data['status'] ?? 'pending').toString(),
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      distanceKm: (data['distance'] as num?)?.toDouble() ?? 0.0,
+      estimatedPrice: data['estimatedPrice']?.toString(),
+    );
+  }
+
+  factory _TechnicianQueueItem.fromBooking(BookingModel booking) {
+    return _TechnicianQueueItem._(
+      id: booking.id,
+      isBooking: true,
+      booking: booking,
+      clientId: booking.clientId,
+      serviceTitle: booking.serviceName,
+      urgency: booking.urgency,
+      status: booking.status,
+      createdAt: booking.createdAt,
+      updatedAt: booking.updatedAt ?? booking.createdAt,
+      distanceKm: 0.0,
+      estimatedPrice: booking.technicianFee > 0
+          ? booking.technicianFee.toStringAsFixed(0)
+          : null,
+    );
+  }
+
+  int get urgencyPriority {
+    switch (urgency.toLowerCase().trim()) {
+      case 'emergency':
+        return 0;
+      case 'high':
+      case 'urgent':
+        return 1;
+      case 'medium':
+      case 'standard':
+      case 'normal':
+        return 2;
+      case 'low':
+        return 3;
+      default:
+        return 2;
+    }
+  }
+
+  int get workflowPriority {
+    final normalized = status.toLowerCase().trim();
+    if (isBooking) {
+      return switch (normalized) {
+        'in_progress' => 0,
+        'arrived' => 1,
+        'on_the_way' => 2,
+        'accepted' => 3,
+        'confirmed' => 3,
+        'pending' => 4,
+        _ => 5,
+      };
+    }
+
+    return switch (normalized) {
+      'in_progress' => 0,
+      'accepted' => 1,
+      'pending' => 4,
+      _ => 5,
+    };
+  }
+
+  bool get isPending => status.toLowerCase().trim() == 'pending';
+  bool get isActive {
+    final normalized = status.toLowerCase().trim();
+    if (isBooking) {
+      return normalized == 'accepted' ||
+          normalized == 'confirmed' ||
+          normalized == 'on_the_way' ||
+          normalized == 'arrived' ||
+          normalized == 'in_progress';
+    }
+    return normalized == 'accepted' || normalized == 'in_progress';
+  }
+}
+
+class _QueueCard extends StatelessWidget {
+  const _QueueCard({
+    required this.item,
+    required this.clientFuture,
+    required this.timeAgo,
+    required this.statusLabel,
+    required this.urgencyLabel,
+    required this.urgencyColor,
+    required this.onAccept,
+    required this.onDecline,
+    required this.onPrimaryAction,
+    required this.primaryActionLabel,
+    required this.primaryActionIcon,
+    required this.onMessage,
+  });
+
+  final _TechnicianQueueItem item;
+  final Future<DocumentSnapshot<Map<String, dynamic>>> clientFuture;
+  final String timeAgo;
+  final String statusLabel;
+  final String urgencyLabel;
+  final Color urgencyColor;
+  final VoidCallback onAccept;
+  final VoidCallback onDecline;
+  final VoidCallback onPrimaryAction;
+  final String primaryActionLabel;
+  final IconData primaryActionIcon;
+  final void Function(String clientName) onMessage;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: clientFuture,
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data();
+        final clientName = (data?['fullName'] ?? data?['name'] ?? 'Client')
+            .toString();
+        final phone = (data?['phone'] ?? data?['phoneNumber'] ?? '')
+            .toString();
+        final priceText = item.isBooking
+            ? (item.estimatedPrice != null
+                ? '${item.estimatedPrice} MAD'
+                : 'Estimate pending')
+            : (item.estimatedPrice?.isNotEmpty == true
+                ? item.estimatedPrice!
+                : 'Estimate pending');
+        final secondaryText = item.isBooking
+            ? (item.booking?.scheduledTimeLabel ?? 'Scheduled')
+            : (item.distanceKm > 0
+                ? '${item.distanceKm.toStringAsFixed(1)} km'
+                : 'Nearby');
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.serviceTitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            height: 1.35,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          clientName,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: urgencyColor.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      urgencyLabel,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: urgencyColor,
+                      ),
                     ),
                   ),
                 ],
               ),
-            );
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            itemCount: docs.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final data = docs[index].data() as Map<String, dynamic>;
-              final desc = data['problemDescription'] as String? ?? 'Needs repair';
-              final dist = data['distance'] as double? ?? 0.0;
-              final price = data['estimatedPrice'] as String?;
-              final urgency = data['urgency'] as String? ?? 'Standard';
-
-              return GestureDetector(
-                onTap: () => _showJobDialog(data),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.divider)),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Expanded(child: Text(desc, maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.onSurface, height: 1.4))),
-                      const SizedBox(width: 8),
-                      Text(_timeAgo(data['createdAt'] as Timestamp?), style: GoogleFonts.inter(fontSize: 11, color: AppColors.onSurfaceVariant)),
-                    ]),
-                    const SizedBox(height: 12),
-                    Row(children: [
-                      // Distance
-                      Icon(Icons.location_on_outlined, size: 14, color: AppColors.onSurfaceVariant),
-                      const SizedBox(width: 4),
-                      Text('${dist.toStringAsFixed(1)} km', style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant)),
-                      const SizedBox(width: 16),
-                      // Urgency
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: urgency == 'Emergency' ? AppColors.error.withValues(alpha: 0.1) : urgency == 'Urgent' ? Colors.orange.withValues(alpha: 0.1) : AppColors.surfaceContainerHigh,
-                          borderRadius: BorderRadius.circular(4)),
-                        child: Text(urgency, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600,
-                          color: urgency == 'Emergency' ? AppColors.error : urgency == 'Urgent' ? Colors.orange : AppColors.onSurfaceVariant)),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _Pill(icon: Icons.schedule_rounded, label: timeAgo),
+                  _Pill(icon: Icons.circle_outlined, label: statusLabel),
+                  _Pill(icon: Icons.payments_rounded, label: priceText),
+                  _Pill(icon: Icons.route_rounded, label: secondaryText),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ActionButton(
+                      label: 'Message',
+                      icon: Icons.chat_bubble_rounded,
+                      color: Colors.cyanAccent,
+                      onTap: () => onMessage(clientName),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  if (item.isPending) ...[
+                    Expanded(
+                      child: _ActionButton(
+                        label: 'Decline',
+                        icon: Icons.close_rounded,
+                        color: AppColors.error,
+                        onTap: onDecline,
                       ),
-                      if (price != null && price.isNotEmpty) ...[
-                        const Spacer(),
-                        Text('\$$price', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.neonAccent)),
-                      ],
-                    ]),
-                  ]),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _ActionButton(
+                        label: 'Accept',
+                        icon: Icons.check_rounded,
+                        color: AppColors.neonAccent,
+                        filled: true,
+                        onTap: onAccept,
+                      ),
+                    ),
+                  ] else ...[
+                    Expanded(
+                      child: _ActionButton(
+                        label: primaryActionLabel,
+                        icon: primaryActionIcon,
+                        color: AppColors.neonAccent,
+                        filled: true,
+                        onTap: onPrimaryAction,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              if (phone.trim().isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  phone,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppColors.onSurfaceVariant,
+                  ),
                 ),
-              );
-            },
-          );
-        },
-      )),
-    ]));
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.onSurfaceVariant),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+    this.filled = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        height: 44,
+        decoration: BoxDecoration(
+          color: filled ? color : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: filled ? color : AppColors.divider,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: filled ? AppColors.onPrimary : color,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: filled ? AppColors.onPrimary : color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
