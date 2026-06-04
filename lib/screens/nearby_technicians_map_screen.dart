@@ -7,6 +7,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/technician_location_service.dart';
 import '../theme/app_colors.dart';
@@ -51,6 +52,10 @@ class _NearbyTechniciansMapScreenState
   LatLng? _userPoint;
   bool _loading = true;
   bool _locating = false;
+  bool _techStreamReady = false;
+  bool _techStreamError = false;
+  bool _hasPreciseLocation = false;
+  bool _autoCenteredOnTechs = false;
   TechnicianLocation? _selected;
 
   @override
@@ -74,11 +79,24 @@ class _NearbyTechniciansMapScreenState
     setState(() {
       _loading = true;
       _locating = true;
+      _techStreamReady = false;
+      _techStreamError = false;
+      _autoCenteredOnTechs = false;
     });
 
     LatLng center = _fallback;
+    var useRadiusFilter = false;
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedLat = prefs.getDouble('cachedLat');
+      final cachedLng = prefs.getDouble('cachedLng');
+
+      if (cachedLat != null && cachedLng != null) {
+        center = LatLng(cachedLat, cachedLng);
+        useRadiusFilter = true;
+      }
+
       final serviceOn = await Geolocator.isLocationServiceEnabled();
       if (serviceOn) {
         var perm = await Geolocator.checkPermission();
@@ -94,19 +112,41 @@ class _NearbyTechniciansMapScreenState
             ),
           );
           center = LatLng(pos.latitude, pos.longitude);
+          useRadiusFilter = true;
+          await prefs.setDouble('cachedLat', pos.latitude);
+          await prefs.setDouble('cachedLng', pos.longitude);
         } else {
-          _showMessage('Location permission denied. Showing default area.');
+          final lastKnown = await Geolocator.getLastKnownPosition();
+          if (lastKnown != null) {
+            center = LatLng(lastKnown.latitude, lastKnown.longitude);
+            useRadiusFilter = true;
+            await prefs.setDouble('cachedLat', lastKnown.latitude);
+            await prefs.setDouble('cachedLng', lastKnown.longitude);
+            _showMessage('Using your last known location.');
+          } else if (cachedLat != null && cachedLng != null) {
+            _showMessage('Location permission denied. Using your saved area.');
+          } else {
+            _showMessage('Location permission denied. Showing all technicians.');
+          }
         }
       } else {
-        _showMessage('Location services are off. Showing default area.');
+        if (cachedLat != null && cachedLng != null) {
+          _showMessage('Location services are off. Using your saved area.');
+        } else {
+          _showMessage('Location services are off. Showing all technicians.');
+        }
       }
     } catch (_) {
-      _showMessage('Could not get location. Showing default area.');
+      _showMessage('Could not get location. Showing all technicians.');
     }
 
     if (!mounted) return;
 
-    _subscribeToTechnicians(center);
+    _hasPreciseLocation = useRadiusFilter;
+    _subscribeToTechnicians(
+      center,
+      radiusKm: useRadiusFilter ? 10.0 : double.infinity,
+    );
 
     setState(() {
       _userPoint = center;
@@ -131,11 +171,50 @@ class _NearbyTechniciansMapScreenState
     }
   }
 
-  void _subscribeToTechnicians(LatLng userPoint) {
+  void _subscribeToTechnicians(
+    LatLng userPoint, {
+    required double radiusKm,
+  }) {
     _techSub?.cancel();
     _techSub = _techService
-        .nearbyStream(userPoint)
-        .listen((list) => _techNotifier.value = list);
+        .nearbyStream(userPoint, radiusKm: radiusKm)
+        .listen(
+      (list) {
+        if (!mounted) return;
+        _techNotifier.value = list;
+
+        if (!_techStreamReady) {
+          setState(() => _techStreamReady = true);
+        }
+
+        if (!_hasPreciseLocation &&
+            !_autoCenteredOnTechs &&
+            list.isNotEmpty) {
+          _mapController.move(_averagePoint(list), 12.0);
+          _autoCenteredOnTechs = true;
+        }
+      },
+      onError: (_) {
+        if (!mounted) return;
+        setState(() {
+          _techStreamError = true;
+          _techStreamReady = true;
+        });
+      },
+    );
+  }
+
+  LatLng _averagePoint(List<TechnicianLocation> techs) {
+    if (techs.isEmpty) return _userPoint ?? _fallback;
+
+    var lat = 0.0;
+    var lng = 0.0;
+    for (final tech in techs) {
+      lat += tech.point.latitude;
+      lng += tech.point.longitude;
+    }
+
+    return LatLng(lat / techs.length, lng / techs.length);
   }
 
   void _showMessage(String text) {
@@ -192,6 +271,7 @@ class _NearbyTechniciansMapScreenState
           // ── 3. Right-side controls ─────────────────────────
           if (!_loading && _userPoint != null)
             _buildSideControls(safeTop, safeBottom, headerHeight),
+          if (!_loading && _userPoint != null) _buildMapStatusOverlay(),
 
           // ── 4. Bottom technician card ──────────────────────
           if (_selected != null && !_loading)
@@ -224,6 +304,56 @@ class _NearbyTechniciansMapScreenState
   }
 
   // ─── Map ───────────────────────────────────────────────────
+
+  Widget _buildMapStatusOverlay() {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: ValueListenableBuilder<List<TechnicianLocation>>(
+          valueListenable: _techNotifier,
+          builder: (context, techs, child) {
+            if (_techStreamError) {
+              return Align(
+                alignment: Alignment.center,
+                child: _StatusCard(
+                  icon: Icons.cloud_off_rounded,
+                  title: 'Could not load live technicians',
+                  subtitle: 'Pull to retry or open the screen again.',
+                ),
+              );
+            }
+
+            if (!_techStreamReady) {
+              return Align(
+                alignment: Alignment.center,
+                child: _StatusCard(
+                  icon: Icons.radar_rounded,
+                  title: 'Searching live technicians',
+                  subtitle: 'Pulling the latest Firestore updates...',
+                ),
+              );
+            }
+
+            if (techs.isEmpty) {
+              return Align(
+                alignment: Alignment.center,
+                child: _StatusCard(
+                  icon: Icons.engineering_outlined,
+                  title: _hasPreciseLocation
+                      ? 'No technicians nearby'
+                      : 'No live technicians found',
+                  subtitle: _hasPreciseLocation
+                      ? 'Try widening the area or check back soon.'
+                      : 'Enable location for nearby results.',
+                ),
+              );
+            }
+
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+  }
 
   Widget _buildMap(double safeTop, double headerHeight) {
     return FlutterMap(
@@ -579,6 +709,71 @@ class _MapFab extends StatelessWidget {
 }
 
 // ─── User location dot (pulsing, rotation-stable) ─────────────────────────────
+
+class _StatusCard extends StatelessWidget {
+  const _StatusCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          width: MediaQuery.sizeOf(context).width * 0.78,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0E1218).withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: AppColors.neonAccent.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: AppColors.neonAccent, size: 24),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.spaceGrotesk(
+                  color: AppColors.onSurface,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  color: AppColors.onSurfaceVariant.withValues(alpha: 0.75),
+                  fontSize: 12,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _UserDot extends StatefulWidget {
   const _UserDot();

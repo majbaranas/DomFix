@@ -12,19 +12,77 @@ class TechnicianLocation {
     required this.id,
     required this.point,
     required this.updatedAt,
+    this.name,
+    this.speciality,
+    this.profileImage,
+    this.isOnline = true,
+    this.role,
   });
 
   final String id;
   final LatLng point;
   final DateTime updatedAt;
+  final String? name;
+  final String? speciality;
+  final String? profileImage;
+  final bool isOnline;
+  final String? role;
 
   factory TechnicianLocation.fromDoc(DocumentSnapshot doc) {
-    final d = doc.data() as Map<String, dynamic>;
+    final data = doc.data();
+    if (data is! Map<String, dynamic>) {
+      throw const FormatException('Invalid technician document data');
+    }
+
+    final point = _readPoint(data);
+    final updatedAt = _readUpdatedAt(data);
+
     return TechnicianLocation(
       id: doc.id,
-      point: LatLng((d['lat'] as num).toDouble(), (d['lng'] as num).toDouble()),
-      updatedAt: (d['updatedAt'] as Timestamp).toDate(),
+      point: point,
+      updatedAt: updatedAt,
+      name: _readString(data['fullName'] ?? data['name']),
+      speciality: _readString(data['speciality'] ?? data['specialty'] ?? data['job']),
+      profileImage: _readString(data['profileImage'] ?? data['photoUrl']),
+      isOnline: data['isOnline'] != false,
+      role: _readString(data['role']),
     );
+  }
+
+  static LatLng _readPoint(Map<String, dynamic> data) {
+    final dynamic location = data['location'];
+    final dynamic latRaw = data['lat'] ??
+        data['latitude'] ??
+        (location is Map<String, dynamic>
+            ? location['lat'] ?? location['latitude']
+            : null);
+    final dynamic lngRaw = data['lng'] ??
+        data['longitude'] ??
+        (location is Map<String, dynamic>
+            ? location['lng'] ?? location['longitude']
+            : null);
+
+    if (latRaw is num && lngRaw is num) {
+      return LatLng(latRaw.toDouble(), lngRaw.toDouble());
+    }
+
+    throw const FormatException('Missing latitude or longitude');
+  }
+
+  static DateTime _readUpdatedAt(Map<String, dynamic> data) {
+    final dynamic raw = data['updatedAt'] ?? data['updated_at'];
+    if (raw is Timestamp) return raw.toDate();
+    if (raw is DateTime) return raw;
+    if (raw is int) {
+      return DateTime.fromMillisecondsSinceEpoch(raw);
+    }
+    return DateTime.now();
+  }
+
+  static String? _readString(dynamic value) {
+    if (value is! String) return null;
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 }
 
@@ -38,6 +96,7 @@ class TechnicianLocationService {
 
   Timer? _publishTimer;
   bool _isPublishing = false;
+  bool _publishInProgress = false;
 
   // ── Technician side ──────────────────────────────────────────────────────
 
@@ -63,9 +122,9 @@ class TechnicianLocationService {
     // Then publish every 5 seconds
     print('⏱️  Setting up periodic timer...');
     _publishTimer?.cancel();
-    _publishTimer = Timer.periodic(_publishInterval, (timer) {
+    _publishTimer = Timer.periodic(_publishInterval, (timer) async {
       print('\n⏰ Timer tick #${timer.tick} - Publishing location...');
-      _publishOnce();
+      await _publishOnce();
     });
     print('✅ Periodic timer started successfully\n');
   }
@@ -101,35 +160,53 @@ class TechnicianLocationService {
   /// Publish current location once
   /// ONLY updates: lat, lng, updatedAt (NO "online" field)
   Future<void> _publishOnce() async {
+    if (_publishInProgress) {
+      debugPrint('[TechnicianLocationService] Publish already in progress');
+      return;
+    }
+
+    _publishInProgress = true;
+
     print('\n========================================');
     print('UPDATING LOCATION...');
     print('========================================');
-    
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) {
-      print('❌ ERROR: No authenticated user');
-      debugPrint('[TechnicianLocationService] No authenticated user');
-      return;
-    }
-    
-    print('✅ User authenticated: $uid');
-
     try {
-      // Check location permission
+      final uid = _auth.currentUser?.uid;
+      if (uid == null) {
+        print('❌ ERROR: No authenticated user');
+        debugPrint('[TechnicianLocationService] No authenticated user');
+        return;
+      }
+
+      print('✅ User authenticated: $uid');
+
+      print('📍 Checking location services...');
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        print('❌ ERROR: Location services are disabled');
+        debugPrint('[TechnicianLocationService] Location services disabled');
+        return;
+      }
+
       print('📍 Checking location permission...');
-      final permission = await Geolocator.checkPermission();
+      var permission = await Geolocator.checkPermission();
       print('📍 Permission status: $permission');
-      
-      if (permission == LocationPermission.denied || 
+
+      if (permission == LocationPermission.denied) {
+        print('📍 Requesting location permission...');
+        permission = await Geolocator.requestPermission();
+        print('📍 Permission after request: $permission');
+      }
+
+      if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
         print('❌ ERROR: Location permission denied');
         debugPrint('[TechnicianLocationService] Location permission denied');
         return;
       }
-      
+
       print('✅ Location permission granted');
 
-      // Get current position
       print('📍 Getting current position...');
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
@@ -137,34 +214,71 @@ class TechnicianLocationService {
           timeLimit: Duration(seconds: 10),
         ),
       );
-      
+
       print('✅ Position obtained:');
       print('   Latitude: ${pos.latitude}');
       print('   Longitude: ${pos.longitude}');
       print('   Accuracy: ${pos.accuracy}m');
       print('   Timestamp: ${DateTime.now()}');
 
-      // Update Firestore - ONLY lat, lng, updatedAt (NO "online" field)
-      print('🔥 Updating Firestore...');
-      await _firestore.collection(_collection).doc(uid).set({
+      final locationPayload = <String, dynamic>{
         'lat': pos.latitude,
         'lng': pos.longitude,
+        'latitude': pos.latitude,
+        'longitude': pos.longitude,
+        'location': {
+          'lat': pos.latitude,
+          'lng': pos.longitude,
+        },
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-      
+        'updated_at': FieldValue.serverTimestamp(),
+        'isOnline': true,
+        'role': 'technician',
+      };
+
+      print('🔥 Updating Firestore...');
+      await Future.wait([
+        _firestore.collection(_collection).doc(uid).set(
+              locationPayload,
+              SetOptions(merge: true),
+            ),
+        _firestore.collection('users').doc(uid).set(
+              {
+                'lat': pos.latitude,
+                'lng': pos.longitude,
+                'latitude': pos.latitude,
+                'longitude': pos.longitude,
+                'location': {
+                  'lat': pos.latitude,
+                  'lng': pos.longitude,
+                },
+                'updatedAt': FieldValue.serverTimestamp(),
+                'updated_at': FieldValue.serverTimestamp(),
+                'isOnline': true,
+              },
+              SetOptions(merge: true),
+            ),
+      ]);
+
       print('✅ Firestore updated successfully!');
       print('   Collection: $_collection');
       print('   Document ID: $uid');
-      print('   Data: {lat: ${pos.latitude}, lng: ${pos.longitude}, updatedAt: serverTimestamp}');
+      print(
+        '   Data: {lat: ${pos.latitude}, lng: ${pos.longitude}, updatedAt: serverTimestamp}',
+      );
       print('========================================\n');
 
-      debugPrint('[TechnicianLocationService] Location published: (${pos.latitude}, ${pos.longitude})');
+      debugPrint(
+        '[TechnicianLocationService] Location published: (${pos.latitude}, ${pos.longitude})',
+      );
     } catch (e, stackTrace) {
       print('❌ ERROR publishing location:');
       print('   Error: $e');
       print('   Stack trace: $stackTrace');
       print('========================================\n');
       debugPrint('[TechnicianLocationService] Error publishing location: $e');
+    } finally {
+      _publishInProgress = false;
     }
   }
 
@@ -173,7 +287,10 @@ class TechnicianLocationService {
   /// Emits only RECENTLY ACTIVE technicians within [_radiusKm] of [userPoint]
   /// A technician is considered online if their last update was within 10 seconds
   /// This eliminates "ghost" technicians who closed their app
-  Stream<List<TechnicianLocation>> nearbyStream(LatLng userPoint) {
+  Stream<List<TechnicianLocation>> nearbyStream(
+    LatLng userPoint, {
+    double radiusKm = _radiusKm,
+  }) {
     return _firestore
         .collection(_collection)
         .snapshots()
@@ -190,6 +307,13 @@ class TechnicianLocationService {
           })
           .whereType<TechnicianLocation>() // Filter out nulls
           .where((t) {
+            if (t.role != null && t.role != 'technician') {
+              debugPrint(
+                '[TechnicianLocationService] Technician ${t.id} skipped because role=${t.role}',
+              );
+              return false;
+            }
+
             // Filter 1: Check if last update was within 10 seconds (online check)
             final secondsSinceUpdate = now.difference(t.updatedAt).inSeconds;
             final isOnline = secondsSinceUpdate <= 10;
@@ -201,7 +325,7 @@ class TechnicianLocationService {
             
             // Filter 2: Check if within radius
             final distance = _distanceKm(userPoint, t.point);
-            final isNearby = distance <= _radiusKm;
+            final isNearby = distance <= radiusKm;
             
             if (!isNearby) {
               debugPrint('[TechnicianLocationService] Technician ${t.id} is too far (${distance.toStringAsFixed(1)} km)');
