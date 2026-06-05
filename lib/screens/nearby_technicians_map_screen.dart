@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -57,6 +59,9 @@ class _NearbyTechniciansMapScreenState
   bool _hasPreciseLocation = false;
   bool _autoCenteredOnTechs = false;
   TechnicianLocation? _selected;
+
+  List<LatLng>? _routePoints;
+  bool _routeLoading = false;
 
   @override
   void initState() {
@@ -228,6 +233,61 @@ class _NearbyTechniciansMapScreenState
     ));
   }
 
+  // ─── Route ─────────────────────────────────────────────────
+
+  Future<void> _fetchRoute(LatLng from, LatLng to) async {
+    setState(() {
+      _routePoints = null;
+      _routeLoading = true;
+    });
+    try {
+      final url = Uri.parse(
+        'https://router.project-osrm.org/route/v1/driving/'
+        '${from.longitude},${from.latitude};'
+        '${to.longitude},${to.latitude}'
+        '?geometries=geojson&overview=full',
+      );
+      final res =
+          await http.get(url).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final routes = data['routes'] as List<dynamic>;
+        if (routes.isNotEmpty) {
+          final coords =
+              (routes[0]['geometry']['coordinates'] as List<dynamic>)
+                  .map((c) => LatLng(
+                      (c[1] as num).toDouble(), (c[0] as num).toDouble()))
+                  .toList();
+          if (!mounted) return;
+          setState(() {
+            _routePoints = coords;
+            _routeLoading = false;
+          });
+          _fitRoute(coords);
+          return;
+        }
+      }
+    } catch (_) {}
+    // Fallback: straight line
+    if (!mounted) return;
+    setState(() {
+      _routePoints = [from, to];
+      _routeLoading = false;
+    });
+    _fitRoute([from, to]);
+  }
+
+  void _fitRoute(List<LatLng> points) {
+    if (points.length < 2) return;
+    final bounds = LatLngBounds.fromPoints(points);
+    _mapController.fitCamera(
+      CameraFit.bounds(
+        bounds: bounds,
+        padding: const EdgeInsets.fromLTRB(48, 160, 48, 300),
+      ),
+    );
+  }
+
   // ─── Map controls ──────────────────────────────────────────
 
   void _zoomIn() {
@@ -276,6 +336,47 @@ class _NearbyTechniciansMapScreenState
           // ── 4. Bottom technician card ──────────────────────
           if (_selected != null && !_loading)
             _buildPreviewCard(safeBottom),
+
+          // ── 5. Route loading pill ──────────────────────────
+          if (_routeLoading)
+            Positioned(
+              bottom: safeBottom + 240,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface.withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: AppColors.neonAccent.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.neonAccent),
+                        ),
+                        const SizedBox(width: 8),
+                        Text('Calculating route…',
+                            style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: AppColors.onSurface,
+                                fontWeight: FontWeight.w500)),
+                      ]),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -361,7 +462,10 @@ class _NearbyTechniciansMapScreenState
       options: MapOptions(
         initialCenter: _userPoint!,
         initialZoom: _defaultZoom,
-        onTap: (_, _) => setState(() => _selected = null),
+        onTap: (_, _) => setState(() {
+          _selected = null;
+          _routePoints = null;
+        }),
         interactionOptions: const InteractionOptions(
           flags: InteractiveFlag.all,
         ),
@@ -374,6 +478,26 @@ class _NearbyTechniciansMapScreenState
           subdomains: const ['a', 'b', 'c', 'd'],
           userAgentPackageName: 'com.example.domfix',
         ),
+        // Route polyline
+        if (_routePoints != null && _routePoints!.length >= 2)
+          PolylineLayer(
+            polylines: [
+              // Glow / shadow underneath
+              Polyline(
+                points: _routePoints!,
+                color: AppColors.neonAccent.withValues(alpha: 0.18),
+                strokeWidth: 14,
+              ),
+              // Solid route line
+              Polyline(
+                points: _routePoints!,
+                color: AppColors.neonAccent,
+                strokeWidth: 4.5,
+                borderColor: AppColors.background.withValues(alpha: 0.5),
+                borderStrokeWidth: 1.5,
+              ),
+            ],
+          ),
         // Markers — rotate: true keeps them upright regardless of map rotation.
         ValueListenableBuilder<List<TechnicianLocation>>(
           valueListenable: _techNotifier,
@@ -400,6 +524,9 @@ class _NearbyTechniciansMapScreenState
                     onTap: () {
                       HapticFeedback.selectionClick();
                       setState(() => _selected = t);
+                      if (_userPoint != null) {
+                        _fetchRoute(_userPoint!, t.point);
+                      }
                     },
                     child: _TechPin(selected: _selected?.id == t.id),
                   ),

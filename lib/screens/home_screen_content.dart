@@ -9,7 +9,6 @@ import 'package:lottie/lottie.dart';
 
 import '../models/user_device.dart';
 import '../services/chat_service.dart';
-import '../services/notification_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/notification_panel.dart';
 import '../widgets/scroll_reveal.dart';
@@ -302,10 +301,16 @@ class _HomeScreenContentState extends State<HomeScreenContent>
   Widget _buildNotificationBell() {
     return GestureDetector(
       onTap: () => showNotificationPanel(context),
-      child: StreamBuilder<int>(
-        stream: NotificationService.instance.watchUnreadCount(),
+      child: StreamBuilder<QuerySnapshot>(
+        stream: _chatService.getUserChats(),
         builder: (context, snapshot) {
-          final unread = snapshot.data ?? 0;
+          var unread = 0;
+          if (snapshot.hasData) {
+            for (final doc in snapshot.data!.docs) {
+              unread += _chatService.getUnreadCount(
+                  doc.data() as Map<String, dynamic>);
+            }
+          }
           return Container(
             width: 44,
             height: 44,
