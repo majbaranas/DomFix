@@ -18,28 +18,37 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 20),
-                _buildHeader(),
-                const SizedBox(height: 40),
-                _buildGreeting(),
-                const SizedBox(height: 30),
-                _buildAIDiagnosisCard(),
-                const SizedBox(height: 40),
-                _buildCoreCommandsSection(),
-                const SizedBox(height: 30),
-                _buildActiveEnvironmentSection(),
-                const SizedBox(height: 100),
-              ],
+      body: Stack(
+        children: [
+          SafeArea(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 20),
+                    _buildHeader(),
+                    const SizedBox(height: 40),
+                    _buildGreeting(),
+                    const SizedBox(height: 30),
+                    _buildAIDiagnosisCard(),
+                    const SizedBox(height: 40),
+                    _buildCoreCommandsSection(),
+                    const SizedBox(height: 30),
+                    _buildActiveEnvironmentSection(),
+                    const SizedBox(height: 100),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
+          Positioned(
+            bottom: 12,
+            left: 16,
+            child: _buildAIFloatingButton(),
+          ),
+        ],
       ),
       bottomNavigationBar: _buildBottomNavBar(),
     );
@@ -585,11 +594,72 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildNavItem(Icons.home_rounded, 'HOME', 0),
-          _buildNavItem(Icons.chat_bubble_outline_rounded, 'AI CHAT', 1),
-          _buildNavItem(Icons.engineering_outlined, 'PROS', 2),
-          _buildNavItem(Icons.settings_remote_outlined, 'CONTROL', 3),
-          _buildNavItem(Icons.settings_outlined, 'SETTINGS', 4),
+          _buildNavItem(Icons.engineering_outlined, 'PROS', 1),
+          _buildNavItem(Icons.settings_remote_outlined, 'CONTROL', 2),
+          _buildNavItem(Icons.settings_outlined, 'SETTINGS', 3),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAIFloatingButton() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final buttonSize = (screenWidth * 0.26).clamp(88.0, 104.0);
+    final iconSize = buttonSize * 0.40;
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AIChatScreen()),
+      ),
+      child: Container(
+        width: buttonSize,
+        height: buttonSize,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.primaryContainer,
+              AppColors.primaryContainer.withValues(alpha: 0.75),
+            ],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primaryContainer.withValues(alpha: 0.45),
+              blurRadius: 24,
+              spreadRadius: 0,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: AppColors.primaryContainer.withValues(alpha: 0.18),
+              blurRadius: 48,
+              spreadRadius: 6,
+              offset: const Offset(0, 16),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.auto_awesome_rounded,
+              color: AppColors.background,
+              size: iconSize,
+            ),
+            SizedBox(height: buttonSize * 0.03),
+            Text(
+              'AI',
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: buttonSize * 0.19,
+                fontWeight: FontWeight.w800,
+                color: AppColors.background,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -598,16 +668,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final isSelected = _selectedIndex == index;
     return GestureDetector(
       onTap: () {
-        if (index == 1) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AIChatScreen()),
-          );
-        } else {
-          setState(() {
-            _selectedIndex = index;
-          });
-        }
+        setState(() {
+          _selectedIndex = index;
+        });
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
