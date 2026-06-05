@@ -4,6 +4,8 @@ import '../theme/app_colors.dart';
 import '../services/auth_service.dart';
 import '../services/local_storage_service.dart';
 import '../services/firebase_navigation_service.dart';
+import '../services/localization_service.dart';
+import '../main.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -13,6 +15,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAliveClientMixin {
   final _authService = AuthService();
+
   @override
   bool get wantKeepAlive => true;
 
@@ -22,11 +25,32 @@ class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAlive
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Logout', style: GoogleFonts.spaceGrotesk(color: AppColors.onSurface, fontWeight: FontWeight.w700)),
-        content: Text('Are you sure you want to logout?', style: GoogleFonts.inter(color: AppColors.onSurfaceVariant)),
+        title: Text(
+          context.translate('logout_confirm_title'),
+          style: GoogleFonts.spaceGrotesk(
+            color: AppColors.onSurface,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Text(
+          context.translate('logout_confirm_content'),
+          style: GoogleFonts.inter(color: AppColors.onSurfaceVariant),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Cancel', style: GoogleFonts.inter(color: AppColors.onSurfaceVariant))),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: Text('Logout', style: GoogleFonts.inter(color: AppColors.error, fontWeight: FontWeight.w600))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              context.translate('cancel'),
+              style: GoogleFonts.inter(color: AppColors.onSurfaceVariant),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              context.translate('logout'),
+              style: GoogleFonts.inter(color: AppColors.error, fontWeight: FontWeight.w600),
+            ),
+          ),
         ],
       ),
     );
@@ -35,6 +59,68 @@ class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAlive
       await LocalStorageService.clearAll();
       if (mounted) await NavigationService.logout(context);
     }
+  }
+
+  void _showLanguagePicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 8, bottom: 16, right: 8),
+                  child: Text(
+                    context.translate('select_language'),
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.onSurface,
+                    ),
+                  ),
+                ),
+                _languageOption('en', context.translate('english')),
+                _languageOption('fr', context.translate('french')),
+                _languageOption('ar', context.translate('arabic')),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _languageOption(String code, String name) {
+    final currentLocale = Localizations.localeOf(context);
+    final isSelected = currentLocale.languageCode == code;
+
+    return ListTile(
+      title: Text(
+        name,
+        style: GoogleFonts.inter(
+          color: isSelected ? AppColors.neonAccent : AppColors.onSurface,
+          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+        ),
+      ),
+      trailing: isSelected
+          ? Icon(Icons.check_circle_rounded, color: AppColors.neonAccent)
+          : null,
+      onTap: () async {
+        await LocalStorageService.setLanguageCode(code);
+        if (mounted) {
+          MyApp.setLocale(context, Locale(code));
+          Navigator.pop(context);
+        }
+      },
+    );
   }
 
   @override
@@ -48,12 +134,20 @@ class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAlive
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Settings', style: GoogleFonts.spaceGrotesk(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
+              Text(
+                context.translate('settings'),
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.onSurface,
+                ),
+              ),
               const SizedBox(height: 24),
-              _settingItem(Icons.person_outline_rounded, 'Profile', () {}),
-              _settingItem(Icons.notifications_outlined, 'Notifications', () {}),
-              _settingItem(Icons.shield_outlined, 'Privacy & Security', () {}),
-              _settingItem(Icons.help_outline_rounded, 'Help & Support', () {}),
+              _settingItem(Icons.person_outline_rounded, context.translate('profile'), () {}),
+              _settingItem(Icons.notifications_outlined, context.translate('notifications'), () {}),
+              _settingItem(Icons.shield_outlined, context.translate('privacy_security'), () {}),
+              _settingItem(Icons.help_outline_rounded, context.translate('help_support'), () {}),
+              _settingItem(Icons.language_rounded, context.translate('language'), _showLanguagePicker),
               const SizedBox(height: 16),
               _logoutButton(),
             ],
@@ -69,13 +163,32 @@ class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAlive
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.divider)),
-        child: Row(children: [
-          Icon(icon, color: AppColors.onSurfaceVariant, size: 22),
-          const SizedBox(width: 14),
-          Expanded(child: Text(title, style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.onSurface))),
-          Icon(Icons.chevron_right_rounded, color: AppColors.onSurfaceVariant.withValues(alpha: 0.4), size: 20),
-        ]),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: AppColors.onSurfaceVariant, size: 22),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.onSurface,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.onSurfaceVariant.withValues(alpha: 0.4),
+              size: 20,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -86,13 +199,22 @@ class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAlive
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.error.withValues(alpha: 0.2))),
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
-          const SizedBox(width: 10),
-          Text('Logout', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.error)),
-        ]),
+        decoration: BoxDecoration(
+          color: AppColors.error.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
+            const SizedBox(width: 10),
+            Text(
+              context.translate('logout'),
+              style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.error),
+            ),
+          ],
+        ),
       ),
     );
   }

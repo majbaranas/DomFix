@@ -30,4 +30,17 @@ class LocalStorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyIsLoggedIn);
   }
+
+  // ─── Language Local Persistence ────────────────────────
+  static const String _keyLanguageCode = 'language_code';
+
+  static Future<String> getLanguageCode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyLanguageCode) ?? 'en';
+  }
+
+  static Future<void> setLanguageCode(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyLanguageCode, value);
+  }
 }

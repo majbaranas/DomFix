@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+
 import 'screens/splash_screen.dart';
 import 'screens/chat_screen.dart';
 import 'services/fcm_service.dart';
 import 'services/user_service.dart';
+import 'services/localization_service.dart';
+import 'services/local_storage_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +19,11 @@ void main() async {
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
+  static void setLocale(BuildContext context, Locale newLocale) {
+    final state = context.findAncestorStateOfType<_MyAppState>();
+    state?.changeLocale(newLocale);
+  }
+
   @override
   State<MyApp> createState() => _MyAppState();
 }
@@ -23,11 +32,34 @@ class _MyAppState extends State<MyApp> {
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   final FCMService _fcmService = FCMService();
   final UserService _userService = UserService();
+  Locale _locale = const Locale('en');
 
   @override
   void initState() {
     super.initState();
+    _initializeLocale();
     _initializeFCM();
+  }
+
+  /// Load initial locale from SharedPreferences
+  Future<void> _initializeLocale() async {
+    try {
+      final code = await LocalStorageService.getLanguageCode();
+      if (mounted) {
+        setState(() {
+          _locale = Locale(code);
+        });
+      }
+    } catch (e) {
+      debugPrint('[App] Failed to load language locale: $e');
+    }
+  }
+
+  /// Dynamically updates the current app locale
+  void changeLocale(Locale newLocale) {
+    setState(() {
+      _locale = newLocale;
+    });
   }
 
   /// Initialize FCM and setup notification click handler
@@ -90,6 +122,18 @@ class _MyAppState extends State<MyApp> {
       navigatorKey: navigatorKey,
       title: 'DomFix',
       debugShowCheckedModeBanner: false,
+      locale: _locale,
+      supportedLocales: const [
+        Locale('en'),
+        Locale('fr'),
+        Locale('ar'),
+      ],
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       themeMode: ThemeMode.dark,
       darkTheme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: const Color(0xFF0B0F14),
