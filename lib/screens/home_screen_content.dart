@@ -9,7 +9,9 @@ import 'package:lottie/lottie.dart';
 
 import '../models/user_device.dart';
 import '../services/chat_service.dart';
+import '../services/notification_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/notification_panel.dart';
 import '../widgets/scroll_reveal.dart';
 import 'ai_chat_screen.dart';
 import 'chat_screen.dart';
@@ -299,16 +301,11 @@ class _HomeScreenContentState extends State<HomeScreenContent>
 
   Widget _buildNotificationBell() {
     return GestureDetector(
-      onTap: () => _goToTab(1),
-      child: StreamBuilder<QuerySnapshot>(
-        stream: _chatService.getUserChats(),
+      onTap: () => showNotificationPanel(context),
+      child: StreamBuilder<int>(
+        stream: NotificationService.instance.watchUnreadCount(),
         builder: (context, snapshot) {
-          var unread = 0;
-          if (snapshot.hasData) {
-            for (final doc in snapshot.data!.docs) {
-              unread += _chatService.getUnreadCount(doc.data() as Map<String, dynamic>);
-            }
-          }
+          final unread = snapshot.data ?? 0;
           return Container(
             width: 44,
             height: 44,
@@ -320,15 +317,19 @@ class _HomeScreenContentState extends State<HomeScreenContent>
             child: Stack(
               alignment: Alignment.center,
               children: [
-                Icon(Icons.notifications_outlined,
-                    size: 20, color: AppColors.onSurface),
+                Icon(
+                  unread > 0
+                      ? Icons.notifications_rounded
+                      : Icons.notifications_outlined,
+                  size: 20,
+                  color: unread > 0 ? AppColors.neonAccent : AppColors.onSurface,
+                ),
                 if (unread > 0)
                   Positioned(
-                    top: 9,
-                    right: 9,
+                    top: 8,
+                    right: 8,
                     child: Container(
-                      width: 9,
-                      height: 9,
+                      padding: const EdgeInsets.all(2),
                       decoration: BoxDecoration(
                         color: AppColors.neonAccent,
                         shape: BoxShape.circle,
@@ -339,6 +340,16 @@ class _HomeScreenContentState extends State<HomeScreenContent>
                             blurRadius: 8,
                           ),
                         ],
+                      ),
+                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                      child: Text(
+                        unread > 9 ? '9+' : '$unread',
+                        style: GoogleFonts.inter(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.background,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),

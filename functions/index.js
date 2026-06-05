@@ -122,6 +122,58 @@ exports.sendMessageNotification = functions.firestore
   });
 
 /**
+ * Cloud Function: Send FCM push notification when a notification doc is created
+ * Trigger: notifications/{notificationId} onCreate
+ * Covers: booking_request, booking_accepted, booking_rejected,
+ *         technician_on_way, job_started, job_completed, booking_submitted
+ */
+exports.sendBookingNotification = functions.firestore
+  .document('notifications/{notificationId}')
+  .onCreate(async (snapshot, context) => {
+    try {
+      const data = snapshot.data();
+      const { recipientId, title, body, type, bookingId, chatId } = data;
+
+      if (!recipientId || !title || !body) {
+        console.log('[BookingNotif] Missing required fields, skipping.');
+        return null;
+      }
+
+      const recipientDoc = await admin.firestore()
+        .collection('users').doc(recipientId).get();
+
+      if (!recipientDoc.exists) {
+        console.log('[BookingNotif] Recipient not found:', recipientId);
+        return null;
+      }
+
+      const fcmToken = recipientDoc.data().fcmToken;
+      if (!fcmToken) {
+        console.log('[BookingNotif] No FCM token for recipient:', recipientId);
+        return null;
+      }
+
+      const payload = {
+        notification: { title, body, sound: 'default' },
+        data: {
+          type: type || 'notification',
+          bookingId: bookingId || '',
+          chatId: chatId || '',
+        },
+        token: fcmToken,
+      };
+
+      const response = await admin.messaging().send(payload);
+      console.log('[BookingNotif] ✅ Sent:', type, '→', recipientId, '|', response);
+      return response;
+
+    } catch (error) {
+      console.error('[BookingNotif] ❌ Error:', error.message);
+      return null;
+    }
+  });
+
+/**
  * Optional: Clean up FCM token on user deletion
  */
 exports.cleanupUserData = functions.firestore
@@ -129,7 +181,5 @@ exports.cleanupUserData = functions.firestore
   .onDelete(async (snapshot, context) => {
     const userId = context.params.userId;
     console.log('[FCM Function] 🗑️ User deleted, cleaning up:', userId);
-    
-    // Additional cleanup logic can be added here
     return null;
   });
