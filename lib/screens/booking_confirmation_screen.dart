@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -98,60 +99,71 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen>
                   opacity: _fade,
                   child: ScaleTransition(
                     scale: _scale,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 120,
-                          height: 120,
-                          decoration: BoxDecoration(
-                            color: AppColors.neonAccent.withValues(alpha: 0.12),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppColors.neonAccent.withValues(alpha: 0.2),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 120,
+                            height: 120,
+                            decoration: BoxDecoration(
+                              color:
+                                  AppColors.neonAccent.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppColors.neonAccent
+                                    .withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.check_rounded,
+                              size: 72,
+                              color: AppColors.neonAccent,
                             ),
                           ),
-                          child: const Icon(
-                            Icons.check_rounded,
-                            size: 72,
-                            color: AppColors.neonAccent,
+                          const SizedBox(height: 24),
+                          Text(
+                            'Your booking request is live',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.onSurface,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                        'Your booking request is live',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.onSurface,
+                          const SizedBox(height: 10),
+                          Text(
+                            'Booking ID ${widget.booking.id.substring(0, 8)}…',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.neonAccent,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Booking ID ${widget.booking.id}',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.neonAccent,
+                          const SizedBox(height: 12),
+                          Text(
+                            'Full chat is unlocked now. You can share photos, send voice notes, and stay in real-time contact with ${widget.technicianName}.',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              height: 1.6,
+                              color: AppColors.onSurfaceVariant,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Full chat is unlocked now. You can share photos, send voice notes, and stay in real-time contact with ${widget.technicianName}.',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            height: 1.6,
-                            color: AppColors.onSurfaceVariant,
+                          const SizedBox(height: 28),
+
+                          // ─── Real-time Status Tracker ─────────
+                          _BookingStatusTracker(
+                            bookingId: widget.booking.id,
                           ),
-                        ),
-                        const SizedBox(height: 28),
-                        _InfoCard(
-                          booking: widget.booking,
-                          technicianName: widget.technicianName,
-                        ),
-                      ],
+                          const SizedBox(height: 20),
+
+                          _InfoCard(
+                            booking: widget.booking,
+                            technicianName: widget.technicianName,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -214,6 +226,226 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen>
   }
 }
 
+// ─── Real-time Status Tracker ─────────────────────────────
+
+class _BookingStatusTracker extends StatelessWidget {
+  final String bookingId;
+  const _BookingStatusTracker({required this.bookingId});
+
+  static const _statusSteps = [
+    'pending',
+    'accepted',
+    'on_the_way',
+    'in_progress',
+    'completed',
+  ];
+
+  static const _statusLabels = {
+    'pending': 'Pending review',
+    'accepted': 'Accepted',
+    'on_the_way': 'On the way',
+    'in_progress': 'In progress',
+    'completed': 'Completed',
+    'rejected': 'Declined',
+    'cancelled': 'Cancelled',
+  };
+
+  static const _statusIcons = {
+    'pending': Icons.hourglass_top_rounded,
+    'accepted': Icons.check_circle_outline_rounded,
+    'on_the_way': Icons.directions_car_rounded,
+    'in_progress': Icons.handyman_rounded,
+    'completed': Icons.verified_rounded,
+  };
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'pending':
+        return AppColors.statusPending;
+      case 'accepted':
+        return AppColors.statusAccepted;
+      case 'on_the_way':
+        return AppColors.statusOnTheWay;
+      case 'in_progress':
+        return AppColors.statusInProgress;
+      case 'completed':
+        return AppColors.statusCompleted;
+      default:
+        return AppColors.statusCancelled;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('bookings')
+          .doc(bookingId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        String currentStatus = 'pending';
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final data = snapshot.data!.data() as Map<String, dynamic>?;
+          currentStatus =
+              (data?['status'] as String? ?? 'pending').toLowerCase().trim();
+        }
+
+        // Handle rejected/cancelled
+        if (currentStatus == 'rejected' || currentStatus == 'cancelled') {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.emergency.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.emergency.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.cancel_outlined,
+                  color: AppColors.emergency,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _statusLabels[currentStatus] ?? currentStatus,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.emergency,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final currentIndex = _statusSteps.indexOf(currentStatus);
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'BOOKING STATUS',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1,
+                  color: AppColors.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ...List.generate(_statusSteps.length, (index) {
+                final step = _statusSteps[index];
+                final isCompleted = index < currentIndex;
+                final isActive = index == currentIndex;
+                final isPending = index > currentIndex;
+                final color = isCompleted || isActive
+                    ? _statusColor(step)
+                    : AppColors.surfaceContainerHigh;
+
+                return Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: (isCompleted || isActive)
+                                ? color.withValues(alpha: 0.15)
+                                : AppColors.surfaceContainerHigh,
+                            shape: BoxShape.circle,
+                            border: isActive
+                                ? Border.all(color: color, width: 2)
+                                : null,
+                          ),
+                          child: Icon(
+                            isCompleted
+                                ? Icons.check_rounded
+                                : _statusIcons[step] ??
+                                    Icons.circle_outlined,
+                            size: 16,
+                            color: (isCompleted || isActive)
+                                ? color
+                                : AppColors.onSurfaceVariant
+                                    .withValues(alpha: 0.3),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          _statusLabels[step] ?? step,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: isActive
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: isPending
+                                ? AppColors.onSurfaceVariant
+                                    .withValues(alpha: 0.4)
+                                : AppColors.onSurface,
+                          ),
+                        ),
+                        if (isActive) ...[
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Current',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: color,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (index < _statusSteps.length - 1)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 15),
+                        child: Container(
+                          width: 2,
+                          height: 24,
+                          color: isCompleted
+                              ? color.withValues(alpha: 0.4)
+                              : AppColors.surfaceContainerHigh,
+                        ),
+                      ),
+                  ],
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─── Info Card ────────────────────────────────────────────
+
 class _InfoCard extends StatelessWidget {
   final BookingModel booking;
   final String technicianName;
@@ -265,7 +497,7 @@ class _InfoCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                          'Conversation unlocked for service coordination',
+                      'Conversation unlocked for service coordination',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         color: AppColors.onSurfaceVariant,
@@ -281,40 +513,12 @@ class _InfoCard extends StatelessWidget {
           const SizedBox(height: 10),
           _InfoRow(label: 'Schedule', value: booking.humanDate),
           const SizedBox(height: 10),
-          _InfoRow(
-            label: 'Time',
-            value: booking.scheduledTimeLabel,
-          ),
+          _InfoRow(label: 'Time', value: booking.scheduledTimeLabel),
           const SizedBox(height: 10),
-          _InfoRow(
-            label: 'Status',
-            value: _formatStatus(booking.status),
-          ),
+          _InfoRow(label: 'Priority', value: booking.urgency),
         ],
       ),
     );
-  }
-
-  String _formatStatus(String status) {
-    switch (status.toLowerCase().trim()) {
-      case 'pending':
-        return 'Pending review';
-      case 'accepted':
-        return 'Accepted';
-      case 'on_the_way':
-        return 'On the way';
-      case 'arrived':
-        return 'Arrived';
-      case 'in_progress':
-        return 'In progress';
-      case 'completed':
-        return 'Completed';
-      case 'cancelled':
-      case 'rejected':
-        return 'Cancelled';
-      default:
-        return status;
-    }
   }
 }
 

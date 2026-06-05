@@ -2030,118 +2030,122 @@ class _ActiveRequestCard extends StatelessWidget {
         final earningsText =
             _TechnicianPremiumDashboardState._requestEarningsText(request);
 
-        return _SurfaceCard(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      clientName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 23,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.onSurface,
+        final isEmergency = request.urgency.toLowerCase().trim() == 'emergency';
+        return _PulsingEmergencyBorder(
+          isEmergency: isEmergency,
+          child: _SurfaceCard(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        clientName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 23,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.onSurface,
+                        ),
                       ),
                     ),
-                  ),
-                  _PriorityPill(
-                    label: _statusLabel(request.status),
-                    color: _urgencyColor(request.urgency),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                request.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.onSurfaceVariant,
+                    _PriorityPill(
+                      label: _statusLabel(request.status),
+                      color: _urgencyColor(request.urgency),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  _MetaPill(
-                    icon: Icons.schedule_rounded,
-                    label: timeText,
+                const SizedBox(height: 8),
+                Text(
+                  request.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.onSurfaceVariant,
                   ),
-                  _MetaPill(
-                    icon: Icons.route_rounded,
-                    label: distance,
-                  ),
-                  _MetaPill(
-                    icon: Icons.priority_high_rounded,
-                    label: request.urgency,
-                    color: _urgencyColor(request.urgency),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _MetaPill(
-                icon: Icons.payments_rounded,
-                label: earningsText,
-                color: AppColors.neonAccent,
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: _ActionButton(
-                      label: 'Navigate',
-                      icon: Icons.navigation_rounded,
-                      color: AppColors.neonAccent,
-                      filled: true,
-                      onTap: () => onNavigate(destination),
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _MetaPill(
+                      icon: Icons.schedule_rounded,
+                      label: timeText,
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _ActionButton(
-                      label: 'Message',
-                      icon: Icons.chat_bubble_rounded,
-                      color: Colors.cyanAccent,
-                      onTap: () => onMessage(clientName),
+                    _MetaPill(
+                      icon: Icons.route_rounded,
+                      label: distance,
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: _ActionButton(
-                      label: 'Call',
-                      icon: Icons.call_rounded,
-                      color: AppColors.success,
-                      onTap: () => onCall(phone),
+                    _MetaPill(
+                      icon: Icons.priority_high_rounded,
+                      label: request.urgency,
+                      color: _urgencyColor(request.urgency),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _ActionButton(
-                      label: primaryActionLabel,
-                      icon: primaryActionIcon,
-                      color: request.isStarted
-                          ? AppColors.success
-                          : AppColors.neonAccent,
-                      filled: true,
-                      onTap: onPrimaryAction,
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _MetaPill(
+                  icon: Icons.payments_rounded,
+                  label: earningsText,
+                  color: AppColors.neonAccent,
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _ActionButton(
+                        label: 'Navigate',
+                        icon: Icons.navigation_rounded,
+                        color: AppColors.neonAccent,
+                        filled: true,
+                        onTap: () => onNavigate(destination),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _ActionButton(
+                        label: 'Message',
+                        icon: Icons.chat_bubble_rounded,
+                        color: Colors.cyanAccent,
+                        onTap: () => onMessage(clientName),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _ActionButton(
+                        label: 'Call',
+                        icon: Icons.call_rounded,
+                        color: AppColors.success,
+                        onTap: () => onCall(phone),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _ActionButton(
+                        label: primaryActionLabel,
+                        icon: primaryActionIcon,
+                        color: request.isStarted
+                            ? AppColors.success
+                            : AppColors.neonAccent,
+                        filled: true,
+                        onTap: onPrimaryAction,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -2183,97 +2187,101 @@ class _RequestCard extends StatelessWidget {
           request,
         );
 
-        return _SurfaceCard(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          request.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            fontSize: 16,
-                            height: 1.25,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.onSurface,
+        final isEmergency = request.urgency.toLowerCase().trim() == 'emergency';
+        return _PulsingEmergencyBorder(
+          isEmergency: isEmergency,
+          child: _SurfaceCard(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            request.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              height: 1.25,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.onSurface,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          clientName,
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.onSurfaceVariant,
+                          const SizedBox(height: 6),
+                          Text(
+                            clientName,
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.onSurfaceVariant,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  _PriorityPill(
-                    label: request.urgency,
-                    color: _urgencyColor(request.urgency),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 10,
-                runSpacing: 8,
-                children: [
-                  _MetaPill(
-                    icon: Icons.route_rounded,
-                    label: distance,
-                  ),
-                  _MetaPill(
-                    icon: Icons.payments_rounded,
-                    label: earnings,
-                    color: AppColors.neonAccent,
-                  ),
-                  _MetaPill(
-                    icon: Icons.access_time_rounded,
-                    label: request.isJob
-                        ? _TechnicianPremiumDashboardState._timeAgo(
-                            request.updatedAt,
-                          )
-                        : _TechnicianPremiumDashboardState._timeLabel(
-                            request.booking!,
-                          ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: _ActionButton(
-                      label: 'Decline',
-                      icon: Icons.close_rounded,
-                      color: AppColors.onSurfaceVariant,
-                      onTap: onDecline,
+                    _PriorityPill(
+                      label: request.urgency,
+                      color: _urgencyColor(request.urgency),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _ActionButton(
-                      label: 'Accept',
-                      icon: Icons.check_rounded,
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  children: [
+                    _MetaPill(
+                      icon: Icons.route_rounded,
+                      label: distance,
+                    ),
+                    _MetaPill(
+                      icon: Icons.payments_rounded,
+                      label: earnings,
                       color: AppColors.neonAccent,
-                      filled: true,
-                      onTap: onAccept,
                     ),
-                  ),
-                ],
-              ),
-            ],
+                    _MetaPill(
+                      icon: Icons.access_time_rounded,
+                      label: request.isJob
+                          ? _TechnicianPremiumDashboardState._timeAgo(
+                              request.updatedAt,
+                            )
+                          : _TechnicianPremiumDashboardState._timeLabel(
+                              request.booking!,
+                            ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _ActionButton(
+                        label: 'Decline',
+                        icon: Icons.close_rounded,
+                        color: AppColors.onSurfaceVariant,
+                        onTap: onDecline,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _ActionButton(
+                        label: 'Accept',
+                        icon: Icons.check_rounded,
+                        color: AppColors.neonAccent,
+                        filled: true,
+                        onTap: onAccept,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -2713,14 +2721,102 @@ Color _urgencyColor(String urgency) {
       return AppColors.emergency;
     case 'high':
     case 'urgent':
-      return Colors.orangeAccent;
+      return AppColors.highPriority;
     case 'medium':
     case 'standard':
     case 'normal':
-      return AppColors.neonAccent;
+      return AppColors.mediumPriority;
     case 'low':
-      return Colors.cyanAccent;
+      return AppColors.lowPriority;
     default:
-      return Colors.cyanAccent;
+      return AppColors.lowPriority;
+  }
+}
+
+class _PulsingEmergencyBorder extends StatefulWidget {
+  const _PulsingEmergencyBorder({required this.child, required this.isEmergency});
+
+  final Widget child;
+  final bool isEmergency;
+
+  @override
+  State<_PulsingEmergencyBorder> createState() => _PulsingEmergencyBorderState();
+}
+
+class _PulsingEmergencyBorderState extends State<_PulsingEmergencyBorder>
+    with SingleTickerProviderStateMixin {
+  AnimationController? _controller;
+  Animation<double>? _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isEmergency) {
+      _initAnimation();
+    }
+  }
+
+  void _initAnimation() {
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: 1.5, end: 6.0).animate(
+      CurvedAnimation(parent: _controller!, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _PulsingEmergencyBorder oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isEmergency && _controller == null) {
+      _initAnimation();
+    } else if (!widget.isEmergency && _controller != null) {
+      _controller!.dispose();
+      _controller = null;
+      _animation = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.isEmergency) return widget.child;
+
+    return AnimatedBuilder(
+      animation: _animation!,
+      builder: (context, child) {
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.emergency.withValues(alpha: 0.4),
+                blurRadius: _animation!.value,
+                spreadRadius: _animation!.value / 2,
+              ),
+            ],
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: AppColors.emergency.withValues(
+                  alpha: 0.6 + (_animation!.value / 15),
+                ),
+                width: 2.0,
+              ),
+            ),
+            child: widget.child,
+          ),
+        );
+      },
+      child: widget.child,
+    );
   }
 }

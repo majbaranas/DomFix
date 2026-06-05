@@ -92,4 +92,27 @@ class AppColors {
   static const double radiusLarge  = 16;
   static const double radiusXL     = 24;
   static const double radiusFull   = 999;
+
+  // ─── Priority / Urgency Colors ─────────────────────────
+  static const Color lowPriority      = Color(0xFF4ECDC4);  // teal cyan
+  static const Color mediumPriority   = Color(0xFF79CFFF);  // sky blue
+  static const Color highPriority     = Color(0xFFFFB84D);  // amber gold
+  // emergency is already defined above as Color(0xFFFF4D4D)
+
+  // ─── Booking Status Colors ─────────────────────────────
+  static const Color statusPending    = Color(0xFFFFB84D);  // amber
+  static const Color statusAccepted   = Color(0xFF4ECDC4);  // teal
+  static const Color statusOnTheWay   = Color(0xFF79CFFF);  // sky
+  static const Color statusInProgress = Color(0xFF9E9BFF);  // lavender
+  static const Color statusCompleted  = Color(0xFF34C759);  // green (same as success)
+  static const Color statusCancelled  = Color(0xFFFF6B6B);  // soft red
+
+  // ─── Glassmorphism ─────────────────────────────────────
+  static Color get glassBackground => Colors.white.withValues(alpha: 0.04);
+  static Color get glassBorder     => Colors.white.withValues(alpha: 0.08);
+  static Color get glassHighlight  => Colors.white.withValues(alpha: 0.12);
+
+  // ─── Shimmer / Skeleton ────────────────────────────────
+  static const Color shimmerBase      = Color(0xFF1A1E25);
+  static const Color shimmerHighlight = Color(0xFF252A33);
 }

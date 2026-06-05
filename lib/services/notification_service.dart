@@ -117,4 +117,109 @@ class NotificationService {
     }
     await batch.commit();
   }
+
+  // ─── Booking Lifecycle Notification Helpers ─────────────
+
+  Future<void> sendBookingAcceptedNotification({
+    required String bookingId,
+    required String clientId,
+    required String technicianId,
+    required String technicianName,
+    required String serviceName,
+    String? chatId,
+  }) async {
+    await createNotification(
+      recipientId: clientId,
+      senderId: technicianId,
+      type: 'booking_accepted',
+      title: 'Booking accepted',
+      body: '$technicianName accepted your $serviceName booking.',
+      bookingId: bookingId,
+      chatId: chatId,
+      status: 'accepted',
+      serviceName: serviceName,
+    );
+  }
+
+  Future<void> sendBookingRejectedNotification({
+    required String bookingId,
+    required String clientId,
+    required String technicianId,
+    required String technicianName,
+    required String serviceName,
+    String? chatId,
+  }) async {
+    await createNotification(
+      recipientId: clientId,
+      senderId: technicianId,
+      type: 'booking_rejected',
+      title: 'Booking declined',
+      body: '$technicianName declined your $serviceName request.',
+      bookingId: bookingId,
+      chatId: chatId,
+      status: 'rejected',
+      serviceName: serviceName,
+    );
+  }
+
+  Future<void> sendTechnicianOnTheWayNotification({
+    required String bookingId,
+    required String clientId,
+    required String technicianId,
+    required String technicianName,
+    String? chatId,
+  }) async {
+    await createNotification(
+      recipientId: clientId,
+      senderId: technicianId,
+      type: 'technician_on_way',
+      title: 'Technician is on the way',
+      body: '$technicianName is heading to your location.',
+      bookingId: bookingId,
+      chatId: chatId,
+      status: 'on_the_way',
+    );
+  }
+
+  Future<void> sendJobStartedNotification({
+    required String bookingId,
+    required String clientId,
+    required String technicianId,
+    required String technicianName,
+    required String serviceName,
+    String? chatId,
+  }) async {
+    await createNotification(
+      recipientId: clientId,
+      senderId: technicianId,
+      type: 'job_started',
+      title: 'Job started',
+      body: '$technicianName has started working on your $serviceName.',
+      bookingId: bookingId,
+      chatId: chatId,
+      status: 'in_progress',
+      serviceName: serviceName,
+    );
+  }
+
+  Future<void> sendJobCompletedNotification({
+    required String bookingId,
+    required String clientId,
+    required String technicianId,
+    required String technicianName,
+    required String serviceName,
+    String? chatId,
+  }) async {
+    await createNotification(
+      recipientId: clientId,
+      senderId: technicianId,
+      type: 'job_completed',
+      title: 'Job completed',
+      body: 'Your $serviceName job has been completed successfully.',
+      bookingId: bookingId,
+      chatId: chatId,
+      status: 'completed',
+      serviceName: serviceName,
+    );
+  }
 }

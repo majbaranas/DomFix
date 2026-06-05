@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
 import '../models/booking_model.dart';
 import 'chat_service.dart';
@@ -15,6 +16,98 @@ class BookingService {
   String chatIdFor(String clientId, String technicianId) {
     return ChatService.generateChatId(clientId, technicianId);
   }
+
+  // ─── Availability Methods ───────────────────────────────
+
+  /// Returns a real-time stream of booked [TimeOfDay] slots for a technician
+  /// on a specific date. Used by the booking flow to grey out taken slots.
+  Stream<List<TimeOfDay>> watchBookedSlots({
+    required String technicianId,
+    required DateTime date,
+  }) {
+    final dayStart = DateTime(date.year, date.month, date.day);
+    final dayEnd = dayStart.add(const Duration(days: 1));
+
+    return _firestore
+        .collection('bookings')
+        .where('technicianId', isEqualTo: technicianId)
+        .where('scheduledAt', isGreaterThanOrEqualTo: Timestamp.fromDate(dayStart))
+        .where('scheduledAt', isLessThan: Timestamp.fromDate(dayEnd))
+        .snapshots()
+        .map((snapshot) {
+      final bookedTimes = <TimeOfDay>[];
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final status = (data['status'] as String? ?? 'pending').toLowerCase();
+        // Only block slots that are actively booked (not cancelled/rejected)
+        if (status == 'cancelled' || status == 'rejected') continue;
+        final scheduledAt = (data['scheduledAt'] as Timestamp?)?.toDate();
+        if (scheduledAt != null) {
+          bookedTimes.add(TimeOfDay(hour: scheduledAt.hour, minute: scheduledAt.minute));
+        }
+      }
+      return bookedTimes;
+    });
+  }
+
+  /// One-shot query for booked slots on a given date.
+  Future<List<TimeOfDay>> getBookedSlotsForDate({
+    required String technicianId,
+    required DateTime date,
+  }) async {
+    final dayStart = DateTime(date.year, date.month, date.day);
+    final dayEnd = dayStart.add(const Duration(days: 1));
+
+    final snapshot = await _firestore
+        .collection('bookings')
+        .where('technicianId', isEqualTo: technicianId)
+        .where('scheduledAt', isGreaterThanOrEqualTo: Timestamp.fromDate(dayStart))
+        .where('scheduledAt', isLessThan: Timestamp.fromDate(dayEnd))
+        .get();
+
+    final bookedTimes = <TimeOfDay>[];
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final status = (data['status'] as String? ?? 'pending').toLowerCase();
+      if (status == 'cancelled' || status == 'rejected') continue;
+      final scheduledAt = (data['scheduledAt'] as Timestamp?)?.toDate();
+      if (scheduledAt != null) {
+        bookedTimes.add(TimeOfDay(hour: scheduledAt.hour, minute: scheduledAt.minute));
+      }
+    }
+    return bookedTimes;
+  }
+
+  /// Checks if a specific time slot is available for a technician.
+  Future<bool> isSlotAvailable({
+    required String technicianId,
+    required DateTime scheduledAt,
+  }) async {
+    final dayStart = DateTime(scheduledAt.year, scheduledAt.month, scheduledAt.day);
+    final dayEnd = dayStart.add(const Duration(days: 1));
+
+    final snapshot = await _firestore
+        .collection('bookings')
+        .where('technicianId', isEqualTo: technicianId)
+        .where('scheduledAt', isGreaterThanOrEqualTo: Timestamp.fromDate(dayStart))
+        .where('scheduledAt', isLessThan: Timestamp.fromDate(dayEnd))
+        .get();
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final status = (data['status'] as String? ?? 'pending').toLowerCase();
+      if (status == 'cancelled' || status == 'rejected') continue;
+      final bookedAt = (data['scheduledAt'] as Timestamp?)?.toDate();
+      if (bookedAt != null &&
+          bookedAt.hour == scheduledAt.hour &&
+          bookedAt.minute == scheduledAt.minute) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // ─── Conversation Shell ─────────────────────────────────
 
   Future<void> ensureConversationShell({
     required String clientId,
@@ -44,6 +137,8 @@ class BookingService {
     });
   }
 
+  // ─── Access Check ───────────────────────────────────────
+
   Future<bool> hasFullAccess({
     required String clientId,
     required String technicianId,
@@ -65,6 +160,8 @@ class BookingService {
         bookingStatus == 'in_progress' ||
         bookingStatus == 'completed';
   }
+
+  // ─── Create Booking (Transaction-Safe) ──────────────────
 
   Future<BookingModel> createBooking({
     String? bookingId,
@@ -88,6 +185,18 @@ class BookingService {
     final bookingRef = bookingId == null
         ? _firestore.collection('bookings').doc()
         : _firestore.collection('bookings').doc(bookingId);
+
+    // Verify availability before creating
+    final available = await isSlotAvailable(
+      technicianId: technicianId,
+      scheduledAt: scheduledAt,
+    );
+    if (!available) {
+      throw Exception(
+        'This time slot is already reserved. Please choose another available time.',
+      );
+    }
+
     final booking = BookingModel(
       id: bookingRef.id,
       chatId: chatId,
@@ -112,13 +221,12 @@ class BookingService {
     );
 
     final batch = _firestore.batch();
-    final bookingRefFirestore = bookingRef;
     final chatRef = _firestore.collection('chats').doc(chatId);
     final clientNotificationRef = _firestore.collection('notifications').doc();
     final technicianNotificationRef =
         _firestore.collection('notifications').doc();
 
-    batch.set(bookingRefFirestore, booking.toFirestore());
+    batch.set(bookingRef, booking.toFirestore());
     batch.set(
       chatRef,
       {
@@ -188,6 +296,110 @@ class BookingService {
     return booking;
   }
 
+  // ─── Booking Status Updates ─────────────────────────────
+
+  /// Updates booking status and creates a notification for the client.
+  Future<void> updateBookingStatus({
+    required String bookingId,
+    required String newStatus,
+    required String clientId,
+    required String technicianId,
+    required String technicianName,
+    required String serviceName,
+  }) async {
+    final chatId = chatIdFor(clientId, technicianId);
+
+    final notificationData = _notificationForStatus(
+      newStatus: newStatus,
+      technicianName: technicianName,
+      serviceName: serviceName,
+    );
+
+    final batch = _firestore.batch();
+
+    // Update booking status
+    batch.update(
+      _firestore.collection('bookings').doc(bookingId),
+      {
+        'status': newStatus,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+    );
+
+    // Update chat booking status
+    batch.update(
+      _firestore.collection('chats').doc(chatId),
+      {
+        'bookingStatus': newStatus,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+    );
+
+    // Create notification for client
+    if (notificationData != null) {
+      final notifRef = _firestore.collection('notifications').doc();
+      batch.set(notifRef, {
+        'recipientId': clientId,
+        'senderId': technicianId,
+        'type': notificationData['type'],
+        'title': notificationData['title'],
+        'body': notificationData['body'],
+        'bookingId': bookingId,
+        'chatId': chatId,
+        'status': newStatus,
+        'serviceName': serviceName,
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    await batch.commit();
+  }
+
+  Map<String, String>? _notificationForStatus({
+    required String newStatus,
+    required String technicianName,
+    required String serviceName,
+  }) {
+    switch (newStatus) {
+      case 'accepted':
+        return {
+          'type': 'booking_accepted',
+          'title': 'Booking accepted',
+          'body': '$technicianName accepted your $serviceName booking.',
+        };
+      case 'rejected':
+        return {
+          'type': 'booking_rejected',
+          'title': 'Booking declined',
+          'body': '$technicianName declined your $serviceName request.',
+        };
+      case 'on_the_way':
+        return {
+          'type': 'technician_on_way',
+          'title': 'Technician is on the way',
+          'body': '$technicianName is heading to your location.',
+        };
+      case 'in_progress':
+        return {
+          'type': 'job_started',
+          'title': 'Job started',
+          'body': '$technicianName has started working on your $serviceName.',
+        };
+      case 'completed':
+        return {
+          'type': 'job_completed',
+          'title': 'Job completed',
+          'body': 'Your $serviceName job has been completed successfully.',
+        };
+      default:
+        return null;
+    }
+  }
+
+  // ─── Query Methods ──────────────────────────────────────
+
   Future<BookingModel?> getLatestBookingBetweenUsers({
     required String clientId,
     required String technicianId,
@@ -205,5 +417,20 @@ class BookingService {
     }
 
     return BookingModel.fromFirestore(snapshot.docs.first);
+  }
+
+  /// Streams all bookings for a technician, sorted by priority.
+  Stream<List<BookingModel>> watchTechnicianBookings(String technicianId) {
+    return _firestore
+        .collection('bookings')
+        .where('technicianId', isEqualTo: technicianId)
+        .snapshots()
+        .map((snapshot) {
+      final bookings = snapshot.docs
+          .map((doc) => BookingModel.fromFirestore(doc))
+          .toList();
+      bookings.sort((a, b) => a.compareByPriority(b));
+      return bookings;
+    });
   }
 }

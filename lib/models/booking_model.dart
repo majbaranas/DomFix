@@ -131,4 +131,34 @@ class BookingModel {
     ][scheduledAt.weekday - 1];
     return '$weekday, ${scheduledAt.month}/${scheduledAt.day}/${scheduledAt.year}';
   }
+
+  /// Numeric weight for priority-based sorting (higher = more urgent).
+  int get priorityWeight => urgencyWeight(urgency);
+
+  /// Maps an urgency label to a numeric weight.
+  static int urgencyWeight(String urgency) {
+    switch (urgency.toLowerCase().trim()) {
+      case 'emergency':
+        return 4;
+      case 'high':
+        return 3;
+      case 'medium':
+        return 2;
+      case 'low':
+        return 1;
+      default:
+        return 2;
+    }
+  }
+
+  /// Compare bookings for dashboard ordering:
+  /// Emergency first → High → Medium → Low, then by date ascending.
+  int compareByPriority(BookingModel other) {
+    final priorityCmp = other.priorityWeight.compareTo(priorityWeight);
+    if (priorityCmp != 0) return priorityCmp;
+    final dateCmp = scheduledAt.compareTo(other.scheduledAt);
+    if (dateCmp != 0) return dateCmp;
+    return createdAt.compareTo(other.createdAt);
+  }
 }
+
