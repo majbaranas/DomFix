@@ -5,11 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../services/ai_service.dart';
 import '../theme/app_colors.dart';
 
 /// AI Home Diagnostician chat screen.
 ///
-/// Opened via Navigator.push — back navigation is handled by the system.
+/// Opened via Navigator.push - back navigation is handled by the system.
 /// No bottom nav bar: this is a full-screen modal pushed on top of the shell.
 class AIChatScreen extends StatefulWidget {
   const AIChatScreen({super.key});
@@ -24,7 +25,11 @@ class _AIChatScreenState extends State<AIChatScreen>
   final _scrollController = ScrollController();
   final _focusNode = FocusNode();
   final _messages = <_ChatMessage>[];
+  final AiService _aiService = AiService();
   bool _isTyping = false;
+  bool _isSending = false;
+  int? _activeAssistantIndex;
+  String? _lastUserPrompt;
   late AnimationController _typingCtrl;
 
   // Suggestions shown before the user sends a message
@@ -47,6 +52,7 @@ class _AIChatScreenState extends State<AIChatScreen>
 
   @override
   void dispose() {
+    _aiService.cancelCurrentRequest();
     _messageController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
@@ -56,81 +62,155 @@ class _AIChatScreenState extends State<AIChatScreen>
 
   void _addWelcome() {
     setState(() {
-      _messages.add(_ChatMessage(
-        text:
-            "Hi! I'm your DomFix AI Diagnostician. Describe a home issue or ask a question — I'll help you identify the cause and connect you with the right professional.",
-        isUser: false,
-        timestamp: _now(),
-      ));
+      _messages.add(
+        _ChatMessage(
+          text:
+              "Hi! I'm your DomFix AI Diagnostician. Describe a home issue or ask a question - I'll help you identify the cause and connect you with the right professional.",
+          isUser: false,
+          timestamp: _now(),
+        ),
+      );
     });
   }
 
   void _sendMessage([String? prefill]) {
     final text = (prefill ?? _messageController.text).trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _isSending) return;
 
     HapticFeedback.lightImpact();
     setState(() {
       _messages.add(_ChatMessage(text: text, isUser: true, timestamp: _now()));
       _messageController.clear();
       _isTyping = true;
+      _isSending = true;
+      _activeAssistantIndex = null;
+      _lastUserPrompt = text;
     });
     _scrollToBottom();
-    _simulateReply(text);
+    _sendToGroq();
   }
 
-  void _simulateReply(String userText) {
-    Future.delayed(const Duration(milliseconds: 1600), () {
+  Future<void> _sendToGroq() async {
+    final transcript = _buildTranscript();
+
+    try {
+      final result = await _aiService.sendConversation(
+        messages: transcript,
+        onStreamDelta: (partialReply) {
+          if (!mounted) {
+            return;
+          }
+
+          setState(() {
+            _isTyping = false;
+
+            if (_activeAssistantIndex == null) {
+              _messages.add(
+                _ChatMessage(
+                  text: partialReply,
+                  isUser: false,
+                  timestamp: _now(),
+                ),
+              );
+              _activeAssistantIndex = _messages.length - 1;
+            } else {
+              _messages[_activeAssistantIndex!].text = partialReply;
+            }
+          });
+          _scrollToBottom();
+        },
+      );
+
       if (!mounted) return;
+
       setState(() {
         _isTyping = false;
-        _messages.add(_ChatMessage(
-          text: _generateReply(userText),
-          isUser: false,
-          timestamp: _now(),
-          proTip: _pickProTip(userText),
-        ));
+        _isSending = false;
+
+        if (_activeAssistantIndex == null) {
+          _messages.add(
+            _ChatMessage(
+              text: result.reply,
+              isUser: false,
+              timestamp: _now(),
+              proTip: result.proTip.isNotEmpty ? result.proTip : null,
+            ),
+          );
+          _activeAssistantIndex = _messages.length - 1;
+        } else {
+          final assistant = _messages[_activeAssistantIndex!];
+          assistant.text = result.reply;
+          assistant.proTip = result.proTip.isNotEmpty ? result.proTip : null;
+        }
+
+        _activeAssistantIndex = null;
       });
       _scrollToBottom();
+    } catch (error) {
+      if (!mounted) return;
+
+      final normalized = _aiService.normalizeError(error);
+      if (normalized.code == 'cancelled') {
+        return;
+      }
+
+      final canRetry = normalized.retryable && _lastUserPrompt != null;
+
+      if (_activeAssistantIndex != null &&
+          _activeAssistantIndex! < _messages.length) {
+        final message = _messages[_activeAssistantIndex!];
+        if (!message.isUser) {
+          _messages.removeAt(_activeAssistantIndex!);
+        }
+      }
+
+      setState(() {
+        _isTyping = false;
+        _isSending = false;
+        _messages.add(
+          _ChatMessage(
+            text: normalized.message,
+            isUser: false,
+            timestamp: _now(),
+            isError: true,
+          ),
+        );
+        _activeAssistantIndex = null;
+      });
+      _scrollToBottom();
+
+      if (canRetry) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(normalized.message),
+            backgroundColor: AppColors.surfaceContainerHigh,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: AppColors.neonAccent,
+              onPressed: _retryLastMessage,
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  void _retryLastMessage() {
+    if (_isSending || _lastUserPrompt == null) {
+      return;
+    }
+
+    setState(() {
+      if (_messages.isNotEmpty && _messages.last.isError) {
+        _messages.removeLast();
+      }
+      _isTyping = true;
+      _isSending = true;
+      _activeAssistantIndex = null;
     });
-  }
 
-  String _generateReply(String input) {
-    final lower = input.toLowerCase();
-    if (lower.contains('damp') || lower.contains('leak') || lower.contains('water')) {
-      return 'A damp patch on the ceiling is usually caused by a slow pipe leak or roof penetration issue. Check whether the affected area is directly below a bathroom or the roof. A plumber or roofer should inspect it as soon as possible to prevent structural damage.';
-    }
-    if (lower.contains('ac') ||
-        lower.contains('air') ||
-        lower.contains('cool')) {
-      return 'Reduced cooling is often caused by a clogged air filter, low refrigerant level, or a dirty condenser coil. Start by replacing the air filter — if the issue persists, an HVAC technician should inspect the refrigerant charge and coil condition.';
-    }
-    if (lower.contains('noise') ||
-        lower.contains('pipe') ||
-        lower.contains('plumb')) {
-      return 'Banging or rattling pipes are often caused by water hammer (sudden pressure changes) or loose pipe brackets. Gurgling sounds may indicate a partial blockage. A licensed plumber can diagnose and resolve this quickly.';
-    }
-    if (lower.contains('electric') ||
-        lower.contains('outlet') ||
-        lower.contains('power') ||
-        lower.contains('light')) {
-      return 'A non-working outlet may have tripped its GFCI protection — check for a nearby GFCI outlet with a "Reset" button and press it. If that doesn\'t help, the circuit breaker may have tripped. Do not attempt to open the outlet yourself; contact a certified electrician.';
-    }
-    return 'Thank you for describing the issue. Based on what you\'ve shared, I recommend having a certified technician assess it in person for an accurate diagnosis. Would you like me to help you find the right professional?';
-  }
-
-  String? _pickProTip(String input) {
-    final lower = input.toLowerCase();
-    if (lower.contains('damp') || lower.contains('leak')) {
-      return 'Take a photo of the affected area and note whether it gets worse after rain or after using taps upstairs.';
-    }
-    if (lower.contains('ac') || lower.contains('cool')) {
-      return 'Check that all vents are open and unblocked before calling a technician — this fixes ~20% of AC issues.';
-    }
-    if (lower.contains('electric') || lower.contains('outlet')) {
-      return 'Never use a damaged outlet. Switch off the circuit breaker for that room until a technician arrives.';
-    }
-    return null;
+    _scrollToBottom();
+    _sendToGroq();
   }
 
   void _scrollToBottom() {
@@ -159,6 +239,19 @@ class _AIChatScreenState extends State<AIChatScreen>
 
   bool get _isFirstMessage => _messages.length == 1;
 
+  List<AiConversationTurn> _buildTranscript() {
+    return _messages
+        .where((message) => !message.isError)
+        .map(
+          (message) => AiConversationTurn(
+            role: message.isUser ? 'user' : 'assistant',
+            content: message.text.trim(),
+          ),
+        )
+        .where((turn) => turn.content.isNotEmpty)
+        .toList(growable: false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.paddingOf(context).top;
@@ -170,16 +263,15 @@ class _AIChatScreenState extends State<AIChatScreen>
       resizeToAvoidBottomInset: true,
       body: Column(
         children: [
-          // ── Top bar ─────────────────────────────────────────
+          // Top bar
           _buildTopBar(top, user),
-          // ── Chat list ───────────────────────────────────────
+          // Chat list
           Expanded(
             child: GestureDetector(
               onTap: _focusNode.unfocus,
               child: ListView.builder(
                 controller: _scrollController,
-                padding: EdgeInsets.fromLTRB(16, 12, 16,
-                    _isFirstMessage ? 8 : 20),
+                padding: EdgeInsets.fromLTRB(16, 12, 16, _isFirstMessage ? 8 : 20),
                 itemCount: _messages.length + (_isTyping ? 1 : 0),
                 itemBuilder: (_, i) {
                   if (i == _messages.length && _isTyping) {
@@ -190,16 +282,16 @@ class _AIChatScreenState extends State<AIChatScreen>
               ),
             ),
           ),
-          // ── Suggestions (only before first user message) ────
+          // Suggestions (only before first user message)
           if (_isFirstMessage) _buildSuggestions(),
-          // ── Input bar ───────────────────────────────────────
+          // Input bar
           _buildInputBar(bottom),
         ],
       ),
     );
   }
 
-  // ─── Top bar ───────────────────────────────────────────────
+  // Top bar
   Widget _buildTopBar(double topPad, User? user) {
     return ClipRect(
       child: BackdropFilter(
@@ -209,8 +301,7 @@ class _AIChatScreenState extends State<AIChatScreen>
           decoration: BoxDecoration(
             color: AppColors.surface.withValues(alpha: 0.75),
             border: Border(
-              bottom: BorderSide(
-                  color: Colors.white.withValues(alpha: 0.06)),
+              bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
             ),
           ),
           child: Row(
@@ -221,8 +312,11 @@ class _AIChatScreenState extends State<AIChatScreen>
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
                   padding: const EdgeInsets.all(8),
-                  child: Icon(Icons.arrow_back_ios_new_rounded,
-                      size: 18, color: AppColors.onSurface),
+                  child: Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    size: 18,
+                    color: AppColors.onSurface,
+                  ),
                 ),
               ),
               const SizedBox(width: 4),
@@ -241,8 +335,11 @@ class _AIChatScreenState extends State<AIChatScreen>
                     color: AppColors.neonAccent.withValues(alpha: 0.4),
                   ),
                 ),
-                child: Icon(Icons.auto_awesome_rounded,
-                    size: 18, color: AppColors.neonAccent),
+                child: Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 18,
+                  color: AppColors.neonAccent,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -280,8 +377,7 @@ class _AIChatScreenState extends State<AIChatScreen>
                           'Ready for analysis',
                           style: GoogleFonts.inter(
                             fontSize: 11,
-                            color: AppColors.onSurfaceVariant
-                                .withValues(alpha: 0.7),
+                            color: AppColors.onSurfaceVariant.withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -296,16 +392,14 @@ class _AIChatScreenState extends State<AIChatScreen>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: AppColors.surfaceContainerHigh,
-                  border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08)),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                 ),
                 child: ClipOval(
                   child: user?.photoURL?.isNotEmpty == true
                       ? Image.network(
                           user!.photoURL!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) =>
-                              _userInitial(user),
+                          errorBuilder: (_, _, _) => _userInitial(user),
                         )
                       : _userInitial(user),
                 ),
@@ -340,7 +434,7 @@ class _AIChatScreenState extends State<AIChatScreen>
     );
   }
 
-  // ─── Chat bubble ───────────────────────────────────────────
+  // Chat bubble
   Widget _buildBubble(_ChatMessage msg) {
     final isUser = msg.isUser;
     return Padding(
@@ -365,19 +459,22 @@ class _AIChatScreenState extends State<AIChatScreen>
                       colors: [Color(0xFF1E2A14), Color(0xFF2B3D00)],
                     ),
                     border: Border.all(
-                        color: AppColors.neonAccent.withValues(alpha: 0.35)),
+                      color: AppColors.neonAccent.withValues(alpha: 0.35),
+                    ),
                   ),
-                  child: Icon(Icons.auto_awesome_rounded,
-                      size: 14, color: AppColors.neonAccent),
+                  child: Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 14,
+                    color: AppColors.neonAccent,
+                  ),
                 ),
               ],
               Flexible(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 13),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                   constraints: BoxConstraints(
-                    maxWidth:
-                        MediaQuery.sizeOf(context).width * 0.78,
+                    maxWidth: MediaQuery.sizeOf(context).width * 0.78,
                   ),
                   decoration: BoxDecoration(
                     color: isUser
@@ -417,8 +514,7 @@ class _AIChatScreenState extends State<AIChatScreen>
           ],
           // Timestamp
           Padding(
-            padding: EdgeInsets.only(
-                top: 5, left: isUser ? 0 : 36, right: 0),
+            padding: EdgeInsets.only(top: 5, left: isUser ? 0 : 36, right: 0),
             child: Text(
               isUser ? 'You • ${msg.timestamp}' : 'AI • ${msg.timestamp}',
               style: GoogleFonts.inter(
@@ -433,7 +529,7 @@ class _AIChatScreenState extends State<AIChatScreen>
     );
   }
 
-  // ─── Suggestion chips ──────────────────────────────────────
+  // Suggestion chips
   Widget _buildSuggestions() {
     return Container(
       width: double.infinity,
@@ -446,8 +542,8 @@ class _AIChatScreenState extends State<AIChatScreen>
               (s) => GestureDetector(
                 onTap: () => _sendMessage(s),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 9),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(12),
@@ -469,7 +565,7 @@ class _AIChatScreenState extends State<AIChatScreen>
     );
   }
 
-  // ─── Input bar ─────────────────────────────────────────────
+  // Input bar
   Widget _buildInputBar(double bottomPad) {
     return Container(
       padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + bottomPad),
@@ -502,14 +598,16 @@ class _AIChatScreenState extends State<AIChatScreen>
                   height: 1.4,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'Describe your issue…',
+                  hintText: 'Describe your issue...',
                   hintStyle: GoogleFonts.inter(
                     fontSize: 14,
                     color: AppColors.onSurfaceVariant.withValues(alpha: 0.4),
                   ),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ),
@@ -534,8 +632,8 @@ class _AIChatScreenState extends State<AIChatScreen>
                     boxShadow: hasText
                         ? [
                             BoxShadow(
-                              color: AppColors.neonAccent
-                                  .withValues(alpha: 0.35),
+                              color:
+                                  AppColors.neonAccent.withValues(alpha: 0.35),
                               blurRadius: 14,
                               offset: const Offset(0, 4),
                             ),
@@ -559,7 +657,7 @@ class _AIChatScreenState extends State<AIChatScreen>
   }
 }
 
-// ─── Pro tip card ────────────────────────────────────────────
+// Pro tip card
 class _ProTipCard extends StatelessWidget {
   const _ProTipCard({required this.tip});
   final String tip;
@@ -571,8 +669,7 @@ class _ProTipCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.neonAccent.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-            color: AppColors.neonAccent.withValues(alpha: 0.2)),
+        border: Border.all(color: AppColors.neonAccent.withValues(alpha: 0.2)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -611,7 +708,7 @@ class _ProTipCard extends StatelessWidget {
   }
 }
 
-// ─── Typing indicator ────────────────────────────────────────
+// Typing indicator
 class _TypingBubble extends StatelessWidget {
   const _TypingBubble({required this.controller});
   final AnimationController controller;
@@ -632,14 +729,17 @@ class _TypingBubble extends StatelessWidget {
                 colors: [Color(0xFF1E2A14), Color(0xFF2B3D00)],
               ),
               border: Border.all(
-                  color: AppColors.neonAccent.withValues(alpha: 0.35)),
+                color: AppColors.neonAccent.withValues(alpha: 0.35),
+              ),
             ),
-            child: Icon(Icons.auto_awesome_rounded,
-                size: 14, color: AppColors.neonAccent),
+            child: Icon(
+              Icons.auto_awesome_rounded,
+              size: 14,
+              color: AppColors.neonAccent,
+            ),
           ),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: const BorderRadius.only(
@@ -648,8 +748,7 @@ class _TypingBubble extends StatelessWidget {
                 bottomRight: Radius.circular(18),
                 bottomLeft: Radius.circular(4),
               ),
-              border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.06)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
             ),
             child: AnimatedBuilder(
               animation: controller,
@@ -660,8 +759,7 @@ class _TypingBubble extends StatelessWidget {
                     final v = (controller.value + i * 0.2) % 1.0;
                     final opacity = v < 0.5 ? v * 2 : (1 - v) * 2;
                     return Container(
-                      margin:
-                          const EdgeInsets.symmetric(horizontal: 3),
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
                       width: 7,
                       height: 7,
                       decoration: BoxDecoration(
@@ -681,17 +779,19 @@ class _TypingBubble extends StatelessWidget {
   }
 }
 
-// ─── Data model ──────────────────────────────────────────────
+// Data model
 class _ChatMessage {
-  final String text;
+  String text;
   final bool isUser;
   final String timestamp;
-  final String? proTip;
+  String? proTip;
+  final bool isError;
 
-  const _ChatMessage({
+  _ChatMessage({
     required this.text,
     required this.isUser,
     required this.timestamp,
     this.proTip,
+    this.isError = false,
   });
 }
