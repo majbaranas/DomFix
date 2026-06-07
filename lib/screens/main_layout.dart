@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../widgets/domfix_glass_bottom_nav.dart';
-import 'control_screen.dart';
 import 'find_pros_screen_content.dart';
 import 'home_screen_content.dart';
 import 'messages_screen.dart';
 import 'settings_screen.dart';
+import 'smart_home_screen.dart';
 
 /// Exposes tab switching to descendants (e.g. home shortcuts) without pushing routes.
 class MainLayoutScope extends InheritedWidget {
@@ -43,7 +43,7 @@ class _MainLayoutState extends State<MainLayout> {
     HomeScreenContent(),
     MessagesScreen(),
     FindProsScreenContent(),
-    ControlScreen(),
+    SmartHomeScreen(), // ESP32 + IoT Control
     SettingsScreen(),
   ];
 
