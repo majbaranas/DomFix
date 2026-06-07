@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the document
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    // Smart Devices - Users can only access their own devices
+    match /smart_devices/{userId}/devices/{deviceId} {
+      // Read: Owner only
+      allow read: if isOwner(userId);
+      
+      // Create: Owner only, must include required fields
+      allow create: if isOwner(userId) 
+                    && request.resource.data.keys().hasAll([
+                      'name', 'room', 'type', 'isOnline', 'isOn', 'lastUpdated'
+                    ])
+                    && request.resource.data.name is string
+                    && request.resource.data.room is string
+                    && request.resource.data.type is string
+                    && request.resource.data.isOnline is bool
+                    && request.resource.data.isOn is bool;
+      
+      // Update: Owner only, can update device state
+      allow update: if isOwner(userId)
+                    && request.resource.data.name == resource.data.name
+                    && request.resource.data.type == resource.data.type;
+      
+      // Delete: Owner only
+      allow delete: if isOwner(userId);
+    }
+    
+    // Legacy user devices (from old control_screen)
+    match /users/{userId}/devices/{deviceId} {
+      allow read, write: if isOwner(userId);
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId);
+      
+      // Subcollections
+      match /{document=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // Chats (existing rules)
+    match /chats/{chatId} {
+      allow read, write: if isSignedIn() 
+                        && chatId.matches('.*' + request.auth.uid + '.*');
+      
+      match /messages/{messageId} {
+        allow read, write: if isSignedIn() 
+                          && chatId.matches('.*' + request.auth.uid + '.*');
+      }
+    }
+    
+    // Bookings
+    match /bookings/{bookingId} {
+      allow read: if isSignedIn() 
+                  && (resource.data.clientId == request.auth.uid 
+                      || resource.data.technicianId == request.auth.uid);
+      
+      allow create: if isSignedIn() 
+                    && request.resource.data.clientId == request.auth.uid;
+      
+      allow update: if isSignedIn() 
+                    && (resource.data.clientId == request.auth.uid 
+                        || resource.data.technicianId == request.auth.uid);
+    }
+    
+    // Notifications
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() 
+                  && resource.data.recipientId == request.auth.uid;
+      
+      allow write: if false; // Only server can write notifications
+    }
+    
+    // Default deny all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
