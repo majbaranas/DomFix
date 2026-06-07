@@ -4,7 +4,6 @@ import '../theme/app_colors.dart';
 import '../services/auth_service.dart';
 import '../services/user_service.dart';
 import '../services/firebase_navigation_service.dart';
-import '../widgets/logo_painter.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -173,26 +172,30 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildLogo() {
     final screenHeight = MediaQuery.of(context).size.height;
-    final scaleFactor = screenHeight < 700 ? 0.85 : 1.0;
+    final logoSize = screenHeight < 700 ? 70.0 : 80.0;
     
-    return Column(
-      children: [
-        SizedBox(
-          width: 48 * scaleFactor,
-          height: 34 * scaleFactor,
-          child: CustomPaint(painter: LogoPainter()),
-        ),
-        SizedBox(height: 6 * scaleFactor),
-        Text(
-          'DOMFIX',
-          style: GoogleFonts.spaceGrotesk(
-            fontSize: 12 * scaleFactor,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 5,
-            color: AppColors.primaryContainer,
+    return Container(
+      width: logoSize,
+      height: logoSize,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.neonAccent.withValues(alpha: 0.15),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
           ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Image.asset(
+          'assets/images/logo/domfix_logo.png',
+          width: logoSize,
+          height: logoSize,
+          fit: BoxFit.cover,
         ),
-      ],
+      ),
     );
   }
 

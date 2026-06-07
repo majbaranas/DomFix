@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_colors.dart';
-import '../widgets/logo_painter.dart';
 import '../services/local_storage_service.dart';
 import '../services/firebase_navigation_service.dart';
 import 'onboarding_screen.dart';
@@ -133,49 +132,36 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Widget _buildLogo() {
-    return SizedBox(
-      width: 128,
-      height: 128,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          AnimatedBuilder(
-            animation: _pulseAnimation,
-            builder: (context, child) {
-              return Container(
-                width: 128,
-                height: 128,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryContainer
-                          .withValues(alpha: 0.05 * _pulseAnimation.value),
-                      blurRadius: 80,
-                      spreadRadius: 20,
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-          Container(
-            width: 96,
-            height: 96,
+    return AnimatedBuilder(
+      animation: _pulseAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: 0.95 + (_pulseAnimation.value * 0.05),
+          child: Container(
+            width: 140,
+            height: 140,
             decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(32),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.neonAccent.withValues(alpha: 0.15),
-                  blurRadius: 40,
+                  color: AppColors.neonAccent.withValues(alpha: 0.2 * _pulseAnimation.value),
+                  blurRadius: 60,
+                  spreadRadius: 10,
                 ),
               ],
             ),
-            child: CustomPaint(
-              painter: LogoPainter(),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(32),
+              child: Image.asset(
+                'assets/images/logo/domfix_logo.png',
+                width: 140,
+                height: 140,
+                fit: BoxFit.cover,
+              ),
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

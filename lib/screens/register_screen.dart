@@ -210,13 +210,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _buildLogo() {
-    return Text(
-      'DOMFIX',
-      style: GoogleFonts.spaceGrotesk(
-        fontSize: 20,
-        fontWeight: FontWeight.w900,
-        letterSpacing: 6,
-        color: AppColors.primaryContainer,
+    return Container(
+      width: 70,
+      height: 70,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.neonAccent.withValues(alpha: 0.15),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Image.asset(
+          'assets/images/logo/domfix_logo.png',
+          width: 70,
+          height: 70,
+          fit: BoxFit.cover,
+        ),
       ),
     );
   }
