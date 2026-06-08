@@ -741,7 +741,10 @@ class _NearbyTechniciansMapScreenState
       child: _TechPreviewCard(
         tech: _selected!,
         userPoint: _userPoint!,
-        onClose: () => setState(() => _selected = null),
+        onClose: () => setState(() {
+          _selected = null;
+          _routePoints = null;
+        }),
       ),
     );
   }

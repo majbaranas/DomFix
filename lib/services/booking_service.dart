@@ -114,27 +114,46 @@ class BookingService {
     required String technicianId,
     required String technicianName,
   }) async {
+    print('[BookingService] 🔵 ensureConversationShell called');
+    print('[BookingService]   clientId: $clientId');
+    print('[BookingService]   technicianId: $technicianId');
+    print('[BookingService]   technicianName: $technicianName');
+    
     final chatId = chatIdFor(clientId, technicianId);
+    print('[BookingService]   chatId: $chatId');
+    
     final chatRef = _firestore.collection('chats').doc(chatId);
-    final chatDoc = await chatRef.get();
-    if (chatDoc.exists) {
-      return;
+    
+    try {
+      print('[BookingService] 📖 Checking if chat exists...');
+      final chatDoc = await chatRef.get();
+      
+      if (chatDoc.exists) {
+        print('[BookingService] ✅ Chat already exists, skipping creation');
+        return;
+      }
+      
+      print('[BookingService] 📝 Chat does not exist, creating new chat shell...');
+      await chatRef.set({
+        'participants': [clientId, technicianId],
+        'clientId': clientId,
+        'technicianId': technicianId,
+        'technicianName': technicianName,
+        'bookingStatus': 'none',
+        'accessLevel': 'limited',
+        'canShareImages': false,
+        'canUseVoiceNotes': false,
+        'lastMessage': '',
+        'lastMessageTime': FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      print('[BookingService] ✅ Chat shell created successfully');
+    } catch (e, stackTrace) {
+      print('[BookingService] ❌ ERROR in ensureConversationShell: $e');
+      print('[BookingService] StackTrace: $stackTrace');
+      rethrow;
     }
-
-    await chatRef.set({
-      'participants': [clientId, technicianId],
-      'clientId': clientId,
-      'technicianId': technicianId,
-      'technicianName': technicianName,
-      'bookingStatus': 'none',
-      'accessLevel': 'limited',
-      'canShareImages': false,
-      'canUseVoiceNotes': false,
-      'lastMessage': '',
-      'lastMessageTime': FieldValue.serverTimestamp(),
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
   }
 
   // ─── Access Check ───────────────────────────────────────
@@ -181,21 +200,34 @@ class BookingService {
     required double technicianFee,
     required double platformFee,
   }) async {
+    print('[BookingService] 🔵 createBooking called');
+    print('[BookingService]   clientId: $clientId');
+    print('[BookingService]   technicianId: $technicianId');
+    print('[BookingService]   serviceName: $serviceName');
+    print('[BookingService]   scheduledAt: $scheduledAt');
+    
     final chatId = chatIdFor(clientId, technicianId);
+    print('[BookingService]   chatId: $chatId');
+    
     final bookingRef = bookingId == null
         ? _firestore.collection('bookings').doc()
         : _firestore.collection('bookings').doc(bookingId);
+    print('[BookingService]   bookingId: ${bookingRef.id}');
 
     // Verify availability before creating
+    print('[BookingService] 🔍 Checking slot availability...');
     final available = await isSlotAvailable(
       technicianId: technicianId,
       scheduledAt: scheduledAt,
     );
+    
     if (!available) {
+      print('[BookingService] ❌ Slot not available');
       throw Exception(
         'This time slot is already reserved. Please choose another available time.',
       );
     }
+    print('[BookingService] ✅ Slot is available');
 
     final booking = BookingModel(
       id: bookingRef.id,
@@ -220,6 +252,7 @@ class BookingService {
       createdAt: DateTime.now(),
     );
 
+    print('[BookingService] 📝 Creating batch write...');
     final batch = _firestore.batch();
     final chatRef = _firestore.collection('chats').doc(chatId);
     final clientNotificationRef = _firestore.collection('notifications').doc();
@@ -292,8 +325,16 @@ class BookingService {
       },
     );
 
-    await batch.commit();
-    return booking;
+    try {
+      print('[BookingService] 💾 Committing batch...');
+      await batch.commit();
+      print('[BookingService] ✅ Booking created successfully');
+      return booking;
+    } catch (e, stackTrace) {
+      print('[BookingService] ❌ ERROR committing batch: $e');
+      print('[BookingService] StackTrace: $stackTrace');
+      rethrow;
+    }
   }
 
   // ─── Booking Status Updates ─────────────────────────────
@@ -307,10 +348,13 @@ class BookingService {
     required String technicianName,
     required String serviceName,
   }) async {
+    print('[BookingService] 🔄 Updating booking status to: $newStatus');
+    
     final chatId = chatIdFor(clientId, technicianId);
+    final normalizedStatus = newStatus.trim().toLowerCase().replaceAll(' ', '_');
 
     final notificationData = _notificationForStatus(
-      newStatus: newStatus,
+      newStatus: normalizedStatus,
       technicianName: technicianName,
       serviceName: serviceName,
     );
@@ -321,7 +365,7 @@ class BookingService {
     batch.update(
       _firestore.collection('bookings').doc(bookingId),
       {
-        'status': newStatus,
+        'status': normalizedStatus,
         'updatedAt': FieldValue.serverTimestamp(),
       },
     );
@@ -330,7 +374,7 @@ class BookingService {
     batch.update(
       _firestore.collection('chats').doc(chatId),
       {
-        'bookingStatus': newStatus,
+        'bookingStatus': normalizedStatus,
         'updatedAt': FieldValue.serverTimestamp(),
       },
     );
@@ -346,7 +390,7 @@ class BookingService {
         'body': notificationData['body'],
         'bookingId': bookingId,
         'chatId': chatId,
-        'status': newStatus,
+        'status': normalizedStatus,
         'serviceName': serviceName,
         'isRead': false,
         'createdAt': FieldValue.serverTimestamp(),
@@ -355,6 +399,75 @@ class BookingService {
     }
 
     await batch.commit();
+    print('[BookingService] ✅ Booking status updated');
+    
+    // If status changed to 'completed', increment technician's completed jobs
+    if (normalizedStatus == 'completed') {
+      print('[BookingService] 🎉 Job completed! Incrementing counter...');
+      // Import review_service.dart at the top and call:
+      await _incrementCompletedJobsAsync(technicianId);
+    }
+  }
+  
+  /// Increment completed jobs in background (non-blocking)
+  Future<void> _incrementCompletedJobsAsync(String technicianId) async {
+    // Run in background without blocking the UI
+    Future.microtask(() async {
+      try {
+        // Import at top: import 'review_service.dart';
+        final firestore = _firestore;
+        final statsRef = firestore.collection('technician_stats').doc(technicianId);
+        
+        await firestore.runTransaction((transaction) async {
+          final statsSnap = await transaction.get(statsRef);
+          final currentStats = statsSnap.exists ? statsSnap.data()! : <String, dynamic>{};
+          
+          final completedJobs = ((currentStats['completedJobs'] as num?)?.toInt() ?? 0) + 1;
+          final averageRating = (currentStats['averageRating'] as num?)?.toDouble() ?? 0.0;
+          final totalReviews = (currentStats['totalReviews'] as num?)?.toInt() ?? 0;
+          final reviewQualityScore = (currentStats['reviewQualityScore'] as num?)?.toDouble() ?? 0.0;
+          final ratingSum = (currentStats['ratingSum'] as num?)?.toInt() ?? 0;
+          
+          // Recalculate rank score
+          final ratingWeight = averageRating * 100;
+          final trustWeight = (totalReviews > 50 ? 50 : totalReviews) * 2;
+          final volumeWeight = (completedJobs > 100 ? 100 : completedJobs).toDouble();
+          final qualityWeight = reviewQualityScore * 10;
+          final rankScore = double.parse(
+            (ratingWeight + trustWeight + volumeWeight + qualityWeight).toStringAsFixed(3),
+          );
+          
+          transaction.set(statsRef, {
+            'technicianId': technicianId,
+            'completedJobs': completedJobs,
+            'averageRating': averageRating,
+            'totalReviews': totalReviews,
+            'ratingSum': ratingSum,
+            'reviewQualityScore': reviewQualityScore,
+            'rankScore': rankScore,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+          
+          transaction.set(
+            firestore.collection('users').doc(technicianId),
+            {
+              'jobsCompleted': completedJobs,
+              'rating': averageRating,
+              'averageRating': averageRating,
+              'reviewCount': totalReviews,
+              'rankScore': rankScore,
+              'updatedAt': FieldValue.serverTimestamp(),
+              'updated_at': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true),
+          );
+        });
+        
+        print('[BookingService] ✅ Completed jobs counter updated');
+      } catch (e) {
+        print('[BookingService] ⚠️ Failed to update completed jobs: $e');
+      }
+    });
   }
 
   Map<String, String>? _notificationForStatus({

@@ -85,28 +85,49 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
   void initState() { super.initState(); _fetchProfile(); }
 
   Future<void> _fetchProfile() async {
+    print('[TechnicianProfile] 🔵 _fetchProfile called');
+    print('[TechnicianProfile]   technicianId: ${widget.technicianId}');
+    
     setState(() { _loading = true; _error = null; });
+    
     try {
+      print('[TechnicianProfile] 📖 Fetching technician document...');
       final doc = await FirebaseFirestore.instance.collection('users').doc(widget.technicianId).get();
-      if (!doc.exists) { if (mounted) setState(() { _error = 'Technician not found.'; _loading = false; }); return; }
+      
+      if (!doc.exists) {
+        print('[TechnicianProfile] ❌ Technician document does not exist');
+        if (mounted) setState(() { _error = 'Technician not found.'; _loading = false; });
+        return;
+      }
+      
+      print('[TechnicianProfile] ✅ Technician document found');
+      final docData = doc.data();
+      print('[TechnicianProfile]   Document data keys: ${docData?.keys.toList()}');
       
       // Fetch profile data
       final profile = TechnicianProfile.fromFirestore(doc.id, doc.data()!);
+      print('[TechnicianProfile] ✅ Profile parsed successfully');
       
       // Fetch real stats from technician_stats collection
+      print('[TechnicianProfile] 📖 Fetching technician stats...');
       final statsSnapshot = await ReviewService.instance
           .watchTechnicianStats(widget.technicianId)
           .first;
+      print('[TechnicianProfile] ✅ Stats fetched: avgRating=${statsSnapshot?.averageRating}, totalReviews=${statsSnapshot?.totalReviews}');
       
       // Fetch recent reviews
+      print('[TechnicianProfile] 📖 Fetching reviews...');
       final reviewsSnapshot = await ReviewService.instance
           .watchTechnicianReviews(widget.technicianId, limit: 10)
           .first;
+      print('[TechnicianProfile] ✅ Reviews fetched: count=${reviewsSnapshot.length}');
       
       // Fetch work photos
+      print('[TechnicianProfile] 📖 Fetching work photos...');
       final photosSnapshot = await ReviewService.instance
           .watchTechnicianWorkPhotos(widget.technicianId, limit: 12)
           .first;
+      print('[TechnicianProfile] ✅ Photos fetched: count=${photosSnapshot.length}');
       
       if (mounted) setState(() {
         _profile = profile;
@@ -115,7 +136,10 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
         _workPhotos = photosSnapshot;
         _loading = false;
       });
-    } catch (e) {
+      print('[TechnicianProfile] ✅ Profile loading complete');
+    } catch (e, stackTrace) {
+      print('[TechnicianProfile] ❌ ERROR in _fetchProfile: $e');
+      print('[TechnicianProfile] StackTrace: $stackTrace');
       if (mounted) setState(() { _error = 'Failed to load profile.'; _loading = false; });
     }
   }
@@ -311,23 +335,20 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
   }
 
   Widget _buildReviews(TechnicianProfile p) {
-    // Use real reviews if available, fallback to static reviews
-    final displayReviews = _reviews.isNotEmpty ? _reviews : p.reviews;
-    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Reviews', style: GoogleFonts.spaceGrotesk(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
         const SizedBox(height: 12),
-        if (displayReviews.isEmpty)
+        if (_reviews.isEmpty && p.reviews.isEmpty)
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.divider)),
             child: Center(child: Text('No reviews yet', style: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurfaceVariant))),
           )
-        else
-          ...displayReviews.map((r) {
-            // Format time ago
+        else ...[  
+          // Show real reviews from Firebase
+          ..._reviews.map((r) {
             final timeAgo = _formatTimeAgo(r.createdAt);
             
             return Container(
@@ -360,6 +381,40 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
               ),
             );
           }),
+          // Show fallback static reviews only if no real reviews
+          if (_reviews.isEmpty)
+            ...p.reviews.map((r) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.divider)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(width: 36, height: 36,
+                          decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.surfaceContainerHigh),
+                          child: ClipOval(child: r.reviewerPhoto != null
+                            ? Image.network(r.reviewerPhoto!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _reviewInitial(r.reviewerName))
+                            : _reviewInitial(r.reviewerName))),
+                        const SizedBox(width: 10),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(r.reviewerName, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
+                          Row(children: List.generate(5, (i) => Icon(i < r.rating ? Icons.star_rounded : Icons.star_outline_rounded, size: 12, color: AppColors.neonAccent))),
+                        ])),
+                        if (r.timeAgo.isNotEmpty) Text(r.timeAgo, style: GoogleFonts.inter(fontSize: 11, color: AppColors.onSurfaceVariant)),
+                      ],
+                    ),
+                    if (r.comment.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Text('"${r.comment}"', style: GoogleFonts.inter(fontSize: 13, fontStyle: FontStyle.italic, height: 1.5, color: AppColors.onSurfaceVariant)),
+                    ],
+                  ],
+                ),
+              );
+            }),
+        ],
       ],
     );
   }
@@ -433,8 +488,14 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
   }
 
   Future<void> _openMessageChat(TechnicianProfile p) async {
+    print('[TechnicianProfile] 🔵 _openMessageChat called');
+    print('[TechnicianProfile]   technicianId: ${p.id}');
+    print('[TechnicianProfile]   technicianName: ${p.name}');
+    
     final user = FirebaseAuth.instance.currentUser;
+    
     if (user == null) {
+      print('[TechnicianProfile] ❌ User not authenticated');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -449,15 +510,21 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
       return;
     }
 
+    print('[TechnicianProfile]   currentUserId: ${user.uid}');
     setState(() => _openingChat = true);
+    
     try {
+      print('[TechnicianProfile] 📝 Calling ensureConversationShell...');
       await BookingService.instance.ensureConversationShell(
         clientId: user.uid,
         technicianId: p.id,
         technicianName: p.name,
       );
+      print('[TechnicianProfile] ✅ Chat shell ensured');
 
       if (!mounted) return;
+      
+      print('[TechnicianProfile] 📱 Navigating to ChatScreen...');
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -468,7 +535,10 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
           ),
         ),
       );
-    } catch (e) {
+      print('[TechnicianProfile] ✅ Navigation complete');
+    } catch (e, stackTrace) {
+      print('[TechnicianProfile] ❌ ERROR in _openMessageChat: $e');
+      print('[TechnicianProfile] StackTrace: $stackTrace');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

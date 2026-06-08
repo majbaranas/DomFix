@@ -64,60 +64,216 @@ class ReviewService {
     required int rating,
     String comment = '',
   }) async {
+    print('[ReviewService] 🔵 submitBookingReview called');
+    print('[ReviewService]   bookingId: ${booking.id}');
+    print('[ReviewService]   technicianId: ${booking.technicianId}');
+    print('[ReviewService]   rating: $rating');
+    print('[ReviewService]   comment length: ${comment.length}');
+    
     final user = _auth.currentUser;
     if (user == null) {
+      print('[ReviewService] ❌ User not authenticated');
       throw Exception('Please sign in to review this job.');
     }
     if (rating < 1 || rating > 5) {
       throw ArgumentError.value(rating, 'rating', 'Rating must be 1-5.');
     }
 
+    print('[ReviewService]   clientId: ${user.uid}');
+    print('[ReviewService]   clientName: ${user.displayName}');
+    
     final bookingRef = _firestore.collection('bookings').doc(booking.id);
     final reviewRef = _firestore.collection('reviews').doc(booking.id);
     final cleanedComment = comment.trim();
 
-    await _firestore.runTransaction((transaction) async {
-      final bookingSnap = await transaction.get(bookingRef);
-      if (!bookingSnap.exists) {
-        throw Exception('Booking not found.');
-      }
+    try {
+      print('[ReviewService] 📝 Step 1: Creating review document...');
+      
+      // Step 1: Create review document in transaction
+      await _firestore.runTransaction((transaction) async {
+        final bookingSnap = await transaction.get(bookingRef);
+        if (!bookingSnap.exists) {
+          throw Exception('Booking not found.');
+        }
 
-      final bookingData = bookingSnap.data() ?? const <String, dynamic>{};
-      final status = (bookingData['status'] ?? '').toString().toLowerCase();
-      final clientId = (bookingData['clientId'] ?? '').toString();
-      if (status != 'completed') {
-        throw Exception('Only completed jobs can be reviewed.');
-      }
-      if (clientId != user.uid) {
-        throw Exception('Only the booked client can review this job.');
-      }
+        final bookingData = bookingSnap.data() ?? const <String, dynamic>{};
+        final status = (bookingData['status'] ?? '').toString().toLowerCase();
+        final clientId = (bookingData['clientId'] ?? '').toString();
+        if (status != 'completed') {
+          throw Exception('Only completed jobs can be reviewed.');
+        }
+        if (clientId != user.uid) {
+          throw Exception('Only the booked client can review this job.');
+        }
 
-      final reviewSnap = await transaction.get(reviewRef);
-      if (reviewSnap.exists) {
-        throw Exception('This job has already been reviewed.');
-      }
+        final reviewSnap = await transaction.get(reviewRef);
+        if (reviewSnap.exists) {
+          throw Exception('This job has already been reviewed.');
+        }
 
-      transaction.set(reviewRef, {
-        'bookingId': booking.id,
-        'clientId': user.uid,
-        'technicianId': booking.technicianId,
-        'rating': rating,
-        'comment': cleanedComment,
-        'serviceName': booking.serviceName,
-        'clientName': user.displayName ?? '',
-        'clientPhotoUrl': user.photoURL ?? '',
-        'reviewQualityScore': _qualityScore(rating, cleanedComment),
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
+        transaction.set(reviewRef, {
+          'bookingId': booking.id,
+          'clientId': user.uid,
+          'technicianId': booking.technicianId,
+          'rating': rating,
+          'comment': cleanedComment,
+          'serviceName': booking.serviceName,
+          'clientName': user.displayName ?? '',
+          'clientPhotoUrl': user.photoURL ?? '',
+          'reviewQualityScore': _qualityScore(rating, cleanedComment),
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        transaction.update(bookingRef, {
+          'reviewStatus': 'submitted',
+          'reviewId': booking.id,
+          'reviewedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       });
+      
+      print('[ReviewService] ✅ Review document created');
+      
+      // Step 2: Aggregate stats client-side
+      print('[ReviewService] 📊 Step 2: Calculating stats...');
+      await _aggregateTechnicianStats(booking.technicianId);
+      
+      print('[ReviewService] ✅ Review submission complete!');
+    } catch (e, stackTrace) {
+      print('[ReviewService] ❌ ERROR submitting review: $e');
+      print('[ReviewService] StackTrace: $stackTrace');
+      rethrow;
+    }
+  }
 
-      transaction.update(bookingRef, {
-        'reviewStatus': 'submitted',
-        'reviewId': booking.id,
-        'reviewedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    });
+  /// Client-side stats aggregation (replaces Cloud Function)
+  Future<void> _aggregateTechnicianStats(String technicianId) async {
+    print('[ReviewService] 📊 Aggregating stats for technician: $technicianId');
+    
+    try {
+      // Fetch ALL reviews for this technician
+      print('[ReviewService] 🔍 Fetching all reviews...');
+      final reviewsSnapshot = await _firestore
+          .collection('reviews')
+          .where('technicianId', isEqualTo: technicianId)
+          .get();
+      
+      print('[ReviewService] 📦 Found ${reviewsSnapshot.docs.length} reviews');
+
+      // Calculate aggregated stats
+      int ratingSum = 0;
+      int totalReviews = 0;
+      double qualityScoreSum = 0.0;
+
+      for (final doc in reviewsSnapshot.docs) {
+        final data = doc.data();
+        final reviewRating = (data['rating'] as num?)?.toInt() ?? 0;
+        final reviewComment = (data['comment'] as String?)?.trim() ?? '';
+        
+        ratingSum += reviewRating;
+        totalReviews += 1;
+        
+        // Quality bonus: longer meaningful comments = better quality
+        final commentBonus = reviewComment.length >= 12 ? 0.2 : 0.0;
+        qualityScoreSum += (reviewRating / 5.0) + commentBonus;
+      }
+
+      final averageRating = totalReviews > 0 
+          ? double.parse((ratingSum / totalReviews).toStringAsFixed(2))
+          : 0.0;
+      
+      final reviewQualityScore = totalReviews > 0
+          ? double.parse((qualityScoreSum / totalReviews).toStringAsFixed(2))
+          : 0.0;
+
+      print('[ReviewService] 📊 Calculated stats:');
+      print('[ReviewService]   Average Rating: $averageRating');
+      print('[ReviewService]   Total Reviews: $totalReviews');
+      print('[ReviewService]   Quality Score: $reviewQualityScore');
+
+      // Get current completed jobs count
+      print('[ReviewService] 🔍 Fetching current stats...');
+      final statsDoc = await _firestore
+          .collection('technician_stats')
+          .doc(technicianId)
+          .get();
+      
+      final currentStats = statsDoc.data() ?? <String, dynamic>{};
+      final completedJobs = (currentStats['completedJobs'] as num?)?.toInt() ?? 0;
+
+      // Calculate rank score
+      final rankScore = _calculateRankScore(
+        averageRating: averageRating,
+        totalReviews: totalReviews,
+        completedJobs: completedJobs,
+        reviewQualityScore: reviewQualityScore,
+      );
+
+      print('[ReviewService]   Completed Jobs: $completedJobs');
+      print('[ReviewService]   Rank Score: $rankScore');
+
+      // Step 3: Update both collections in a batch
+      print('[ReviewService] 💾 Updating technician_stats and users...');
+      final batch = _firestore.batch();
+
+      // Update technician_stats
+      batch.set(
+        _firestore.collection('technician_stats').doc(technicianId),
+        {
+          'technicianId': technicianId,
+          'averageRating': averageRating,
+          'totalReviews': totalReviews,
+          'completedJobs': completedJobs,
+          'ratingSum': ratingSum,
+          'reviewQualityScore': reviewQualityScore,
+          'rankScore': rankScore,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+
+      // Update users collection (for backward compatibility)
+      batch.set(
+        _firestore.collection('users').doc(technicianId),
+        {
+          'rating': averageRating,
+          'averageRating': averageRating,
+          'reviewCount': totalReviews,
+          'jobsCompleted': completedJobs,
+          'rankScore': rankScore,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'updated_at': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+
+      await batch.commit();
+      print('[ReviewService] ✅ Stats updated successfully!');
+      
+    } catch (e, stackTrace) {
+      print('[ReviewService] ❌ ERROR aggregating stats: $e');
+      print('[ReviewService] StackTrace: $stackTrace');
+      // Don't rethrow - review is already created, stats can be fixed later
+    }
+  }
+
+  /// Calculate composite rank score for marketplace ranking
+  double _calculateRankScore({
+    required double averageRating,
+    required int totalReviews,
+    required int completedJobs,
+    required double reviewQualityScore,
+  }) {
+    // Weighted ranking formula
+    final ratingWeight = averageRating * 100;
+    final trustWeight = (totalReviews > 50 ? 50 : totalReviews) * 2;
+    final volumeWeight = (completedJobs > 100 ? 100 : completedJobs).toDouble();
+    final qualityWeight = reviewQualityScore * 10;
+    
+    return double.parse(
+      (ratingWeight + trustWeight + volumeWeight + qualityWeight).toStringAsFixed(3),
+    );
   }
 
   Future<void> skipBookingReview(String bookingId) async {
@@ -235,6 +391,72 @@ class ReviewService {
     }, SetOptions(merge: true));
 
     return urls;
+  }
+
+  /// Increment completed jobs count when booking is marked as completed
+  /// Call this from BookingService when status changes to 'completed'
+  static Future<void> incrementCompletedJobs(String technicianId) async {
+    if (technicianId.trim().isEmpty) return;
+    
+    print('[ReviewService] 🎉 Incrementing completed jobs for: $technicianId');
+    
+    try {
+      final firestore = FirebaseFirestore.instance;
+      final statsRef = firestore.collection('technician_stats').doc(technicianId);
+      
+      await firestore.runTransaction((transaction) async {
+        final statsSnap = await transaction.get(statsRef);
+        final currentStats = statsSnap.exists ? statsSnap.data()! : <String, dynamic>{};
+        
+        final completedJobs = ((currentStats['completedJobs'] as num?)?.toInt() ?? 0) + 1;
+        final averageRating = (currentStats['averageRating'] as num?)?.toDouble() ?? 0.0;
+        final totalReviews = (currentStats['totalReviews'] as num?)?.toInt() ?? 0;
+        final reviewQualityScore = (currentStats['reviewQualityScore'] as num?)?.toDouble() ?? 0.0;
+        final ratingSum = (currentStats['ratingSum'] as num?)?.toInt() ?? 0;
+        
+        // Recalculate rank score
+        final ratingWeight = averageRating * 100;
+        final trustWeight = (totalReviews > 50 ? 50 : totalReviews) * 2;
+        final volumeWeight = (completedJobs > 100 ? 100 : completedJobs).toDouble();
+        final qualityWeight = reviewQualityScore * 10;
+        final rankScore = double.parse(
+          (ratingWeight + trustWeight + volumeWeight + qualityWeight).toStringAsFixed(3),
+        );
+        
+        // Update technician_stats
+        transaction.set(statsRef, {
+          'technicianId': technicianId,
+          'completedJobs': completedJobs,
+          'averageRating': averageRating,
+          'totalReviews': totalReviews,
+          'ratingSum': ratingSum,
+          'reviewQualityScore': reviewQualityScore,
+          'rankScore': rankScore,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        
+        // Update users collection
+        transaction.set(
+          firestore.collection('users').doc(technicianId),
+          {
+            'jobsCompleted': completedJobs,
+            'rating': averageRating,
+            'averageRating': averageRating,
+            'reviewCount': totalReviews,
+            'rankScore': rankScore,
+            'updatedAt': FieldValue.serverTimestamp(),
+            'updated_at': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+      });
+      
+      print('[ReviewService] ✅ Completed jobs incremented to ${(await statsRef.get()).data()?['completedJobs']}');
+    } catch (e, stackTrace) {
+      print('[ReviewService] ❌ ERROR incrementing completed jobs: $e');
+      print('[ReviewService] StackTrace: $stackTrace');
+      // Don't rethrow - this is a background operation
+    }
   }
 
   static double _qualityScore(int rating, String comment) {
