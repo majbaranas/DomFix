@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../theme/app_colors.dart';
 import '../widgets/domfix_glass_bottom_nav.dart';
+import '../services/review_prompt_service.dart';
 import 'find_pros_screen_content.dart';
 import 'home_screen_content.dart';
 import 'messages_screen.dart';
@@ -51,6 +53,24 @@ class _MainLayoutState extends State<MainLayout> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialTabIndex.clamp(0, _tabBodies.length - 1);
+    _startReviewMonitoring();
+  }
+
+  @override
+  void dispose() {
+    ReviewPromptService.instance.stopMonitoring();
+    super.dispose();
+  }
+
+  void _startReviewMonitoring() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ReviewPromptService.instance.startMonitoring(context, user.uid);
+        }
+      });
+    }
   }
 
   void _onTabSelected(int index) {

@@ -17,6 +17,9 @@ class TechnicianLocation {
     this.profileImage,
     this.isOnline = true,
     this.role,
+    this.rankScore = 0.0,
+    this.averageRating = 0.0,
+    this.completedJobs = 0,
   });
 
   final String id;
@@ -27,6 +30,9 @@ class TechnicianLocation {
   final String? profileImage;
   final bool isOnline;
   final String? role;
+  final double rankScore;
+  final double averageRating;
+  final int completedJobs;
 
   factory TechnicianLocation.fromDoc(DocumentSnapshot doc) {
     final data = doc.data();
@@ -46,6 +52,9 @@ class TechnicianLocation {
       profileImage: _readString(data['profileImage'] ?? data['photoUrl']),
       isOnline: data['isOnline'] != false,
       role: _readString(data['role']),
+      rankScore: (data['rankScore'] as num?)?.toDouble() ?? 0.0,
+      averageRating: (data['averageRating'] ?? data['rating'] as num?)?.toDouble() ?? 0.0,
+      completedJobs: (data['completedJobs'] ?? data['jobsCompleted'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -286,6 +295,7 @@ class TechnicianLocationService {
 
   /// Emits only RECENTLY ACTIVE technicians within [_radiusKm] of [userPoint]
   /// A technician is considered online if their last update was within 10 seconds
+  /// Results are sorted by rankScore DESC (best technicians first)
   /// This eliminates "ghost" technicians who closed their app
   Stream<List<TechnicianLocation>> nearbyStream(
     LatLng userPoint, {
@@ -296,7 +306,7 @@ class TechnicianLocationService {
         .snapshots()
         .map((snap) {
       final now = DateTime.now();
-      return snap.docs
+      final techs = snap.docs
           .map((doc) {
             try {
               return TechnicianLocation.fromDoc(doc);
@@ -335,6 +345,12 @@ class TechnicianLocationService {
             return true;
           })
           .toList();
+      
+      // Sort by rankScore DESC (highest ranked first)
+      // Technicians with more reviews, higher ratings, and more completed jobs appear first
+      techs.sort((a, b) => b.rankScore.compareTo(a.rankScore));
+      
+      return techs;
     });
   }
 

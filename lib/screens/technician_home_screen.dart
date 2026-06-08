@@ -17,6 +17,7 @@ import '../widgets/dashboard/analytics_card.dart';
 import '../widgets/dashboard/ai_insights_card.dart';
 import '../widgets/dashboard/activity_feed.dart';
 import '../widgets/dashboard/quick_actions.dart';
+import '../widgets/job_completion_dialog.dart';
 import 'technician_premium_dashboard.dart';
 import 'settings_screen.dart';
 import 'messages_screen.dart';
@@ -369,11 +370,26 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
         'accepted' || 'confirmed' => 'on_the_way',
         'on_the_way' => 'arrived',
         'arrived' => 'in_progress',
-        'in_progress' => 'completed',
+        'in_progress' => 'completed', // Will show completion dialog
         _ => current,
       };
       if (next == current) return;
-      await _updateBookingStatus(item.booking!, next);
+      
+      // Show completion dialog before marking as completed
+      if (next == 'completed') {
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => JobCompletionDialog(
+            booking: item.booking!,
+            onComplete: () async {
+              await _updateBookingStatus(item.booking!, 'completed');
+            },
+          ),
+        );
+      } else {
+        await _updateBookingStatus(item.booking!, next);
+      }
     } else {
       final current = _normalizeStatus(item.status);
       final next = switch (current) {

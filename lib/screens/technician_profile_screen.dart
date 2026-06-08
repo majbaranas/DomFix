@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/booking_service.dart';
+import '../services/review_service.dart';
+import '../models/review_model.dart';
 import '../theme/app_colors.dart';
 import 'chat_screen.dart';
 import 'booking_flow_screen.dart';
@@ -72,6 +74,9 @@ class TechnicianProfileScreen extends StatefulWidget {
 
 class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
   TechnicianProfile? _profile;
+  TechnicianStats? _stats;
+  List<TechnicianReview> _reviews = [];
+  List<CompletedJobPhoto> _workPhotos = [];
   bool _loading = true;
   String? _error;
   bool _openingChat = false;
@@ -84,8 +89,32 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
     try {
       final doc = await FirebaseFirestore.instance.collection('users').doc(widget.technicianId).get();
       if (!doc.exists) { if (mounted) setState(() { _error = 'Technician not found.'; _loading = false; }); return; }
+      
+      // Fetch profile data
       final profile = TechnicianProfile.fromFirestore(doc.id, doc.data()!);
-      if (mounted) setState(() { _profile = profile; _loading = false; });
+      
+      // Fetch real stats from technician_stats collection
+      final statsSnapshot = await ReviewService.instance
+          .watchTechnicianStats(widget.technicianId)
+          .first;
+      
+      // Fetch recent reviews
+      final reviewsSnapshot = await ReviewService.instance
+          .watchTechnicianReviews(widget.technicianId, limit: 10)
+          .first;
+      
+      // Fetch work photos
+      final photosSnapshot = await ReviewService.instance
+          .watchTechnicianWorkPhotos(widget.technicianId, limit: 12)
+          .first;
+      
+      if (mounted) setState(() {
+        _profile = profile;
+        _stats = statsSnapshot;
+        _reviews = reviewsSnapshot;
+        _workPhotos = photosSnapshot;
+        _loading = false;
+      });
     } catch (e) {
       if (mounted) setState(() { _error = 'Failed to load profile.'; _loading = false; });
     }
@@ -132,7 +161,7 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
                 const SizedBox(height: 24),
                 _buildBio(p),
                 const SizedBox(height: 24),
-                if (p.portfolio.isNotEmpty) ...[_buildPortfolio(p), const SizedBox(height: 24)],
+                if (_workPhotos.isNotEmpty || p.portfolio.isNotEmpty) ...[_buildPortfolio(p), const SizedBox(height: 24)],
                 _buildReviews(p),
               ],
             ),
@@ -144,6 +173,12 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
   }
 
   Widget _buildHero(TechnicianProfile p) {
+    // Use real stats if available, fallback to profile defaults
+    final displayRating = _stats != null && _stats!.averageRating > 0
+        ? _stats!.averageRating
+        : p.rating;
+    final displayReviewCount = _stats?.totalReviews ?? p.reviewCount;
+    
     return Center(
       child: Column(
         children: [
@@ -177,8 +212,8 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
             children: [
               Icon(Icons.star_rounded, size: 16, color: AppColors.neonAccent),
               const SizedBox(width: 4),
-              Text(p.rating.toStringAsFixed(1), style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
-              Text(' (${p.reviewCount})', style: GoogleFonts.inter(fontSize: 13, color: AppColors.onSurfaceVariant)),
+              Text(displayRating.toStringAsFixed(1), style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
+              Text(' ($displayReviewCount)', style: GoogleFonts.inter(fontSize: 13, color: AppColors.onSurfaceVariant)),
               if (p.distanceKm != null) ...[
                 Container(width: 4, height: 4, margin: const EdgeInsets.symmetric(horizontal: 10),
                   decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.onSurfaceVariant.withValues(alpha: 0.4))),
@@ -194,9 +229,12 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
   }
 
   Widget _buildStats(TechnicianProfile p) {
+    // Use real stats if available
+    final displayJobs = _stats?.completedJobs ?? p.jobsCompleted;
+    
     return Row(
       children: [
-        Expanded(child: _StatCard(value: p.jobsCompleted > 0 ? '${p.jobsCompleted}+' : '—', label: 'Jobs')),
+        Expanded(child: _StatCard(value: displayJobs > 0 ? '$displayJobs+' : '—', label: 'Jobs')),
         const SizedBox(width: 8),
         Expanded(child: _StatCard(value: p.experienceYears > 0 ? '${p.experienceYears}yr' : '—', label: 'Experience')),
         const SizedBox(width: 8),
@@ -217,6 +255,22 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
   }
 
   Widget _buildPortfolio(TechnicianProfile p) {
+    // Use real work photos if available, fallback to static portfolio
+    final displayPhotos = _workPhotos.isNotEmpty
+        ? _workPhotos
+        : p.portfolio.map((item) => CompletedJobPhoto(
+            id: '',
+            bookingId: '',
+            technicianId: p.id,
+            clientId: '',
+            imageUrl: item.imageUrl,
+            kind: 'result',
+            createdAt: DateTime.now(),
+            serviceName: item.title,
+          )).toList();
+    
+    if (displayPhotos.isEmpty) return const SizedBox.shrink();
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -225,10 +279,10 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
         SizedBox(
           height: 160,
           child: ListView.separated(
-            scrollDirection: Axis.horizontal, itemCount: p.portfolio.length,
+            scrollDirection: Axis.horizontal, itemCount: displayPhotos.length,
             separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (_, i) {
-              final item = p.portfolio[i];
+              final photo = displayPhotos[i];
               return ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: SizedBox(
@@ -236,14 +290,14 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      item.imageUrl.isNotEmpty
-                        ? Image.network(item.imageUrl, fit: BoxFit.cover,
+                      photo.imageUrl.isNotEmpty
+                        ? Image.network(photo.imageUrl, fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => Container(color: AppColors.surface, child: Icon(Icons.image_outlined, color: AppColors.onSurfaceVariant, size: 32)))
                         : Container(color: AppColors.surface, child: Icon(Icons.image_outlined, color: AppColors.onSurfaceVariant, size: 32)),
                       Positioned(left: 0, right: 0, bottom: 0, child: Container(
                         padding: const EdgeInsets.fromLTRB(12, 24, 12, 10),
                         decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Color(0xCC000000)])),
-                        child: Text(item.title, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white)),
+                        child: Text(photo.serviceName, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white)),
                       )),
                     ],
                   ),
@@ -257,49 +311,66 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
   }
 
   Widget _buildReviews(TechnicianProfile p) {
+    // Use real reviews if available, fallback to static reviews
+    final displayReviews = _reviews.isNotEmpty ? _reviews : p.reviews;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Reviews', style: GoogleFonts.spaceGrotesk(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
         const SizedBox(height: 12),
-        if (p.reviews.isEmpty)
+        if (displayReviews.isEmpty)
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.divider)),
             child: Center(child: Text('No reviews yet', style: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurfaceVariant))),
           )
         else
-          ...p.reviews.map((r) => Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.divider)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(width: 36, height: 36,
-                      decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.surfaceContainerHigh),
-                      child: ClipOval(child: r.reviewerPhoto != null
-                        ? Image.network(r.reviewerPhoto!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _reviewInitial(r.reviewerName))
-                        : _reviewInitial(r.reviewerName))),
-                    const SizedBox(width: 10),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(r.reviewerName, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
-                      Row(children: List.generate(5, (i) => Icon(i < r.rating ? Icons.star_rounded : Icons.star_outline_rounded, size: 12, color: AppColors.neonAccent))),
-                    ])),
-                    if (r.timeAgo.isNotEmpty) Text(r.timeAgo, style: GoogleFonts.inter(fontSize: 11, color: AppColors.onSurfaceVariant)),
+          ...displayReviews.map((r) {
+            // Format time ago
+            final timeAgo = _formatTimeAgo(r.createdAt);
+            
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.divider)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(width: 36, height: 36,
+                        decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.surfaceContainerHigh),
+                        child: ClipOval(child: r.clientPhotoUrl != null
+                          ? Image.network(r.clientPhotoUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _reviewInitial(r.clientName ?? 'Anonymous'))
+                          : _reviewInitial(r.clientName ?? 'Anonymous'))),
+                      const SizedBox(width: 10),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(r.clientName ?? 'Anonymous', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
+                        Row(children: List.generate(5, (i) => Icon(i < r.rating ? Icons.star_rounded : Icons.star_outline_rounded, size: 12, color: AppColors.neonAccent))),
+                      ])),
+                      if (timeAgo.isNotEmpty) Text(timeAgo, style: GoogleFonts.inter(fontSize: 11, color: AppColors.onSurfaceVariant)),
+                    ],
+                  ),
+                  if (r.comment.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text('"${r.comment}"', style: GoogleFonts.inter(fontSize: 13, fontStyle: FontStyle.italic, height: 1.5, color: AppColors.onSurfaceVariant)),
                   ],
-                ),
-                if (r.comment.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Text('"${r.comment}"', style: GoogleFonts.inter(fontSize: 13, fontStyle: FontStyle.italic, height: 1.5, color: AppColors.onSurfaceVariant)),
                 ],
-              ],
-            ),
-          )),
+              ),
+            );
+          }),
       ],
     );
+  }
+  
+  String _formatTimeAgo(DateTime dateTime) {
+    final diff = DateTime.now().difference(dateTime);
+    if (diff.inDays > 30) return '${(diff.inDays / 30).floor()}mo ago';
+    if (diff.inDays > 0) return '${diff.inDays}d ago';
+    if (diff.inHours > 0) return '${diff.inHours}h ago';
+    if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
+    return 'Just now';
   }
 
   Widget _buildActionBar(TechnicianProfile p) {

@@ -47,12 +47,103 @@ admin.initializeApp();
 const { createGroqCompletion, validateGroqConfig } = require('./groqService');
 
 const logger = functions.logger;
+const db = admin.firestore();
 
 const RATE_LIMIT_WINDOW_MS = Number(process.env.GROQ_RATE_LIMIT_WINDOW_MS || 60000);
 const RATE_LIMIT_MAX_REQUESTS = Number(process.env.GROQ_RATE_LIMIT_MAX_REQUESTS || 8);
 const RATE_LIMIT_SWEEP_MS = Number(process.env.GROQ_RATE_LIMIT_SWEEP_MS || 10 * 60 * 1000);
 const AI_MAX_MESSAGES = Number(process.env.GROQ_MAX_HISTORY_MESSAGES || 16);
 const AI_MAX_MESSAGE_LENGTH = Number(process.env.GROQ_MAX_MESSAGE_LENGTH || 4000);
+
+function normalizeStatus(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
+}
+
+function buildRankScore({
+  averageRating = 0,
+  totalReviews = 0,
+  completedJobs = 0,
+  reviewQualityScore = 0,
+}) {
+  const ratingWeight = averageRating * 100;
+  const trustWeight = Math.min(totalReviews, 50) * 2;
+  const volumeWeight = Math.min(completedJobs, 100);
+  const qualityWeight = reviewQualityScore * 10;
+  return Number((ratingWeight + trustWeight + volumeWeight + qualityWeight).toFixed(3));
+}
+
+async function updateTechnicianSummary(technicianId, stats) {
+  const averageRating = Number(stats.averageRating || 0);
+  const totalReviews = Number(stats.totalReviews || 0);
+  const completedJobs = Number(stats.completedJobs || 0);
+  const rankScore = buildRankScore({
+    averageRating,
+    totalReviews,
+    completedJobs,
+    reviewQualityScore: Number(stats.reviewQualityScore || 0),
+  });
+
+  await Promise.all([
+    db.collection('technician_stats').doc(technicianId).set({
+      ...stats,
+      averageRating,
+      totalReviews,
+      completedJobs,
+      rankScore,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true }),
+    db.collection('users').doc(technicianId).set({
+      rating: averageRating,
+      averageRating,
+      reviewCount: totalReviews,
+      jobsCompleted: completedJobs,
+      rankScore,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true }),
+  ]);
+}
+
+async function incrementCompletedJobs(technicianId) {
+  if (!technicianId) return;
+
+  const statsRef = db.collection('technician_stats').doc(technicianId);
+  await db.runTransaction(async (transaction) => {
+    const snap = await transaction.get(statsRef);
+    const data = snap.exists ? snap.data() : {};
+    const completedJobs = Number(data.completedJobs || 0) + 1;
+    const averageRating = Number(data.averageRating || 0);
+    const totalReviews = Number(data.totalReviews || 0);
+    const reviewQualityScore = Number(data.reviewQualityScore || 0);
+    const rankScore = buildRankScore({
+      averageRating,
+      totalReviews,
+      completedJobs,
+      reviewQualityScore,
+    });
+
+    transaction.set(statsRef, {
+      technicianId,
+      completedJobs,
+      averageRating,
+      totalReviews,
+      ratingSum: Number(data.ratingSum || 0),
+      reviewQualityScore,
+      rankScore,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    transaction.set(db.collection('users').doc(technicianId), {
+      jobsCompleted: completedJobs,
+      rating: averageRating,
+      averageRating,
+      reviewCount: totalReviews,
+      rankScore,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+}
 
 const aiRequestCounts = new Map();
 let lastRateLimitSweep = Date.now();
@@ -582,3 +673,126 @@ exports.groqChat = functions.https.onRequest(async (req, res) => {
 exports.groqChatStream = functions.https.onRequest(async (req, res) => {
   await handleGroqRequest(req, res, true);
 });
+
+/**
+ * Cloud Function: Aggregate technician stats when a review is created
+ * Trigger: reviews/{reviewId} onCreate
+ * 
+ * Automatically calculates:
+ * - averageRating (sum of ratings / total reviews)
+ * - totalReviews count
+ * - reviewQualityScore (weighted by comment quality)
+ * - rankScore (composite score for marketplace ranking)
+ */
+exports.aggregateTechnicianReview = functions.firestore
+  .document('reviews/{reviewId}')
+  .onCreate(async (snapshot, context) => {
+    try {
+      const reviewData = snapshot.data();
+      const { technicianId, rating, comment } = reviewData;
+
+      if (!technicianId) {
+        console.log('[ReviewAggregation] Missing technicianId, skipping.');
+        return null;
+      }
+
+      console.log('[ReviewAggregation] 🌟 Processing review for technician:', technicianId);
+
+      // Fetch all reviews for this technician
+      const reviewsSnapshot = await db.collection('reviews')
+        .where('technicianId', '==', technicianId)
+        .get();
+
+      let ratingSum = 0;
+      let totalReviews = 0;
+      let qualityScoreSum = 0;
+
+      for (const doc of reviewsSnapshot.docs) {
+        const data = doc.data();
+        const reviewRating = Number(data.rating || 0);
+        const reviewComment = String(data.comment || '').trim();
+        
+        ratingSum += reviewRating;
+        totalReviews += 1;
+        
+        // Quality bonus: longer meaningful comments = better quality
+        const commentBonus = reviewComment.length >= 12 ? 0.2 : 0.0;
+        qualityScoreSum += (reviewRating / 5.0) + commentBonus;
+      }
+
+      const averageRating = totalReviews > 0 
+        ? Number((ratingSum / totalReviews).toFixed(2)) 
+        : 0;
+      
+      const reviewQualityScore = totalReviews > 0
+        ? Number((qualityScoreSum / totalReviews).toFixed(2))
+        : 0;
+
+      // Get completed jobs count
+      const statsRef = db.collection('technician_stats').doc(technicianId);
+      const statsSnap = await statsRef.get();
+      const currentStats = statsSnap.exists ? statsSnap.data() : {};
+      const completedJobs = Number(currentStats.completedJobs || 0);
+
+      // Update stats document and user profile
+      await updateTechnicianSummary(technicianId, {
+        technicianId,
+        averageRating,
+        totalReviews,
+        completedJobs,
+        ratingSum,
+        reviewQualityScore,
+      });
+
+      console.log('[ReviewAggregation] ✅ Updated stats for technician:', technicianId);
+      console.log('[ReviewAggregation] Average Rating:', averageRating);
+      console.log('[ReviewAggregation] Total Reviews:', totalReviews);
+      console.log('[ReviewAggregation] Completed Jobs:', completedJobs);
+      console.log('[ReviewAggregation] Rank Score:', buildRankScore({
+        averageRating,
+        totalReviews,
+        completedJobs,
+        reviewQualityScore,
+      }));
+
+      return null;
+    } catch (error) {
+      console.error('[ReviewAggregation] ❌ Error:', error.message);
+      return null;
+    }
+  });
+
+/**
+ * Cloud Function: Increment completed jobs count when booking status becomes 'completed'
+ * Trigger: bookings/{bookingId} onUpdate
+ */
+exports.updateCompletedJobsCount = functions.firestore
+  .document('bookings/{bookingId}')
+  .onUpdate(async (change, context) => {
+    try {
+      const before = change.before.data();
+      const after = change.after.data();
+
+      const oldStatus = normalizeStatus(before.status || '');
+      const newStatus = normalizeStatus(after.status || '');
+
+      // Only trigger when status changes TO 'completed'
+      if (oldStatus !== 'completed' && newStatus === 'completed') {
+        const technicianId = after.technicianId;
+        
+        if (!technicianId) {
+          console.log('[CompletedJobs] Missing technicianId, skipping.');
+          return null;
+        }
+
+        console.log('[CompletedJobs] 🎉 Job completed for technician:', technicianId);
+        await incrementCompletedJobs(technicianId);
+        console.log('[CompletedJobs] ✅ Incremented completed jobs count');
+      }
+
+      return null;
+    } catch (error) {
+      console.error('[CompletedJobs] ❌ Error:', error.message);
+      return null;
+    }
+  });

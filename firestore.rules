@@ -75,6 +75,44 @@ service cloud.firestore {
                       request.auth.uid in resource.data.participants;
     }
 
+    // REVIEWS COLLECTION
+    // One review per completed booking. Review document id must be bookingId.
+    match /reviews/{reviewId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+                      reviewId == request.resource.data.bookingId &&
+                      exists(/databases/$(database)/documents/bookings/$(reviewId)) &&
+                      get(/databases/$(database)/documents/bookings/$(reviewId)).data.status == 'completed' &&
+                      get(/databases/$(database)/documents/bookings/$(reviewId)).data.clientId == request.auth.uid &&
+                      request.resource.data.clientId == request.auth.uid &&
+                      request.resource.data.technicianId == get(/databases/$(database)/documents/bookings/$(reviewId)).data.technicianId &&
+                      request.resource.data.rating is int &&
+                      request.resource.data.rating >= 1 &&
+                      request.resource.data.rating <= 5;
+      allow update, delete: if false;
+    }
+
+    // TECHNICIAN STATS COLLECTION
+    // Aggregated by Cloud Functions. Clients can read for ranking/profile UI.
+    match /technician_stats/{technicianId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    // COMPLETED JOB PHOTOS COLLECTION
+    // Technicians can attach optional result photos to their own completed bookings.
+    match /completed_job_photos/{photoId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+                      request.resource.data.createdBy == request.auth.uid &&
+                      request.resource.data.technicianId == request.auth.uid &&
+                      request.resource.data.bookingId is string &&
+                      exists(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)) &&
+                      get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.status == 'completed' &&
+                      get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.technicianId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
     // NOTIFICATIONS COLLECTION
     match /notifications/{notificationId} {
       allow read: if isAuthenticated() &&
