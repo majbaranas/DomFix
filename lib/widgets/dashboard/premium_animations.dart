@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 
 /// Shared animation utilities for premium dashboard widgets
 class PremiumAnimations {
@@ -147,5 +148,3 @@ class PremiumAnimations {
     );
   }
 }
-
-import 'dart:math';

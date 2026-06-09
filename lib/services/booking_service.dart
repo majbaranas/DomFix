@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../models/booking_model.dart';
 import 'chat_service.dart';
+import 'review_service.dart';
 
 class BookingService {
   BookingService._();
@@ -404,70 +405,8 @@ class BookingService {
     // If status changed to 'completed', increment technician's completed jobs
     if (normalizedStatus == 'completed') {
       print('[BookingService] 🎉 Job completed! Incrementing counter...');
-      // Import review_service.dart at the top and call:
-      await _incrementCompletedJobsAsync(technicianId);
+      ReviewService.incrementCompletedJobs(technicianId);
     }
-  }
-  
-  /// Increment completed jobs in background (non-blocking)
-  Future<void> _incrementCompletedJobsAsync(String technicianId) async {
-    // Run in background without blocking the UI
-    Future.microtask(() async {
-      try {
-        // Import at top: import 'review_service.dart';
-        final firestore = _firestore;
-        final statsRef = firestore.collection('technician_stats').doc(technicianId);
-        
-        await firestore.runTransaction((transaction) async {
-          final statsSnap = await transaction.get(statsRef);
-          final currentStats = statsSnap.exists ? statsSnap.data()! : <String, dynamic>{};
-          
-          final completedJobs = ((currentStats['completedJobs'] as num?)?.toInt() ?? 0) + 1;
-          final averageRating = (currentStats['averageRating'] as num?)?.toDouble() ?? 0.0;
-          final totalReviews = (currentStats['totalReviews'] as num?)?.toInt() ?? 0;
-          final reviewQualityScore = (currentStats['reviewQualityScore'] as num?)?.toDouble() ?? 0.0;
-          final ratingSum = (currentStats['ratingSum'] as num?)?.toInt() ?? 0;
-          
-          // Recalculate rank score
-          final ratingWeight = averageRating * 100;
-          final trustWeight = (totalReviews > 50 ? 50 : totalReviews) * 2;
-          final volumeWeight = (completedJobs > 100 ? 100 : completedJobs).toDouble();
-          final qualityWeight = reviewQualityScore * 10;
-          final rankScore = double.parse(
-            (ratingWeight + trustWeight + volumeWeight + qualityWeight).toStringAsFixed(3),
-          );
-          
-          transaction.set(statsRef, {
-            'technicianId': technicianId,
-            'completedJobs': completedJobs,
-            'averageRating': averageRating,
-            'totalReviews': totalReviews,
-            'ratingSum': ratingSum,
-            'reviewQualityScore': reviewQualityScore,
-            'rankScore': rankScore,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-          
-          transaction.set(
-            firestore.collection('users').doc(technicianId),
-            {
-              'jobsCompleted': completedJobs,
-              'rating': averageRating,
-              'averageRating': averageRating,
-              'reviewCount': totalReviews,
-              'rankScore': rankScore,
-              'updatedAt': FieldValue.serverTimestamp(),
-              'updated_at': FieldValue.serverTimestamp(),
-            },
-            SetOptions(merge: true),
-          );
-        });
-        
-        print('[BookingService] ✅ Completed jobs counter updated');
-      } catch (e) {
-        print('[BookingService] ⚠️ Failed to update completed jobs: $e');
-      }
-    });
   }
 
   Map<String, String>? _notificationForStatus({

@@ -21,9 +21,10 @@ service cloud.firestore {
       allow create: if isOwner(userId) && 
                       request.resource.data.uid == userId &&
                       request.resource.data.email is string;
-      allow update: if isOwner(userId) && 
+      allow update: if (isOwner(userId) && 
                       (!resource.data.keys().hasAny(['role']) || 
-                       request.resource.data.role == resource.data.role);
+                       request.resource.data.role == resource.data.role)) || 
+                    (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'averageRating', 'reviewCount', 'jobsCompleted', 'rankScore', 'updatedAt', 'updated_at']));
       allow delete: if isOwner(userId);
     }
     
@@ -92,11 +93,20 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // TECHNICIAN PROFILES COLLECTION
+    // Extended professional data for technicians
+    match /technician_profiles/{technicianId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(technicianId);
+      allow update: if isOwner(technicianId);
+      allow delete: if isOwner(technicianId);
+    }
+
     // TECHNICIAN STATS COLLECTION
-    // Aggregated by Cloud Functions. Clients can read for ranking/profile UI.
+    // Aggregated by client-side code. Clients can read for ranking/profile UI.
     match /technician_stats/{technicianId} {
       allow read: if isAuthenticated();
-      allow write: if false;
+      allow write: if isAuthenticated();
     }
 
     // COMPLETED JOB PHOTOS COLLECTION

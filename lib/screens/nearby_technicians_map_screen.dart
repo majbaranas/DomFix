@@ -12,6 +12,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/technician_location_service.dart';
+import '../services/route_service.dart';
 import '../theme/app_colors.dart';
 import 'chat_screen.dart';
 import 'find_pros_screen_content.dart';
@@ -60,8 +61,9 @@ class _NearbyTechniciansMapScreenState
   bool _autoCenteredOnTechs = false;
   TechnicianLocation? _selected;
 
-  List<LatLng>? _routePoints;
+  RouteInfo? _routeInfo;
   bool _routeLoading = false;
+  Timer? _routeUpdateTimer;
 
   @override
   void initState() {
@@ -72,6 +74,7 @@ class _NearbyTechniciansMapScreenState
   @override
   void dispose() {
     _techSub?.cancel();
+    _routeUpdateTimer?.cancel();
     _techNotifier.dispose();
     _mapController.dispose();
     super.dispose();
@@ -198,6 +201,19 @@ class _NearbyTechniciansMapScreenState
           _mapController.move(_averagePoint(list), 12.0);
           _autoCenteredOnTechs = true;
         }
+
+        // Update route if selected technician location changed
+        if (_selected != null && _userPoint != null) {
+          final updated = list.firstWhere(
+            (t) => t.id == _selected!.id,
+            orElse: () => _selected!,
+          );
+          if (updated.point != _selected!.point) {
+            print('🔄 Technician moved, updating route...');
+            _selected = updated;
+            _fetchRoute(_userPoint!, updated.point);
+          }
+        }
       },
       onError: (_) {
         if (!mounted) return;
@@ -237,44 +253,43 @@ class _NearbyTechniciansMapScreenState
 
   Future<void> _fetchRoute(LatLng from, LatLng to) async {
     setState(() {
-      _routePoints = null;
+      _routeInfo = null;
       _routeLoading = true;
     });
+
     try {
-      final url = Uri.parse(
-        'https://router.project-osrm.org/route/v1/driving/'
-        '${from.longitude},${from.latitude};'
-        '${to.longitude},${to.latitude}'
-        '?geometries=geojson&overview=full',
-      );
-      final res =
-          await http.get(url).timeout(const Duration(seconds: 10));
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
-        final routes = data['routes'] as List<dynamic>;
-        if (routes.isNotEmpty) {
-          final coords =
-              (routes[0]['geometry']['coordinates'] as List<dynamic>)
-                  .map((c) => LatLng(
-                      (c[1] as num).toDouble(), (c[0] as num).toDouble()))
-                  .toList();
-          if (!mounted) return;
-          setState(() {
-            _routePoints = coords;
-            _routeLoading = false;
-          });
-          _fitRoute(coords);
-          return;
-        }
+      print('🗺️  Fetching route from routing service...');
+      final routeInfo = await RouteService.fetchRoute(from, to);
+      
+      if (!mounted) return;
+      
+      if (routeInfo != null) {
+        print('✅ Route fetched: ${routeInfo.distanceText}, ETA: ${routeInfo.durationText}');
+        setState(() {
+          _routeInfo = routeInfo;
+          _routeLoading = false;
+        });
+        _fitRoute(routeInfo.polyline);
+      } else {
+        throw Exception('No route returned');
       }
-    } catch (_) {}
-    // Fallback: straight line
-    if (!mounted) return;
-    setState(() {
-      _routePoints = [from, to];
-      _routeLoading = false;
-    });
-    _fitRoute([from, to]);
+    } catch (e) {
+      print('❌ Route fetch failed: $e');
+      // Fallback: straight line with Haversine distance
+      if (!mounted) return;
+      final distKm = TechnicianLocationService.distanceKmPublic(from, to);
+      setState(() {
+        _routeInfo = RouteInfo(
+          polyline: [from, to],
+          distanceKm: distKm,
+          durationMinutes: (distKm * 2).round(), // Rough estimate: 30km/h avg
+          distanceText: '${distKm.toStringAsFixed(1)} km',
+          durationText: '${(distKm * 2).round()} min',
+        );
+        _routeLoading = false;
+      });
+      _fitRoute([from, to]);
+    }
   }
 
   void _fitRoute(List<LatLng> points) {
@@ -464,7 +479,8 @@ class _NearbyTechniciansMapScreenState
         initialZoom: _defaultZoom,
         onTap: (_, _) => setState(() {
           _selected = null;
-          _routePoints = null;
+          _routeInfo = null;
+          _routeUpdateTimer?.cancel();
         }),
         interactionOptions: const InteractionOptions(
           flags: InteractiveFlag.all,
@@ -479,18 +495,18 @@ class _NearbyTechniciansMapScreenState
           userAgentPackageName: 'com.example.domfix',
         ),
         // Route polyline
-        if (_routePoints != null && _routePoints!.length >= 2)
+        if (_routeInfo != null && _routeInfo!.polyline.length >= 2)
           PolylineLayer(
             polylines: [
               // Glow / shadow underneath
               Polyline(
-                points: _routePoints!,
+                points: _routeInfo!.polyline,
                 color: AppColors.neonAccent.withValues(alpha: 0.18),
                 strokeWidth: 14,
               ),
               // Solid route line
               Polyline(
-                points: _routePoints!,
+                points: _routeInfo!.polyline,
                 color: AppColors.neonAccent,
                 strokeWidth: 4.5,
                 borderColor: AppColors.background.withValues(alpha: 0.5),
@@ -526,6 +542,16 @@ class _NearbyTechniciansMapScreenState
                       setState(() => _selected = t);
                       if (_userPoint != null) {
                         _fetchRoute(_userPoint!, t.point);
+                        // Start periodic route updates (every 30s)
+                        _routeUpdateTimer?.cancel();
+                        _routeUpdateTimer = Timer.periodic(
+                          const Duration(seconds: 30),
+                          (_) {
+                            if (_selected != null && _userPoint != null) {
+                              _fetchRoute(_userPoint!, _selected!.point);
+                            }
+                          },
+                        );
                       }
                     },
                     child: _TechPin(selected: _selected?.id == t.id),
@@ -741,9 +767,11 @@ class _NearbyTechniciansMapScreenState
       child: _TechPreviewCard(
         tech: _selected!,
         userPoint: _userPoint!,
+        routeInfo: _routeInfo,
         onClose: () => setState(() {
           _selected = null;
-          _routePoints = null;
+          _routeInfo = null;
+          _routeUpdateTimer?.cancel();
         }),
       ),
     );
@@ -1040,18 +1068,23 @@ class _TechPreviewCard extends StatelessWidget {
     required this.tech,
     required this.userPoint,
     required this.onClose,
+    this.routeInfo,
   });
 
   final TechnicianLocation tech;
   final LatLng userPoint;
   final VoidCallback onClose;
+  final RouteInfo? routeInfo;
 
   @override
   Widget build(BuildContext context) {
     final online = _isOnline(tech.updatedAt);
-    final dist = TechnicianLocationService.distanceKmPublic(
-        userPoint, tech.point);
     final shortId = tech.id.length >= 6 ? tech.id.substring(0, 6) : tech.id;
+    
+    // Use route-based distance if available, otherwise fallback to Haversine
+    final distText = routeInfo?.distanceText ?? 
+        '${TechnicianLocationService.distanceKmPublic(userPoint, tech.point).toStringAsFixed(1)} km';
+    final etaText = routeInfo?.durationText;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(22),
@@ -1100,13 +1133,15 @@ class _TechPreviewCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Technician $shortId',
+                          tech.name ?? 'Technician $shortId',
                           style: GoogleFonts.spaceGrotesk(
                             color: AppColors.onSurface,
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             letterSpacing: -0.2,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 3),
                         Row(
@@ -1144,25 +1179,24 @@ class _TechPreviewCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 10),
-                            Text(
-                              '·',
-                              style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: AppColors.onSurfaceVariant
-                                      .withValues(alpha: 0.3)),
-                            ),
-                            const SizedBox(width: 10),
-                            Icon(Icons.near_me_rounded,
-                                size: 12,
-                                color: AppColors.onSurfaceVariant
-                                    .withValues(alpha: 0.5)),
+                            Icon(Icons.star_rounded, size: 12, color: AppColors.neonAccent),
                             const SizedBox(width: 3),
                             Text(
-                              '${dist.toStringAsFixed(1)} km',
+                              tech.averageRating > 0 ? tech.averageRating.toStringAsFixed(1) : 'New',
                               style: GoogleFonts.inter(
                                 fontSize: 12,
-                                color: AppColors.onSurfaceVariant
-                                    .withValues(alpha: 0.7),
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.onSurface,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Icon(Icons.work_rounded, size: 12, color: AppColors.onSurfaceVariant.withValues(alpha: 0.5)),
+                            const SizedBox(width: 3),
+                            Text(
+                              '${tech.completedJobs} jobs',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: AppColors.onSurfaceVariant.withValues(alpha: 0.7),
                               ),
                             ),
                           ],
@@ -1189,32 +1223,73 @@ class _TechPreviewCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 14),
-              // Last seen
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(10),
-                  border:
-                      Border.all(color: Colors.white.withValues(alpha: 0.06)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.access_time_rounded,
-                        size: 13,
-                        color:
-                            AppColors.onSurfaceVariant.withValues(alpha: 0.5)),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Last seen ${_timeAgo(tech.updatedAt)}',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
+              // Route info row: Distance + ETA
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.06)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.route_rounded,
+                              size: 13,
+                              color: AppColors.neonAccent
+                                  .withValues(alpha: 0.7)),
+                          const SizedBox(width: 6),
+                          Text(
+                            distText,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.onSurface
+                                  .withValues(alpha: 0.85),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (etaText != null) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 9),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.06)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.access_time_rounded,
+                                size: 13,
+                                color: AppColors.neonAccent
+                                    .withValues(alpha: 0.7)),
+                            const SizedBox(width: 6),
+                            Text(
+                              etaText,
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.onSurface
+                                    .withValues(alpha: 0.85),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
-                ),
+                ],
               ),
               const SizedBox(height: 14),
               // Action buttons
@@ -1230,7 +1305,7 @@ class _TechPreviewCard extends StatelessWidget {
                         MaterialPageRoute(
                           builder: (_) => TechnicianProfileScreen(
                             technicianId: tech.id,
-                            initialName: 'Technician $shortId',
+                            initialName: tech.name ?? 'Technician $shortId',
                           ),
                         ),
                       ),
@@ -1248,7 +1323,7 @@ class _TechPreviewCard extends StatelessWidget {
                         MaterialPageRoute(
                           builder: (_) => ChatScreen(
                             otherUserId: tech.id,
-                            otherUserName: 'Technician $shortId',
+                            otherUserName: tech.name ?? 'Technician $shortId',
                             otherUserRole: 'technician',
                           ),
                         ),

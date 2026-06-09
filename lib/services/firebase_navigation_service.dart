@@ -12,6 +12,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'user_service.dart';
 import 'local_storage_service.dart';
+import 'technician_profile_service.dart';
 
 class NavigationService {
   static final UserService _userService = UserService();
@@ -118,25 +119,20 @@ class NavigationService {
 
   static Future<void> completeTechnicianOnboarding({
     required String uid,
-    required String fullName,
-    required String speciality,
-    required String imageUrl,
+    required String email,
+    required TechnicianOnboardingData data,
     required double lat,
     required double lng,
-    String? bio,
   }) async {
-    await FirebaseFirestore.instance.collection('users').doc(uid).update({
-      'fullName': fullName,
-      'speciality': speciality,
-      'profileImage': imageUrl,
-      'lat': lat,
-      'lng': lng,
-      'bio': bio ?? '',
-      'rating': 0.0,
-      'isOnline': true,
-      'onboardingCompleted': true,
-      'updated_at': FieldValue.serverTimestamp(),
-    });
+    // Use TechnicianProfileService to save complete profile
+    final profileService = TechnicianProfileService();
+    await profileService.saveOnboardingProfile(
+      uid: uid,
+      email: email,
+      data: data,
+      lat: lat,
+      lng: lng,
+    );
   }
 
   static Future<void> _onTechnicianOnboardingComplete(
@@ -144,11 +140,21 @@ class NavigationService {
     String uid,
     TechnicianOnboardingData data,
   ) async {
+    print('[NavigationService] 🚀 Starting technician onboarding completion...');
+    
     try {
-      // 1. Fetch location natively
+      // 1. Get user email
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+      final email = user.email ?? '';
+      
+      // 2. Fetch location
       double lat = 0.0;
       double lng = 0.0;
       
+      print('[NavigationService] 📍 Fetching location...');
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (serviceEnabled) {
         LocationPermission permission = await Geolocator.checkPermission();
@@ -156,40 +162,45 @@ class NavigationService {
           permission = await Geolocator.requestPermission();
         }
         if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
-          final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+          final position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+            timeLimit: const Duration(seconds: 10),
+          );
           lat = position.latitude;
           lng = position.longitude;
+          print('[NavigationService] ✅ Location: $lat, $lng');
+        } else {
+          print('[NavigationService] ⚠️ Location permission denied, using default');
         }
+      } else {
+        print('[NavigationService] ⚠️ Location services disabled');
       }
 
-      // 2. Extract specific variables locally
-      final fullName = data.fullName ?? 'Technician';
-      final speciality = data.specialties.isNotEmpty ? data.specialties.first : 'Specialist';
-      final profileImage = data.profilePhotoUrl ?? '';
-      final bio = data.bio ?? '';
-
-      print("\nONBOARDING DATA SAVED:");
-      print("Image: $profileImage");
-      print("Lat: $lat, Lng: $lng\n");
-
-      // 3. Save to Firestore explicitly
+      print('[NavigationService] 💾 Saving complete profile to Firestore...');
+      print('[NavigationService]   Full Name: ${data.fullName}');
+      print('[NavigationService]   Specialties: ${data.specialties.length}');
+      print('[NavigationService]   Portfolio: ${data.portfolioImages.length} images');
+      print('[NavigationService]   Certifications: ${data.certifications.length}');
+      print('[NavigationService]   Experience: ${data.yearsOfExperience} years');
+      
+      // 3. Save complete onboarding profile using TechnicianProfileService
       await completeTechnicianOnboarding(
         uid: uid,
-        fullName: fullName,
-        speciality: speciality,
-        imageUrl: profileImage,
+        email: email,
+        data: data,
         lat: lat,
         lng: lng,
-        bio: bio,
       );
 
-      await _userService.updateOnboardingStatus(uid, true);
+      print('[NavigationService] ✅ Profile saved successfully!');
+      print('[NavigationService] 🎉 Onboarding complete! Navigating to dashboard...');
     } catch (e, st) {
+      print('[NavigationService] ❌ ERROR: $e');
       debugPrint('Onboarding Firestore update failed: $e\n$st');
       if (routeContext.mounted) {
         ScaffoldMessenger.of(routeContext).showSnackBar(
           SnackBar(
-            content: Text('Could not save onboarding: $e'),
+            content: Text('Could not save profile: ${e.toString()}'),
             backgroundColor: Colors.red.shade800,
           ),
         );

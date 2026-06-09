@@ -32,7 +32,7 @@ class _AIInsightsPremiumState extends State<AIInsightsPremium> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
-    if (insights.isEmpty) {
+    if (widget.insights.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -78,13 +78,13 @@ class _AIInsightsPremiumState extends State<AIInsightsPremium> with SingleTicker
             scrollDirection: Axis.horizontal,
             child: Row(
               children: List.generate(
-                insights.length,
+                widget.insights.length,
                 (index) => Padding(
                   padding: EdgeInsets.only(
-                    right: index == insights.length - 1 ? 0 : AppColors.space12,
+                    right: index == widget.insights.length - 1 ? 0 : AppColors.space12,
                   ),
                   child: _AIInsightCard(
-                    insight: insights[index],
+                    insight: widget.insights[index],
                     animationController: _controller,
                     delay: Duration(milliseconds: index * 100),
                   ),

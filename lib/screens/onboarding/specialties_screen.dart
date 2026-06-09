@@ -41,14 +41,18 @@ class _SpecialtiesScreenState extends State<SpecialtiesScreen>
     with SingleTickerProviderStateMixin {
   // ── Predefined skills ────────────────────────────────────────────────────
   static const List<_Skill> _predefinedSkills = [
-    _Skill(name: 'Electrical Repair', icon: Icons.bolt, badge: 'High Demand'),
-    _Skill(name: 'Smart Home Installation', icon: Icons.nest_cam_wired_stand),
-    _Skill(name: 'HVAC Maintenance', icon: Icons.hvac),
-    _Skill(name: 'Plumbing Troubleshooting', icon: Icons.plumbing),
-    _Skill(name: 'Painting & Finishing', icon: Icons.format_paint),
-    _Skill(name: 'Carpentry & Woodwork', icon: Icons.carpenter),
-    _Skill(name: 'Security Systems', icon: Icons.security),
-    _Skill(name: 'Solar Panel Setup', icon: Icons.solar_power, badge: 'Growing'),
+    _Skill(name: 'Smart Home', icon: Icons.nest_cam_wired_stand, badge: 'High Demand'),
+    _Skill(name: 'Electrical Installation', icon: Icons.electrical_services),
+    _Skill(name: 'Solar Panels', icon: Icons.solar_power, badge: 'Growing'),
+    _Skill(name: 'CCTV & Security', icon: Icons.security),
+    _Skill(name: 'Networking', icon: Icons.router),
+    _Skill(name: 'WiFi & Routers', icon: Icons.wifi),
+    _Skill(name: 'Home Automation', icon: Icons.smart_toy),
+    _Skill(name: 'Lighting Systems', icon: Icons.lightbulb),
+    _Skill(name: 'Energy Monitoring', icon: Icons.energy_savings_leaf),
+    _Skill(name: 'IoT Systems', icon: Icons.devices_other),
+    _Skill(name: 'Access Control', icon: Icons.door_front_door),
+    _Skill(name: 'Intercom Systems', icon: Icons.record_voice_over),
   ];
 
   // ── State ────────────────────────────────────────────────────────────────

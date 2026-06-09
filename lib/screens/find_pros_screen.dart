@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import '../theme/app_colors.dart';
+import '../services/technician_profile_service.dart';
+import '../models/marketplace_technician.dart';
+import 'technician_profile_screen.dart';
 
 class FindProsScreen extends StatefulWidget {
   const FindProsScreen({super.key});
@@ -18,35 +21,7 @@ class _FindProsScreenState extends State<FindProsScreen> with TickerProviderStat
   Offset _dragOffset = Offset.zero;
   bool _isDragging = false;
 
-  final List<ProProfile> _profiles = [
-    ProProfile(
-      name: 'Marcus P.',
-      profession: 'Electrician',
-      rating: 5.0,
-      distance: '3km away',
-      badges: ['Expert', 'Certified', 'Fast Response'],
-      description: 'Specializing in smart home integration and complex rewiring. Available for emergency calls 24/7.',
-      imageUrl: 'https://via.placeholder.com/400x600/2A3040/FFFFFF?text=Electrician',
-    ),
-    ProProfile(
-      name: 'Sarah K.',
-      profession: 'Plumber',
-      rating: 4.9,
-      distance: '5km away',
-      badges: ['Expert', 'Licensed', '24/7'],
-      description: 'Expert in leak detection and pipe repair. Fast response time for emergencies.',
-      imageUrl: 'https://via.placeholder.com/400x600/2A3040/FFFFFF?text=Plumber',
-    ),
-    ProProfile(
-      name: 'David M.',
-      profession: 'HVAC Specialist',
-      rating: 4.8,
-      distance: '7km away',
-      badges: ['Certified', 'Experienced', 'Reliable'],
-      description: 'Professional heating and cooling system installation and maintenance.',
-      imageUrl: 'https://via.placeholder.com/400x600/2A3040/FFFFFF?text=HVAC',
-    ),
-  ];
+  List<MarketplaceTechnician> _profiles = [];
 
   @override
   void initState() {
@@ -108,12 +83,28 @@ class _FindProsScreenState extends State<FindProsScreen> with TickerProviderStat
     ));
 
     _swipeController.forward(from: 0).then((_) {
+      final swipedIndex = _currentCardIndex;
       setState(() {
-        _currentCardIndex = (_currentCardIndex + 1) % _profiles.length;
+        if (_profiles.isNotEmpty) {
+          _currentCardIndex = (_currentCardIndex + 1) % _profiles.length;
+        }
         _dragOffset = Offset.zero;
         _isDragging = false;
       });
       _swipeController.reset();
+
+      if (isRight && _profiles.isNotEmpty) {
+        // Hired! Open profile
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TechnicianProfileScreen(
+              technicianId: _profiles[swipedIndex].id,
+              initialName: _profiles[swipedIndex].fullName,
+            ),
+          ),
+        );
+      }
     });
   }
 
@@ -204,7 +195,35 @@ class _FindProsScreenState extends State<FindProsScreen> with TickerProviderStat
           _buildTitleSection(),
           const SizedBox(height: 24),
           Expanded(
-            child: _buildCardStack(),
+            child: StreamBuilder<List<MarketplaceTechnician>>(
+              stream: TechnicianProfileService().watchMarketplaceTechnicians(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting && _profiles.isEmpty) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error loading technicians', style: GoogleFonts.inter(color: Colors.red)));
+                }
+
+                if (snapshot.hasData) {
+                  _profiles = snapshot.data!;
+                  if (_currentCardIndex >= _profiles.length) {
+                    _currentCardIndex = 0;
+                  }
+                }
+
+                if (_profiles.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'No technicians available right now',
+                      style: GoogleFonts.inter(color: AppColors.onSurfaceVariant),
+                    ),
+                  );
+                }
+
+                return _buildCardStack();
+              },
+            ),
           ),
           const SizedBox(height: 20),
           _buildSwipeHints(),
@@ -346,7 +365,7 @@ class _FindProsScreenState extends State<FindProsScreen> with TickerProviderStat
             borderRadius: BorderRadius.circular(32),
             child: Stack(
               children: [
-                // Background image placeholder
+                // Background image
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -358,13 +377,25 @@ class _FindProsScreenState extends State<FindProsScreen> with TickerProviderStat
                       ],
                     ),
                   ),
-                  child: Center(
-                    child: Icon(
-                      Icons.engineering_outlined,
-                      size: 120,
-                      color: AppColors.primaryContainer.withValues(alpha: 0.1),
-                    ),
-                  ),
+                  child: profile.profileImage != null
+                    ? Image.network(
+                        profile.profileImage!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Center(
+                          child: Icon(
+                            Icons.engineering_outlined,
+                            size: 120,
+                            color: AppColors.primaryContainer.withValues(alpha: 0.1),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Icon(
+                          Icons.engineering_outlined,
+                          size: 120,
+                          color: AppColors.primaryContainer.withValues(alpha: 0.1),
+                        ),
+                      ),
                 ),
                 // Gradient overlay
                 Container(
@@ -395,18 +426,22 @@ class _FindProsScreenState extends State<FindProsScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildCardContent(ProProfile profile) {
+  Widget _buildCardContent(MarketplaceTechnician profile) {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Badges
+          // Badges (Using static badges based on stats for now)
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: profile.badges.map((badge) {
-              final isExpert = badge == 'Expert';
+            children: [
+              if (profile.rating >= 4.8) 'Top Rated',
+              if (profile.jobsCompleted > 50) 'Expert',
+              if (profile.isOnline) 'Fast Response',
+            ].map((badge) {
+              final isExpert = badge == 'Expert' || badge == 'Top Rated';
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
@@ -435,7 +470,7 @@ class _FindProsScreenState extends State<FindProsScreen> with TickerProviderStat
           const SizedBox(height: 16),
           // Name
           Text(
-            profile.name,
+            profile.fullName,
             style: GoogleFonts.spaceGrotesk(
               fontSize: 36,
               fontWeight: FontWeight.w900,
@@ -448,7 +483,7 @@ class _FindProsScreenState extends State<FindProsScreen> with TickerProviderStat
           Row(
             children: [
               Text(
-                profile.profession,
+                profile.speciality,
                 style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -472,7 +507,7 @@ class _FindProsScreenState extends State<FindProsScreen> with TickerProviderStat
               ),
               const SizedBox(width: 4),
               Text(
-                profile.rating.toString(),
+                profile.rating > 0 ? profile.rating.toStringAsFixed(1) : 'New',
                 style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -492,7 +527,7 @@ class _FindProsScreenState extends State<FindProsScreen> with TickerProviderStat
               ),
               const SizedBox(width: 6),
               Text(
-                profile.distance,
+                profile.distanceKm < double.infinity ? '${profile.distanceKm.toStringAsFixed(1)} km away' : 'Online',
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   color: AppColors.onSurfaceVariant,
@@ -503,7 +538,7 @@ class _FindProsScreenState extends State<FindProsScreen> with TickerProviderStat
           const SizedBox(height: 16),
           // Description
           Text(
-            profile.description,
+            'Completed ${profile.jobsCompleted} jobs with ${profile.reviewCount} reviews.',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
@@ -698,24 +733,4 @@ class _FindProsScreenState extends State<FindProsScreen> with TickerProviderStat
       ),
     );
   }
-}
-
-class ProProfile {
-  final String name;
-  final String profession;
-  final double rating;
-  final String distance;
-  final List<String> badges;
-  final String description;
-  final String imageUrl;
-
-  ProProfile({
-    required this.name,
-    required this.profession,
-    required this.rating,
-    required this.distance,
-    required this.badges,
-    required this.description,
-    required this.imageUrl,
-  });
 }

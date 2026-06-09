@@ -45,7 +45,7 @@ class _LiveMapWidgetState extends State<LiveMapWidget> with SingleTickerProvider
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
       child: GestureDetector(
-        onTap: onMapTap,
+        onTap: widget.onMapTap,
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppColors.radiusLarge),

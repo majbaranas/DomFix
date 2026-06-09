@@ -192,7 +192,7 @@ class ReviewService {
       print('[ReviewService]   Total Reviews: $totalReviews');
       print('[ReviewService]   Quality Score: $reviewQualityScore');
 
-      // Get current completed jobs count
+      // Get current stats
       print('[ReviewService] 🔍 Fetching current stats...');
       final statsDoc = await _firestore
           .collection('technician_stats')
@@ -201,13 +201,17 @@ class ReviewService {
       
       final currentStats = statsDoc.data() ?? <String, dynamic>{};
       final completedJobs = (currentStats['completedJobs'] as num?)?.toInt() ?? 0;
+      final profileCompletionBonus = (currentStats['profileCompletionBonus'] as num?)?.toDouble() ?? 0.0;
 
-      // Calculate rank score
-      final rankScore = _calculateRankScore(
-        averageRating: averageRating,
-        totalReviews: totalReviews,
-        completedJobs: completedJobs,
-        reviewQualityScore: reviewQualityScore,
+      // Enhanced weighted ranking formula with profile completion
+      final ratingWeight = averageRating * 100;
+      final trustWeight = (totalReviews > 50 ? 50 : totalReviews) * 2;
+      final volumeWeight = (completedJobs > 100 ? 100 : completedJobs).toDouble();
+      final qualityWeight = reviewQualityScore * 10;
+      final profileWeight = profileCompletionBonus * 0.5; // Profile contributes up to 50 points
+      
+      final rankScore = double.parse(
+        (ratingWeight + trustWeight + volumeWeight + qualityWeight + profileWeight).toStringAsFixed(3),
       );
 
       print('[ReviewService]   Completed Jobs: $completedJobs');
@@ -258,23 +262,7 @@ class ReviewService {
     }
   }
 
-  /// Calculate composite rank score for marketplace ranking
-  double _calculateRankScore({
-    required double averageRating,
-    required int totalReviews,
-    required int completedJobs,
-    required double reviewQualityScore,
-  }) {
-    // Weighted ranking formula
-    final ratingWeight = averageRating * 100;
-    final trustWeight = (totalReviews > 50 ? 50 : totalReviews) * 2;
-    final volumeWeight = (completedJobs > 100 ? 100 : completedJobs).toDouble();
-    final qualityWeight = reviewQualityScore * 10;
-    
-    return double.parse(
-      (ratingWeight + trustWeight + volumeWeight + qualityWeight).toStringAsFixed(3),
-    );
-  }
+
 
   Future<void> skipBookingReview(String bookingId) async {
     final user = _auth.currentUser;
@@ -413,14 +401,16 @@ class ReviewService {
         final totalReviews = (currentStats['totalReviews'] as num?)?.toInt() ?? 0;
         final reviewQualityScore = (currentStats['reviewQualityScore'] as num?)?.toDouble() ?? 0.0;
         final ratingSum = (currentStats['ratingSum'] as num?)?.toInt() ?? 0;
+        final profileCompletionBonus = (currentStats['profileCompletionBonus'] as num?)?.toDouble() ?? 0.0;
         
         // Recalculate rank score
         final ratingWeight = averageRating * 100;
         final trustWeight = (totalReviews > 50 ? 50 : totalReviews) * 2;
         final volumeWeight = (completedJobs > 100 ? 100 : completedJobs).toDouble();
         final qualityWeight = reviewQualityScore * 10;
+        final profileWeight = profileCompletionBonus * 0.5;
         final rankScore = double.parse(
-          (ratingWeight + trustWeight + volumeWeight + qualityWeight).toStringAsFixed(3),
+          (ratingWeight + trustWeight + volumeWeight + qualityWeight + profileWeight).toStringAsFixed(3),
         );
         
         // Update technician_stats
