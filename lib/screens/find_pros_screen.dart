@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'dart:math' as math;
 import '../theme/app_colors.dart';
 import '../services/technician_profile_service.dart';
 import '../models/marketplace_technician.dart';

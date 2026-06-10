@@ -17,29 +17,21 @@ class ProfessionalIdentityScreen extends StatefulWidget {
   /// Shared data object that is mutated and passed to the next step.
   final TechnicianOnboardingData onboardingData;
 
-  /// Called when the user taps NEXT and the step is complete.
-  final VoidCallback? onNext;
-
-  /// Called when the user taps BACK.
-  final VoidCallback? onBack;
-
   const ProfessionalIdentityScreen({
     super.key,
     required this.onboardingData,
-    this.onNext,
-    this.onBack,
   });
 
   @override
   State<ProfessionalIdentityScreen> createState() =>
-      _ProfessionalIdentityScreenState();
+      ProfessionalIdentityScreenState();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // State
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _ProfessionalIdentityScreenState
+class ProfessionalIdentityScreenState
     extends State<ProfessionalIdentityScreen>
     with SingleTickerProviderStateMixin {
   // ── Controllers ─────────────────────────────────────────────────────────────
@@ -192,24 +184,22 @@ class _ProfessionalIdentityScreenState
   // Navigation
   // ─────────────────────────────────────────────────────────────────────────────
 
-  void _handleNext() {
-    if (!_formKey.currentState!.validate()) return;
+  bool validate() {
+    if (!_formKey.currentState!.validate()) return false;
 
-    // Warn if photo not uploaded yet (not blocking – photo is recommended)
     if (_photoUploadState == _UploadState.uploading) {
       _showSnackBar('Please wait for the photo upload to finish.', isError: true);
-      return;
+      return false;
     }
+    return true;
+  }
 
-    // Save to shared model
+  void save() {
     widget.onboardingData
       ..fullName = _fullNameController.text.trim()
       ..age = int.tryParse(_ageController.text.trim())
       ..city = _cityController.text.trim()
       ..bio = _bioController.text.trim();
-
-    HapticFeedback.mediumImpact();
-    widget.onNext?.call();
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -234,151 +224,56 @@ class _ProfessionalIdentityScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: FadeTransition(
-        opacity: _fadeAnim,
-        child: SlideTransition(
-          position: _slideAnim,
-          child: Column(
+    return FadeTransition(
+      opacity: _fadeAnim,
+      child: SlideTransition(
+        position: _slideAnim,
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
             children: [
-              _buildTopAppBar(),
-              Expanded(
-                child: Form(
-                  key: _formKey,
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
-                    children: [
-                      _buildProgressSection(),
-                      const SizedBox(height: 40),
-                      _buildProfilePhotoSection(),
-                      const SizedBox(height: 40),
-                      _buildFormFields(),
-                      const SizedBox(height: 32),
-                      _buildProTip(),
-                    ],
-                  ),
-                ),
-              ),
+              _buildWelcomeHero(),
+              const SizedBox(height: 40),
+              _buildProfilePhotoSection(),
+              const SizedBox(height: 40),
+              _buildFormFields(),
+              const SizedBox(height: 32),
+              _buildProTip(),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
-  // ── Top app bar ──────────────────────────────────────────────────────────────
-
-  Widget _buildTopAppBar() {
-    return Container(
-      color: AppColors.background,
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 8,
-        left: 16,
-        right: 16,
-        bottom: 12,
-      ),
-      child: Row(
-        children: [
-          _IconBtn(
-            icon: Icons.arrow_back,
-            onTap: () {
-              HapticFeedback.lightImpact();
-              widget.onBack?.call();
-            },
-          ),
-          const SizedBox(width: 12),
-          Text(
-            'DOMFIX_CORE',
-            style: GoogleFonts.spaceGrotesk(
-              color: AppColors.primaryContainer,
-              fontWeight: FontWeight.w800,
-              fontSize: 18,
-              letterSpacing: 1,
-            ),
-          ),
-          const Spacer(),
-          Text(
-            'STEP 1 OF 6',
-            style: GoogleFonts.spaceGrotesk(
-              color: AppColors.primaryContainer,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 2,
-            ),
-          ),
-          const SizedBox(width: 12),
-          _IconBtn(icon: Icons.more_vert, onTap: () {}),
-        ],
-      ),
-    );
-  }
-
-  // ── Progress bar ─────────────────────────────────────────────────────────────
-
-  Widget _buildProgressSection() {
+  Widget _buildWelcomeHero() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: Text(
-                'PROFESSIONAL\nIDENTITY',
-                style: GoogleFonts.spaceGrotesk(
-                  color: AppColors.onSurface,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  height: 1.1,
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ),
-            Text(
-              '16% COMPLETE',
-              style: GoogleFonts.spaceGrotesk(
-                color: AppColors.primaryContainer,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.5,
-              ),
-            ),
-          ],
+        Text(
+          'Let\'s build your\nprofessional identity',
+          style: GoogleFonts.spaceGrotesk(
+            color: AppColors.onSurface,
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            height: 1.1,
+            letterSpacing: -0.5,
+          ),
         ),
-        const SizedBox(height: 10),
-        Stack(
-          children: [
-            Container(
-              height: 3,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: const Color(0xFF31353B),
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-            FractionallySizedBox(
-              widthFactor: 0.16,
-              child: Container(
-                height: 3,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryContainer,
-                  borderRadius: BorderRadius.circular(99),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryContainer.withValues(alpha: 0.5),
-                      blurRadius: 8,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+        const SizedBox(height: 12),
+        Text(
+          'This is how clients will see you. Make it count.',
+          style: GoogleFonts.inter(
+            color: AppColors.onSurfaceVariant,
+            fontSize: 14,
+          ),
         ),
       ],
     );
   }
+
+
 
   // ── Profile photo ─────────────────────────────────────────────────────────────
 
@@ -669,136 +564,14 @@ class _ProfessionalIdentityScreenState
     );
   }
 
-  // ── Bottom nav ───────────────────────────────────────────────────────────────
-
-  Widget _buildBottomNav() {
-    final isUploading = _photoUploadState == _UploadState.uploading;
-
-    return Container(
-      padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 12,
-        bottom: MediaQuery.of(context).padding.bottom + 16,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.background.withValues(alpha: 0.9),
-        border: Border(
-          top: BorderSide(
-            color: Colors.white.withValues(alpha: 0.08),
-            width: 1,
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          // Back
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              widget.onBack?.call();
-            },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.chevron_left,
-                    color: Colors.white.withValues(alpha: 0.6), size: 22),
-                const SizedBox(height: 2),
-                Text(
-                  'BACK',
-                  style: GoogleFonts.spaceGrotesk(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Spacer(),
-
-          // Next
-          GestureDetector(
-            onTap: isUploading ? null : _handleNext,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 14),
-              decoration: BoxDecoration(
-                color: isUploading
-                    ? AppColors.primaryContainer.withValues(alpha: 0.5)
-                    : AppColors.primaryContainer,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: isUploading
-                    ? []
-                    : [
-                        BoxShadow(
-                          color: AppColors.primaryContainer.withValues(alpha: 0.35),
-                          blurRadius: 20,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-              ),
-              child: isUploading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Color(0xFF2B3400)),
-                      ),
-                    )
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'NEXT',
-                          style: GoogleFonts.spaceGrotesk(
-                            color: const Color(0xFF2B3400),
-                            fontWeight: FontWeight.w800,
-                            fontSize: 13,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        const Icon(Icons.bolt,
-                            color: Color(0xFF2B3400), size: 18),
-                      ],
-                    ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
+}
+
 // Private helpers / sub-widgets
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum _UploadState { idle, uploading, success, error }
-
-// ── Small icon button ─────────────────────────────────────────────────────────
-
-class _IconBtn extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _IconBtn({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: Icon(icon, color: AppColors.onSurface, size: 22),
-      ),
-    );
-  }
-}
 
 // ── DomFix text field ─────────────────────────────────────────────────────────
 
@@ -843,26 +616,30 @@ class _DomfixTextField extends StatelessWidget {
           letterSpacing: 1.8,
         ),
         suffixIcon: suffixIcon,
-        enabledBorder: const UnderlineInputBorder(
-          borderSide:
-              BorderSide(color: Color(0xFF454932), width: 1.5),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: const Color(0xFF2A2E35), width: 1.5),
         ),
-        focusedBorder: UnderlineInputBorder(
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: AppColors.primaryContainer, width: 2),
         ),
-        errorBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Color(0xFFFFB4AB), width: 1.5),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFFFB4AB), width: 1.5),
         ),
-        focusedErrorBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Color(0xFFFFB4AB), width: 2),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFFFB4AB), width: 2),
         ),
         errorStyle: GoogleFonts.inter(
           color: const Color(0xFFFFB4AB),
           fontSize: 11,
         ),
-        filled: false,
+        filled: true,
+        fillColor: const Color(0xFF181C21),
         contentPadding:
-            const EdgeInsets.only(bottom: 8, top: 4),
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
     );
   }
@@ -889,13 +666,8 @@ class _DomfixTextArea extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             color: const Color(0xFF181C21),
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(14),
-              topRight: Radius.circular(14),
-            ),
-            border: const Border(
-              bottom: BorderSide(color: Color(0xFF454932), width: 1.5),
-            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF2A2E35), width: 1.5),
           ),
           child: TextFormField(
             controller: controller,

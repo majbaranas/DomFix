@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/technician_profile_model.dart';
 import '../models/technician_onboarding_data.dart';
 import '../models/marketplace_technician.dart';
+import 'technician_ranking_service.dart';
+import '../utils/technician_specialty_catalog.dart';
 import 'package:latlong2/latlong.dart';
 
 class TechnicianProfileService {
@@ -22,60 +25,100 @@ class TechnicianProfileService {
     required String uid,
     required String email,
     required TechnicianOnboardingData data,
-    required double lat,
-    required double lng,
+    double? lat,
+    double? lng,
   }) async {
-    print('📝 Saving onboarding profile for uid: $uid');
-    
+    final authUid = FirebaseAuth.instance.currentUser?.uid;
+    final effectiveUid = authUid ?? uid;
+    if (authUid != null && authUid != uid) {
+      debugPrint(
+        '[TechnicianProfileService] UID mismatch. auth=$authUid, requested=$uid. Using auth UID for Firestore writes.',
+      );
+    }
+
+    print('📝 Saving onboarding profile for uid: $effectiveUid');
+
     final batch = _firestore.batch();
+    final hasValidLocation = lat != null && lng != null;
+    final normalizedSpecialties =
+        TechnicianSpecialtyCatalog.normalizeList(data.specialties);
+    final normalizedCustomSkills =
+        TechnicianSpecialtyCatalog.normalizeList(data.customSkills);
+    final servicesProvided = TechnicianSpecialtyCatalog.normalizeList([
+      ...data.specialties,
+      ...data.customSkills,
+    ]);
     
     // 1. Update users collection (basic + public fields)
-    final userRef = _firestore.collection('users').doc(uid);
+    final userRef = _firestore.collection('users').doc(effectiveUid);
     final userData = {
-      'uid': uid,
+      'uid': effectiveUid,
       'email': email,
       'role': 'technician',
       'fullName': data.fullName ?? 'Technician',
       'profileImage': data.profilePhotoUrl,
       'bio': data.bio,
       'city': data.city,
-      'speciality': data.specialties.isNotEmpty ? data.specialties.first : 'Specialist',
-      'specialties': data.specialties,
-      'lat': lat,
-      'lng': lng,
+      'speciality': servicesProvided.isNotEmpty ? servicesProvided.first : 'Specialist',
+      'specialties': normalizedSpecialties,
+      'servicesProvided': servicesProvided,
       'isAvailable': data.isAvailable,
+      'availabilityEnabled': data.isAvailable,
       'isOnline': true,
       'onboardingCompleted': true,
+      'profileCompleted': true,
+      'activeAccount': true,
+      'accountStatus': 'active',
+      'isPhoneVerified': data.isPhoneVerified,
+      'isIdentityVerified': data.identityDocumentUrl != null,
+      'profileCompletionScore': 0.0,
+      if (hasValidLocation) 'lat': lat,
+      if (hasValidLocation) 'lng': lng,
+      if (hasValidLocation) 'location': {
+        'lat': lat,
+        'lng': lng,
+      },
       'updated_at': FieldValue.serverTimestamp(),
     };
-    batch.set(userRef, userData, SetOptions(merge: true));
-    
+
     // 2. Create/update technician_profiles collection (extended data)
-    final profileRef = _firestore.collection('technician_profiles').doc(uid);
+    final profileRef = _firestore.collection('technician_profiles').doc(effectiveUid);
     final profileCompletion = TechnicianProfileModel.calculateProfileCompletion(
       userData,
       {
-        'specialties': data.specialties,
-        'customSkills': data.customSkills,
+        'specialties': normalizedSpecialties,
+        'customSkills': normalizedCustomSkills,
         'yearsOfExperience': data.yearsOfExperience,
         'certificationUrls': data.certificationUrls,
         'portfolioUrls': data.portfolioUrls,
         'availableDays': data.availableDays,
         'isPhoneVerified': data.isPhoneVerified,
         'isIdentityVerified': data.identityDocumentUrl != null,
-        'identityDocumentUrl': data.identityDocumentUrl,
-        'phoneNumber': data.phoneNumber,
       },
     );
+    final initialRankScore = TechnicianRankingService.calculateRankScore(
+      averageRating: 0.0,
+      totalReviews: 0,
+      completedJobs: 0,
+      responseSpeedScore: 0.0,
+      profileCompletenessScore: profileCompletion,
+      activityScore: 100.0,
+      availabilityScore: data.isAvailable ? 100.0 : 0.0,
+      availabilityEnabled: data.isAvailable,
+    );
+    userData['profileCompletionScore'] = profileCompletion;
+    batch.set(userRef, userData, SetOptions(merge: true));
     
     final profileData = {
-      'specialties': data.specialties,
-      'customSkills': data.customSkills,
-      'primarySpecialty': data.specialties.isNotEmpty ? data.specialties.first : 'Specialist',
+      'specialties': normalizedSpecialties,
+      'customSkills': normalizedCustomSkills,
+      'servicesProvided': servicesProvided,
+      'primarySpecialty': servicesProvided.isNotEmpty ? servicesProvided.first : 'Specialist',
       'yearsOfExperience': data.yearsOfExperience,
       'certificationUrls': data.certificationUrls,
       'portfolioUrls': data.portfolioUrls,
       'isAvailable': data.isAvailable,
+      'availabilityEnabled': data.isAvailable,
       'availableDays': data.availableDays,
       'workingHours': {
         'startHour': data.startHour,
@@ -84,32 +127,59 @@ class TechnicianProfileService {
         'endMinute': data.endMinute,
       },
       'serviceRadiusMiles': data.serviceRadiusMiles,
-      'lat': lat,
-      'lng': lng,
+      if (hasValidLocation) 'lat': lat,
+      if (hasValidLocation) 'lng': lng,
+      if (hasValidLocation) 'location': {
+        'lat': lat,
+        'lng': lng,
+      },
       if (data.age != null) 'age': data.age,
       if (data.city != null) 'city': data.city,
       if (data.bio != null) 'bio': data.bio,
       if (data.profilePhotoUrl != null) 'profilePhotoUrl': data.profilePhotoUrl,
-      if (data.identityDocumentUrl != null) 'identityDocumentUrl': data.identityDocumentUrl,
-      if (data.phoneNumber != null) 'phoneNumber': data.phoneNumber,
       'isPhoneVerified': data.isPhoneVerified,
       'isIdentityVerified': data.identityDocumentUrl != null,
       'profileCompletionScore': profileCompletion,
+      'profileCompleted': true,
+      'activeAccount': true,
+      'accountStatus': 'active',
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
     batch.set(profileRef, profileData, SetOptions(merge: true));
+
+    // 2b. Save private technician onboarding data
+    final privateProfileRef = _firestore.collection('technician_private_profiles').doc(effectiveUid);
+    final privateData = {
+      'uid': effectiveUid,
+      if (data.phoneNumber != null) 'phoneNumber': data.phoneNumber,
+      if (data.identityDocumentUrl != null) 'identityDocumentUrl': data.identityDocumentUrl,
+      'isPhoneVerified': data.isPhoneVerified,
+      'isIdentityVerified': data.identityDocumentUrl != null,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+    batch.set(privateProfileRef, privateData, SetOptions(merge: true));
     
     // 3. Initialize technician_stats if not exists
-    final statsRef = _firestore.collection('technician_stats').doc(uid);
+    final statsRef = _firestore.collection('technician_stats').doc(effectiveUid);
     final statsData = {
-      'technicianId': uid,
+      'technicianId': effectiveUid,
       'averageRating': 0.0,
       'totalReviews': 0,
       'completedJobs': 0,
-      'rankScore': profileCompletion, // Initial rank based on profile completion
       'reviewQualityScore': 100.0,
       'profileCompletionBonus': profileCompletion,
+      'profileCompletenessScore': profileCompletion,
+      'availabilityScore': data.isAvailable ? 100.0 : 0.0,
+      'activityScore': 100.0,
+      'responseSpeedScore': 0.0,
+      'availabilityEnabled': data.isAvailable,
+      'profileCompleted': true,
+      'activeAccount': true,
+      'accountStatus': 'active',
+      'lastActivityAt': FieldValue.serverTimestamp(),
+      'rankScore': initialRankScore,
       'lastUpdated': FieldValue.serverTimestamp(),
     };
     batch.set(statsRef, statsData, SetOptions(merge: true));
@@ -118,7 +188,7 @@ class TechnicianProfileService {
     print('✅ Onboarding profile saved successfully');
     
     // Invalidate cache
-    _profileCache.remove(uid);
+    _profileCache.remove(effectiveUid);
   }
 
   /// Get full technician profile (cached)
@@ -213,6 +283,8 @@ class TechnicianProfileService {
     print('📝 Updating profile for: $uid');
     
     final batch = _firestore.batch();
+    final normalizedSpecialties =
+        specialties == null ? null : TechnicianSpecialtyCatalog.normalizeList(specialties);
     
     // Update users collection
     final userUpdates = <String, dynamic>{};
@@ -220,9 +292,13 @@ class TechnicianProfileService {
     if (bio != null) userUpdates['bio'] = bio;
     if (profilePhotoUrl != null) userUpdates['profileImage'] = profilePhotoUrl;
     if (city != null) userUpdates['city'] = city;
-    if (isAvailable != null) userUpdates['isAvailable'] = isAvailable;
-    if (specialties != null && specialties.isNotEmpty) {
-      userUpdates['speciality'] = specialties.first;
+    if (isAvailable != null) {
+      userUpdates['isAvailable'] = isAvailable;
+      userUpdates['availabilityEnabled'] = isAvailable;
+    }
+    if (normalizedSpecialties != null && normalizedSpecialties.isNotEmpty) {
+      userUpdates['speciality'] = normalizedSpecialties.first;
+      userUpdates['servicesProvided'] = normalizedSpecialties;
     }
     userUpdates['updated_at'] = FieldValue.serverTimestamp();
     
@@ -232,12 +308,16 @@ class TechnicianProfileService {
     
     // Update technician_profiles collection
     final profileUpdates = <String, dynamic>{};
-    if (specialties != null) {
-      profileUpdates['specialties'] = specialties;
-      profileUpdates['primarySpecialty'] = specialties.isNotEmpty ? specialties.first : 'Technician';
+    if (normalizedSpecialties != null) {
+      profileUpdates['specialties'] = normalizedSpecialties;
+      profileUpdates['servicesProvided'] = normalizedSpecialties;
+      profileUpdates['primarySpecialty'] = normalizedSpecialties.isNotEmpty ? normalizedSpecialties.first : 'Technician';
     }
     if (workingHours != null) profileUpdates['workingHours'] = workingHours;
-    if (isAvailable != null) profileUpdates['isAvailable'] = isAvailable;
+    if (isAvailable != null) {
+      profileUpdates['isAvailable'] = isAvailable;
+      profileUpdates['availabilityEnabled'] = isAvailable;
+    }
     profileUpdates['updatedAt'] = FieldValue.serverTimestamp();
     
     if (profileUpdates.isNotEmpty) {
@@ -291,17 +371,20 @@ class TechnicianProfileService {
       final averageRating = (statsData['averageRating'] as num?)?.toDouble() ?? 0.0;
       final totalReviews = (statsData['totalReviews'] as num?)?.toInt() ?? 0;
       final completedJobs = (statsData['completedJobs'] as num?)?.toInt() ?? 0;
-      final reviewQualityScore = (statsData['reviewQualityScore'] as num?)?.toDouble() ?? 0.0;
-      
-      // Enhanced ranking formula with profile completion bonus
-      final ratingWeight = averageRating * 100;
-      final trustWeight = (totalReviews > 50 ? 50 : totalReviews) * 2;
-      final volumeWeight = (completedJobs > 100 ? 100 : completedJobs).toDouble();
-      final qualityWeight = reviewQualityScore * 10;
-      final profileWeight = completionScore * 0.5; // Profile completion contributes up to 50 points
-      
-      final rankScore = double.parse(
-        (ratingWeight + trustWeight + volumeWeight + qualityWeight + profileWeight).toStringAsFixed(3),
+      final responseSpeedScore = (statsData['responseSpeedScore'] as num?)?.toDouble() ?? 0.0;
+      final activityScore = (statsData['activityScore'] as num?)?.toDouble() ?? 100.0;
+      final availabilityScore = (statsData['availabilityScore'] as num?)?.toDouble() ?? 0.0;
+      final availabilityEnabled = statsData['availabilityEnabled'] != false;
+
+      final rankScore = TechnicianRankingService.calculateRankScore(
+        averageRating: averageRating,
+        totalReviews: totalReviews,
+        completedJobs: completedJobs,
+        responseSpeedScore: responseSpeedScore,
+        profileCompletenessScore: completionScore,
+        activityScore: activityScore,
+        availabilityScore: availabilityScore,
+        availabilityEnabled: availabilityEnabled,
       );
       
       // Update rankScore in technician_stats
@@ -309,7 +392,10 @@ class TechnicianProfileService {
         _firestore.collection('technician_stats').doc(uid),
         {
           'profileCompletionBonus': completionScore,
+          'profileCompletenessScore': completionScore,
           'rankScore': rankScore,
+          'activityScore': 100.0,
+          'lastActivityAt': FieldValue.serverTimestamp(),
           'lastUpdated': FieldValue.serverTimestamp(),
         },
         SetOptions(merge: true),
@@ -320,6 +406,9 @@ class TechnicianProfileService {
         _firestore.collection('users').doc(uid),
         {
           'rankScore': rankScore,
+          'profileCompletionScore': completionScore,
+          'activityScore': 100.0,
+          'lastActivityAt': FieldValue.serverTimestamp(),
           'updated_at': FieldValue.serverTimestamp(),
         },
         SetOptions(merge: true),
@@ -372,6 +461,16 @@ class TechnicianProfileService {
         profileSnap.exists ? profileSnap.data() : null,
         statsSnap.exists ? statsSnap.data() : null,
       );
+
+      if (userData['profileCompleted'] == false ||
+          userData['activeAccount'] == false ||
+          userData['availabilityEnabled'] == false) {
+        continue;
+      }
+
+      if (profile.location == null) {
+        continue;
+      }
       
       // Apply filters
       if (specialties != null && specialties.isNotEmpty) {
@@ -395,7 +494,11 @@ class TechnicianProfileService {
     }
     
     // Sort by rankScore (includes profile completion bonus)
-    profiles.sort((a, b) => b.rankScore.compareTo(a.rankScore));
+    profiles.sort((a, b) {
+      final scoreA = _effectiveRankScore(a.rankScore, a.updatedAt);
+      final scoreB = _effectiveRankScore(b.rankScore, b.updatedAt);
+      return scoreB.compareTo(scoreA);
+    });
     
     print('✅ Found ${profiles.length} technicians');
     return profiles;
@@ -415,14 +518,25 @@ class TechnicianProfileService {
     return _firestore
         .collection('users')
         .where('role', isEqualTo: 'technician')
-        .where('isAvailable', isEqualTo: true)
-        // Note: we can't do .orderBy('rankScore', descending: true) here easily 
+        // We do not filter by isAvailable strictly via Firestore because legacy accounts
+        // might not have this field initialized to true, breaking backward compatibility.
         // without a composite index. We'll do it client-side since Spark plan
         // users often avoid maintaining multiple composite indexes.
         .snapshots()
         .map((snap) {
-          final techs = snap.docs
+          var techs = snap.docs
+              .where((doc) {
+                final data = doc.data();
+                return (data['onboardingCompleted'] == true ||
+                        data['onboarding_done'] == true) &&
+                    data['profileCompleted'] != false &&
+                    data['activeAccount'] != false &&
+                    data['availabilityEnabled'] != false &&
+                    data['isAvailable'] != false &&
+                    (data['lat'] is num || data['latitude'] is num || data['location'] is Map);
+              })
               .map((doc) => MarketplaceTechnician.fromDoc(doc))
+              .where((t) => t.isAvailable && t.location != null) // Client-side filtering ensures legacy compat
               .toList();
           
           for (final t in techs) {
@@ -433,8 +547,8 @@ class TechnicianProfileService {
           
           // Sort by a combination of rankScore and distance penalty
           techs.sort((a, b) {
-            double scoreA = a.rankScore;
-            double scoreB = b.rankScore;
+            double scoreA = _effectiveRankScore(a.rankScore, a.updatedAt);
+            double scoreB = _effectiveRankScore(b.rankScore, b.updatedAt);
             
             // Apply slight distance penalty if location is known
             if (userLocation != null) {
@@ -447,6 +561,10 @@ class TechnicianProfileService {
           
           return techs;
         });
+  }
+
+  double _effectiveRankScore(double rankScore, DateTime updatedAt) {
+    return rankScore + TechnicianRankingService.freshnessBonus(updatedAt);
   }
 
   /// Clear cache for a specific technician

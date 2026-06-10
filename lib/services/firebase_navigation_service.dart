@@ -8,7 +8,6 @@ import '../screens/technician_home_screen.dart';
 import '../screens/onboarding/technician_onboarding_flow.dart';
 import '../theme/app_colors.dart';
 import '../models/technician_onboarding_data.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'user_service.dart';
 import 'local_storage_service.dart';
@@ -121,8 +120,8 @@ class NavigationService {
     required String uid,
     required String email,
     required TechnicianOnboardingData data,
-    required double lat,
-    required double lng,
+    double? lat,
+    double? lng,
   }) async {
     // Use TechnicianProfileService to save complete profile
     final profileService = TechnicianProfileService();
@@ -151,8 +150,8 @@ class NavigationService {
       final email = user.email ?? '';
       
       // 2. Fetch location
-      double lat = 0.0;
-      double lng = 0.0;
+      double? lat;
+      double? lng;
       
       print('[NavigationService] 📍 Fetching location...');
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -182,6 +181,9 @@ class NavigationService {
       print('[NavigationService]   Portfolio: ${data.portfolioImages.length} images');
       print('[NavigationService]   Certifications: ${data.certifications.length}');
       print('[NavigationService]   Experience: ${data.yearsOfExperience} years');
+      if (lat == null || lng == null) {
+        print('[NavigationService] ⚠️ No valid location detected. Technician will stay hidden from nearby discovery until location is available.');
+      }
       
       // 3. Save complete onboarding profile using TechnicianProfileService
       await completeTechnicianOnboarding(

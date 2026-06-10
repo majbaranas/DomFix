@@ -14,21 +14,17 @@ import '../../theme/app_colors.dart';
 
 class AvailabilityScreen extends StatefulWidget {
   final TechnicianOnboardingData onboardingData;
-  final VoidCallback? onNext;
-  final VoidCallback? onBack;
 
   const AvailabilityScreen({
     super.key,
     required this.onboardingData,
-    this.onNext,
-    this.onBack,
   });
 
   @override
-  State<AvailabilityScreen> createState() => _AvailabilityScreenState();
+  State<AvailabilityScreen> createState() => AvailabilityScreenState();
 }
 
-class _AvailabilityScreenState extends State<AvailabilityScreen>
+class AvailabilityScreenState extends State<AvailabilityScreen>
     with SingleTickerProviderStateMixin {
   // ── Day definitions ────────────────────────────────────────────────────────
   static const _days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -166,7 +162,11 @@ class _AvailabilityScreenState extends State<AvailabilityScreen>
     HapticFeedback.lightImpact();
   }
 
-  void _handleNext() {
+  bool validate() {
+    return true;
+  }
+
+  void save() {
     final d = widget.onboardingData;
     d.isAvailable = _isAvailable;
     d.availableDays = _selectedDays.toList();
@@ -176,8 +176,6 @@ class _AvailabilityScreenState extends State<AvailabilityScreen>
     d.endMinute = _endTime.minute;
     d.serviceRadiusMiles = _radiusMiles;
     d.detectedLocation = _detectedLocation;
-    HapticFeedback.mediumImpact();
-    widget.onNext?.call();
   }
 
   String _formatTime(TimeOfDay t) {
@@ -191,124 +189,27 @@ class _AvailabilityScreenState extends State<AvailabilityScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: FadeTransition(
-        opacity: _fadeAnim,
-        child: SlideTransition(
-          position: _slideAnim,
-          child: Column(
-            children: [
-              _buildTopBar(),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
-                  children: [
-                    _buildProgress(),
-                    const SizedBox(height: 28),
-                    _buildActiveStatusCard(),
-                    const SizedBox(height: 28),
-                    _buildWeeklySchedule(),
-                    const SizedBox(height: 28),
-                    _buildTimeRange(),
-                    const SizedBox(height: 32),
-                    _buildServiceRadius(),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: _buildBottomNav(),
-    );
-  }
-
-  // ── Top bar ────────────────────────────────────────────────────────────────
-
-  Widget _buildTopBar() {
-    return Container(
-      color: AppColors.background,
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 8,
-        left: 16, right: 16, bottom: 12,
-      ),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () { HapticFeedback.lightImpact(); widget.onBack?.call(); },
-            child: Padding(
-              padding: const EdgeInsets.all(4),
-              child: Icon(Icons.arrow_back,
-                  color: AppColors.primaryContainer, size: 22),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text('DOMFIX_CORE',
-            style: GoogleFonts.spaceGrotesk(
-              color: AppColors.primaryContainer, fontWeight: FontWeight.w800,
-              fontSize: 18, letterSpacing: 1,
-            )),
-          const Spacer(),
-          Icon(Icons.more_vert, color: AppColors.onSurface, size: 22),
-        ],
-      ),
-    );
-  }
-
-  // ── Progress ───────────────────────────────────────────────────────────────
-
-  Widget _buildProgress() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+    return FadeTransition(
+      opacity: _fadeAnim,
+      child: SlideTransition(
+        position: _slideAnim,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('STEP 4 OF 6',
-                    style: GoogleFonts.spaceGrotesk(
-                      color: AppColors.primaryContainer, fontSize: 10,
-                      fontWeight: FontWeight.w700, letterSpacing: 2,
-                    )),
-                  const SizedBox(height: 4),
-                  Text('Availability',
-                    style: GoogleFonts.spaceGrotesk(
-                      color: AppColors.onSurface, fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                    )),
-                ],
-              ),
-            ),
-            Text('66%',
-              style: GoogleFonts.spaceGrotesk(
-                color: AppColors.primaryContainer, fontSize: 24,
-                fontWeight: FontWeight.w300,
-              )),
+            _buildActiveStatusCard(),
+            const SizedBox(height: 28),
+            _buildWeeklySchedule(),
+            const SizedBox(height: 28),
+            _buildTimeRange(),
+            const SizedBox(height: 32),
+            _buildServiceRadius(),
           ],
         ),
-        const SizedBox(height: 12),
-        Stack(children: [
-          Container(height: 3,
-            decoration: BoxDecoration(color: const Color(0xFF262A30),
-              borderRadius: BorderRadius.circular(99))),
-          FractionallySizedBox(widthFactor: 0.66,
-            child: Container(height: 3,
-              decoration: BoxDecoration(
-                color: AppColors.primaryContainer,
-                borderRadius: BorderRadius.circular(99),
-                boxShadow: [BoxShadow(
-                  color: AppColors.primaryContainer.withValues(alpha: 0.4),
-                  blurRadius: 12,
-                )],
-              ))),
-        ]),
-      ],
+      ),
     );
   }
+
+
 
   // ── Active status card ─────────────────────────────────────────────────────
 
@@ -717,69 +618,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen>
     );
   }
 
-  // ── Bottom nav ─────────────────────────────────────────────────────────────
 
-  Widget _buildBottomNav() {
-    return Container(
-      padding: EdgeInsets.only(
-        left: 24, right: 24, top: 12,
-        bottom: MediaQuery.of(context).padding.bottom + 16,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.background.withValues(alpha: 0.85),
-        border: Border(top: BorderSide(
-          color: Colors.white.withValues(alpha: 0.08), width: 1)),
-      ),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () { HapticFeedback.lightImpact(); widget.onBack?.call(); },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.chevron_left,
-                    color: Colors.white.withValues(alpha: 0.6), size: 22),
-                const SizedBox(height: 2),
-                Text('BACK',
-                  style: GoogleFonts.spaceGrotesk(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.5,
-                  )),
-              ],
-            ),
-          ),
-          const Spacer(),
-          GestureDetector(
-            onTap: _handleNext,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-              decoration: BoxDecoration(
-                color: AppColors.primaryContainer,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [BoxShadow(
-                  color: AppColors.primaryContainer.withValues(alpha: 0.35),
-                  blurRadius: 20, offset: const Offset(0, 6),
-                )],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.bolt, color: const Color(0xFF2B3400), size: 20),
-                  const SizedBox(height: 2),
-                  Text('NEXT',
-                    style: GoogleFonts.spaceGrotesk(
-                      color: const Color(0xFF2B3400),
-                      fontWeight: FontWeight.w800,
-                      fontSize: 11, letterSpacing: 2,
-                    )),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // ── Decorative map grid painter ───────────────────────────────────────────────

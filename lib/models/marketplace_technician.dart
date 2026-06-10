@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:latlong2/latlong.dart';
+import '../utils/technician_specialty_catalog.dart';
 
 class MarketplaceTechnician {
   final String id;
@@ -58,17 +59,64 @@ class MarketplaceTechnician {
     if (rawUp is Timestamp) upAt = rawUp.toDate();
     else if (rawUp is int) upAt = DateTime.fromMillisecondsSinceEpoch(rawUp);
 
+    // Safely parse numbers from Firestore
+    double _parseDouble(dynamic val) {
+      if (val is num) return val.toDouble();
+      if (val is String) return double.tryParse(val) ?? 0.0;
+      return 0.0;
+    }
+
+    int _parseInt(dynamic val) {
+      if (val is num) return val.toInt();
+      if (val is String) return int.tryParse(val) ?? 0;
+      return 0;
+    }
+
+    // Fallback for fullName
+    String _parseName() {
+      if (data['fullName'] != null && data['fullName'].toString().isNotEmpty) return data['fullName'];
+      if (data['name'] != null && data['name'].toString().isNotEmpty) return data['name'];
+      if (data['displayName'] != null && data['displayName'].toString().isNotEmpty) return data['displayName'];
+      if (data['firstName'] != null) {
+        final last = data['lastName'] ?? '';
+        return '${data['firstName']} $last'.trim();
+      }
+      return 'Technician';
+    }
+
+    // Fallback for speciality
+    String _parseSpeciality() {
+      final normalizedSpeciality = TechnicianSpecialtyCatalog.normalize(
+        data['speciality']?.toString() ??
+            data['specialty']?.toString() ??
+            data['primarySpecialty']?.toString(),
+      );
+      if (normalizedSpeciality != null) return normalizedSpeciality;
+      
+      final specs = data['specialties'];
+      if (specs is List && specs.isNotEmpty) {
+        final normalizedList = TechnicianSpecialtyCatalog.normalizeList(
+          specs.map((e) => e.toString()),
+        );
+        if (normalizedList.isNotEmpty) return normalizedList.first;
+      }
+      
+      return 'Specialist';
+    }
+
     return MarketplaceTechnician(
       id: doc.id,
-      fullName: data['fullName'] ?? data['name'] ?? 'Technician',
-      profileImage: data['profileImage'] ?? data['photoUrl'],
-      speciality: data['speciality'] ?? data['primarySpecialty'] ?? 'Specialist',
-      specialties: (data['specialties'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
-      rating: (data['averageRating'] ?? data['rating'] as num?)?.toDouble() ?? 0.0,
-      reviewCount: (data['reviewCount'] ?? data['totalReviews'] as num?)?.toInt() ?? 0,
-      jobsCompleted: (data['jobsCompleted'] ?? data['completedJobs'] as num?)?.toInt() ?? 0,
-      rankScore: (data['rankScore'] as num?)?.toDouble() ?? 0.0,
-      isAvailable: data['isAvailable'] ?? true,
+      fullName: _parseName(),
+      profileImage: data['profileImage'] ?? data['profilePhotoUrl'] ?? data['photoUrl'],
+      speciality: _parseSpeciality(),
+      specialties: TechnicianSpecialtyCatalog.normalizeList(
+        (data['specialties'] as List<dynamic>?)?.map((e) => e.toString()) ?? const <String>[],
+      ),
+      rating: _parseDouble(data['averageRating'] ?? data['rating']),
+      reviewCount: _parseInt(data['reviewCount'] ?? data['totalReviews']),
+      jobsCompleted: _parseInt(data['jobsCompleted'] ?? data['completedJobs']),
+      rankScore: _parseDouble(data['rankScore']),
+      isAvailable: data['isAvailable'] ?? data['availabilityEnabled'] ?? true,
       updatedAt: upAt,
       location: point,
     );

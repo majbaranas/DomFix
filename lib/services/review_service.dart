@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/booking_model.dart';
 import '../models/review_model.dart';
 import 'firebase_storage_service.dart';
+import 'technician_ranking_service.dart';
 
 class ReviewService {
   ReviewService._();
@@ -202,16 +203,23 @@ class ReviewService {
       final currentStats = statsDoc.data() ?? <String, dynamic>{};
       final completedJobs = (currentStats['completedJobs'] as num?)?.toInt() ?? 0;
       final profileCompletionBonus = (currentStats['profileCompletionBonus'] as num?)?.toDouble() ?? 0.0;
+      final responseSpeedScore = (currentStats['responseSpeedScore'] as num?)?.toDouble() ?? 0.0;
+      final profileCompletenessScore =
+          (currentStats['profileCompletenessScore'] as num?)?.toDouble() ??
+          profileCompletionBonus;
+      final activityScore = (currentStats['activityScore'] as num?)?.toDouble() ?? 100.0;
+      final availabilityScore = (currentStats['availabilityScore'] as num?)?.toDouble() ?? 0.0;
+      final availabilityEnabled = currentStats['availabilityEnabled'] != false;
 
-      // Enhanced weighted ranking formula with profile completion
-      final ratingWeight = averageRating * 100;
-      final trustWeight = (totalReviews > 50 ? 50 : totalReviews) * 2;
-      final volumeWeight = (completedJobs > 100 ? 100 : completedJobs).toDouble();
-      final qualityWeight = reviewQualityScore * 10;
-      final profileWeight = profileCompletionBonus * 0.5; // Profile contributes up to 50 points
-      
-      final rankScore = double.parse(
-        (ratingWeight + trustWeight + volumeWeight + qualityWeight + profileWeight).toStringAsFixed(3),
+      final rankScore = TechnicianRankingService.calculateRankScore(
+        averageRating: averageRating,
+        totalReviews: totalReviews,
+        completedJobs: completedJobs,
+        responseSpeedScore: responseSpeedScore,
+        profileCompletenessScore: profileCompletenessScore,
+        activityScore: activityScore,
+        availabilityScore: availabilityScore,
+        availabilityEnabled: availabilityEnabled,
       );
 
       print('[ReviewService]   Completed Jobs: $completedJobs');
@@ -231,6 +239,10 @@ class ReviewService {
           'completedJobs': completedJobs,
           'ratingSum': ratingSum,
           'reviewQualityScore': reviewQualityScore,
+          'profileCompletionBonus': profileCompletionBonus,
+          'profileCompletenessScore': profileCompletenessScore,
+          'activityScore': 100.0,
+          'lastActivityAt': FieldValue.serverTimestamp(),
           'rankScore': rankScore,
           'updatedAt': FieldValue.serverTimestamp(),
         },
@@ -245,6 +257,9 @@ class ReviewService {
           'averageRating': averageRating,
           'reviewCount': totalReviews,
           'jobsCompleted': completedJobs,
+          'profileCompletionScore': profileCompletenessScore,
+          'activityScore': 100.0,
+          'lastActivityAt': FieldValue.serverTimestamp(),
           'rankScore': rankScore,
           'updatedAt': FieldValue.serverTimestamp(),
           'updated_at': FieldValue.serverTimestamp(),
@@ -402,15 +417,23 @@ class ReviewService {
         final reviewQualityScore = (currentStats['reviewQualityScore'] as num?)?.toDouble() ?? 0.0;
         final ratingSum = (currentStats['ratingSum'] as num?)?.toInt() ?? 0;
         final profileCompletionBonus = (currentStats['profileCompletionBonus'] as num?)?.toDouble() ?? 0.0;
+        final profileCompletenessScore =
+            (currentStats['profileCompletenessScore'] as num?)?.toDouble() ??
+            profileCompletionBonus;
+        final responseSpeedScore = (currentStats['responseSpeedScore'] as num?)?.toDouble() ?? 0.0;
+        final activityScore = (currentStats['activityScore'] as num?)?.toDouble() ?? 100.0;
+        final availabilityScore = (currentStats['availabilityScore'] as num?)?.toDouble() ?? 0.0;
+        final availabilityEnabled = currentStats['availabilityEnabled'] != false;
         
-        // Recalculate rank score
-        final ratingWeight = averageRating * 100;
-        final trustWeight = (totalReviews > 50 ? 50 : totalReviews) * 2;
-        final volumeWeight = (completedJobs > 100 ? 100 : completedJobs).toDouble();
-        final qualityWeight = reviewQualityScore * 10;
-        final profileWeight = profileCompletionBonus * 0.5;
-        final rankScore = double.parse(
-          (ratingWeight + trustWeight + volumeWeight + qualityWeight + profileWeight).toStringAsFixed(3),
+        final rankScore = TechnicianRankingService.calculateRankScore(
+          averageRating: averageRating,
+          totalReviews: totalReviews,
+          completedJobs: completedJobs,
+          responseSpeedScore: responseSpeedScore,
+          profileCompletenessScore: profileCompletenessScore,
+          activityScore: activityScore,
+          availabilityScore: availabilityScore,
+          availabilityEnabled: availabilityEnabled,
         );
         
         // Update technician_stats
@@ -421,6 +444,10 @@ class ReviewService {
           'totalReviews': totalReviews,
           'ratingSum': ratingSum,
           'reviewQualityScore': reviewQualityScore,
+          'profileCompletionBonus': profileCompletionBonus,
+          'profileCompletenessScore': profileCompletenessScore,
+          'activityScore': 100.0,
+          'lastActivityAt': FieldValue.serverTimestamp(),
           'rankScore': rankScore,
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
@@ -433,6 +460,9 @@ class ReviewService {
             'rating': averageRating,
             'averageRating': averageRating,
             'reviewCount': totalReviews,
+            'profileCompletionScore': profileCompletenessScore,
+            'activityScore': 100.0,
+            'lastActivityAt': FieldValue.serverTimestamp(),
             'rankScore': rankScore,
             'updatedAt': FieldValue.serverTimestamp(),
             'updated_at': FieldValue.serverTimestamp(),

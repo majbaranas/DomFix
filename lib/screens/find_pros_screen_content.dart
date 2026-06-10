@@ -5,6 +5,7 @@ import '../widgets/scroll_reveal.dart';
 import 'nearby_technicians_map_screen.dart';
 import '../services/technician_profile_service.dart';
 import '../models/marketplace_technician.dart';
+import '../utils/technician_specialty_catalog.dart';
 import 'technician_profile_screen.dart';
 
 class FindProsScreenContent extends StatefulWidget {
@@ -20,19 +21,9 @@ class _FindProsScreenContentState extends State<FindProsScreenContent> with Auto
   int _selectedChip = 0;
   final _searchFocus = FocusNode();
   String _searchQuery = '';
-  static const _filters = [
+  static final _filters = [
     'All',
-    'Smart Home',
-    'Electrical Installation',
-    'Solar Panels',
-    'CCTV & Security',
-    'Networking',
-    'Home Automation',
-    'Lighting Systems',
-    'Energy Monitoring',
-    'IoT Systems',
-    'Access Control',
-    'Intercom Systems'
+    ...TechnicianSpecialtyCatalog.canonicalSpecialties,
   ];
 
   @override
@@ -116,21 +107,27 @@ class _FindProsScreenContentState extends State<FindProsScreenContent> with Auto
                   
                   // Filter by search query
                   if (_searchQuery.isNotEmpty) {
-                    allTechs = allTechs.where((t) => 
-                      t.fullName.toLowerCase().contains(_searchQuery) ||
-                      t.speciality.toLowerCase().contains(_searchQuery)
+                    allTechs = allTechs.where((t) =>
+                      TechnicianSpecialtyCatalog.matchesQuery(
+                        query: _searchQuery,
+                        primarySpecialty: t.speciality,
+                        specialties: t.specialties,
+                      ) ||
+                      t.fullName.toLowerCase().contains(_searchQuery)
                     ).toList();
                   }
                   
                   // Filter by category chip
                   final selectedCategory = _filters[_selectedChip];
                   if (selectedCategory != 'All') {
-                    allTechs = allTechs.where((t) {
-                      final lowerQuery = selectedCategory.toLowerCase();
-                      if (t.speciality.toLowerCase().contains(lowerQuery)) return true;
-                      if (t.specialties.any((s) => s.toLowerCase().contains(lowerQuery))) return true;
-                      return false;
-                    }).toList();
+                    allTechs = allTechs
+                        .where((t) => TechnicianSpecialtyCatalog.matchesFilter(
+                              t.specialties.isNotEmpty
+                                  ? t.specialties
+                                  : [t.speciality],
+                              selectedCategory,
+                            ))
+                        .toList();
                   }
                   
                   if (allTechs.isEmpty) {

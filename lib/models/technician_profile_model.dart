@@ -32,8 +32,6 @@ class TechnicianProfileModel {
   final GeoPoint? location;
   
   // Trust & Verification
-  final String? identityDocumentUrl;
-  final String? phoneNumber;
   final bool isPhoneVerified;
   final bool isIdentityVerified;
   
@@ -67,8 +65,6 @@ class TechnicianProfileModel {
     required this.workingHours,
     required this.serviceRadiusMiles,
     this.location,
-    this.identityDocumentUrl,
-    this.phoneNumber,
     required this.isPhoneVerified,
     required this.isIdentityVerified,
     required this.rating,
@@ -131,10 +127,8 @@ class TechnicianProfileModel {
       workingHours: TimeRange.fromMap(profileData?['workingHours'] as Map<String, dynamic>?),
       serviceRadiusMiles: (profileData?['serviceRadiusMiles'] as num?)?.toInt() ?? 25,
       location: _parseGeoPoint(userData, profileData),
-      identityDocumentUrl: profileData?['identityDocumentUrl'] as String?,
-      phoneNumber: profileData?['phoneNumber'] as String?,
-      isPhoneVerified: profileData?['isPhoneVerified'] ?? false,
-      isIdentityVerified: profileData?['isIdentityVerified'] ?? false,
+      isPhoneVerified: profileData?['isPhoneVerified'] ?? userData['isPhoneVerified'] ?? false,
+      isIdentityVerified: profileData?['isIdentityVerified'] ?? userData['isIdentityVerified'] ?? false,
       rating: (statsData?['averageRating'] as num?)?.toDouble() ?? 
               (userData['rating'] as num?)?.toDouble() ?? 0.0,
       reviewCount: (statsData?['totalReviews'] as num?)?.toInt() ?? 
@@ -218,15 +212,13 @@ class TechnicianProfileModel {
 
     // Identity verification (15 points)
     maxScore += 15;
-    if (profileData?['isIdentityVerified'] == true) {
+    if (profileData?['isIdentityVerified'] == true || userData['isIdentityVerified'] == true) {
       score += 15;
-    } else if (profileData?['identityDocumentUrl'] != null) {
-      score += 7;
     }
 
     // Phone verification (10 points)
     maxScore += 10;
-    if (profileData?['isPhoneVerified'] == true) {
+    if (profileData?['isPhoneVerified'] == true || userData['isPhoneVerified'] == true) {
       score += 10;
     }
 
@@ -250,8 +242,6 @@ class TechnicianProfileModel {
       if (bio != null) 'bio': bio,
       if (location != null) 'lat': location!.latitude,
       if (location != null) 'lng': location!.longitude,
-      if (identityDocumentUrl != null) 'identityDocumentUrl': identityDocumentUrl,
-      if (phoneNumber != null) 'phoneNumber': phoneNumber,
       'isPhoneVerified': isPhoneVerified,
       'isIdentityVerified': isIdentityVerified,
       'profileCompletionScore': profileCompletionScore,

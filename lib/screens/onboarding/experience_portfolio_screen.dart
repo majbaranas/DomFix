@@ -15,22 +15,18 @@ import '../../theme/app_colors.dart';
 
 class ExperiencePortfolioScreen extends StatefulWidget {
   final TechnicianOnboardingData onboardingData;
-  final VoidCallback? onNext;
-  final VoidCallback? onBack;
 
   const ExperiencePortfolioScreen({
     super.key,
     required this.onboardingData,
-    this.onNext,
-    this.onBack,
   });
 
   @override
   State<ExperiencePortfolioScreen> createState() =>
-      _ExperiencePortfolioScreenState();
+      ExperiencePortfolioScreenState();
 }
 
-class _ExperiencePortfolioScreenState extends State<ExperiencePortfolioScreen>
+class ExperiencePortfolioScreenState extends State<ExperiencePortfolioScreen>
     with SingleTickerProviderStateMixin {
   // ── State ─────────────────────────────────────────────────────────────────
   double _yearsSlider = 0;
@@ -180,14 +176,16 @@ class _ExperiencePortfolioScreenState extends State<ExperiencePortfolioScreen>
   // Navigation
   // ─────────────────────────────────────────────────────────────────────────
 
-  void _handleNext() {
+  bool validate() {
     if (_certUploading || _portfolioUploading) {
       _showSnackBar('Please wait for uploads to complete.', isError: true);
-      return;
+      return false;
     }
+    return true;
+  }
+
+  void save() {
     widget.onboardingData.yearsOfExperience = _yearsSlider.round();
-    HapticFeedback.mediumImpact();
-    widget.onNext?.call();
   }
 
   void _showSnackBar(String msg, {bool isError = false}) {
@@ -216,150 +214,21 @@ class _ExperiencePortfolioScreenState extends State<ExperiencePortfolioScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: FadeTransition(
-        opacity: _fadeAnim,
-        child: SlideTransition(
-          position: _slideAnim,
-          child: Column(
-            children: [
-              _buildTopBar(),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
-                  children: [
-                    _buildProgressSection(),
-                    const SizedBox(height: 28),
-                    _buildExperienceSection(),
-                    const SizedBox(height: 28),
-                    _buildCertificationsSection(),
-                    const SizedBox(height: 28),
-                    _buildPortfolioSection(),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: _buildBottomNav(),
-    );
-  }
-
-  // ── Top bar ───────────────────────────────────────────────────────────────
-
-  Widget _buildTopBar() {
-    return Container(
-      color: AppColors.background,
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 8,
-        left: 16,
-        right: 16,
-        bottom: 12,
-      ),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              widget.onBack?.call();
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(4),
-              child: Icon(Icons.arrow_back,
-                  color: AppColors.onSurface, size: 22),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            'DOMFIX_CORE',
-            style: GoogleFonts.spaceGrotesk(
-              color: AppColors.primaryContainer,
-              fontWeight: FontWeight.w800,
-              fontSize: 18,
-              letterSpacing: 1,
-            ),
-          ),
-          const Spacer(),
-          Icon(Icons.more_vert, color: AppColors.onSurface, size: 22),
-        ],
-      ),
-    );
-  }
-
-  // ── Progress ──────────────────────────────────────────────────────────────
-
-  Widget _buildProgressSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+    return FadeTransition(
+      opacity: _fadeAnim,
+      child: SlideTransition(
+        position: _slideAnim,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'ONBOARDING MODULE',
-                    style: GoogleFonts.spaceGrotesk(
-                      color:
-                          AppColors.onSurfaceVariant.withValues(alpha: 0.6),
-                      fontSize: 10,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Step 3 of 6',
-                    style: GoogleFonts.spaceGrotesk(
-                      color: AppColors.onSurface,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              '50% COMPLETE',
-              style: GoogleFonts.spaceGrotesk(
-                color: AppColors.primaryContainer,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.5,
-              ),
-            ),
+            _buildExperienceSection(),
+            const SizedBox(height: 28),
+            _buildCertificationsSection(),
+            const SizedBox(height: 28),
+            _buildPortfolioSection(),
           ],
         ),
-        const SizedBox(height: 12),
-        Stack(children: [
-          Container(
-            height: 2,
-            decoration: BoxDecoration(
-              color: const Color(0xFF31353B),
-              borderRadius: BorderRadius.circular(99),
-            ),
-          ),
-          FractionallySizedBox(
-            widthFactor: 0.5,
-            child: Container(
-              height: 2,
-              decoration: BoxDecoration(
-                color: AppColors.primaryContainer,
-                borderRadius: BorderRadius.circular(99),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primaryContainer.withValues(alpha: 0.5),
-                    blurRadius: 12,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ]),
-      ],
+      ),
     );
   }
 
@@ -386,57 +255,76 @@ class _ExperiencePortfolioScreenState extends State<ExperiencePortfolioScreen>
         ),
         const SizedBox(height: 16),
         Container(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
           decoration: BoxDecoration(
             color: const Color(0xFF181C21),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFF2A2E35), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              )
+            ],
           ),
           child: Column(
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
                     'YEARS IN FIELD',
                     style: GoogleFonts.inter(
                       color: AppColors.onSurfaceVariant,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.5,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2,
                     ),
                   ),
                   Text(
                     _yearsLabel(_yearsSlider),
                     style: GoogleFonts.spaceGrotesk(
                       color: AppColors.primaryContainer,
-                      fontSize: 24,
+                      fontSize: 32,
                       fontWeight: FontWeight.w800,
+                      height: 1,
+                      shadows: [
+                        Shadow(
+                          color: AppColors.primaryContainer.withValues(alpha: 0.4),
+                          blurRadius: 16,
+                        )
+                      ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 36),
               SliderTheme(
                 data: SliderTheme.of(context).copyWith(
                   activeTrackColor: AppColors.primaryContainer,
-                  inactiveTrackColor: const Color(0xFF1C2025),
+                  inactiveTrackColor: const Color(0xFF2A2E35),
                   thumbColor: AppColors.primaryContainer,
-                  overlayColor:
-                      AppColors.primaryContainer.withValues(alpha: 0.15),
-                  thumbShape:
-                      const RoundSliderThumbShape(enabledThumbRadius: 8),
-                  trackHeight: 4,
+                  overlayColor: AppColors.primaryContainer.withValues(alpha: 0.15),
+                  thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 12, elevation: 6),
+                  trackHeight: 6,
                   overlayShape:
-                      const RoundSliderOverlayShape(overlayRadius: 20),
+                      const RoundSliderOverlayShape(overlayRadius: 24),
                 ),
                 child: Slider(
                   value: _yearsSlider,
                   min: 0,
                   max: 30,
                   divisions: 30,
-                  onChanged: (v) => setState(() => _yearsSlider = v),
+                  onChanged: (v) {
+                    HapticFeedback.selectionClick();
+                    setState(() => _yearsSlider = v);
+                  },
                 ),
               ),
+              const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -447,9 +335,10 @@ class _ExperiencePortfolioScreenState extends State<ExperiencePortfolioScreen>
                   return Text(
                     label,
                     style: GoogleFonts.spaceGrotesk(
-                      color: AppColors.onSurfaceVariant,
-                      fontSize: 8,
-                      letterSpacing: 0.5,
+                      color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1,
                     ),
                   );
                 }).toList(),
@@ -655,106 +544,7 @@ class _ExperiencePortfolioScreenState extends State<ExperiencePortfolioScreen>
     );
   }
 
-  // ── Bottom nav ────────────────────────────────────────────────────────────
 
-  Widget _buildBottomNav() {
-    final isUploading = _certUploading || _portfolioUploading;
-
-    return Container(
-      padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 12,
-        bottom: MediaQuery.of(context).padding.bottom + 16,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.background.withValues(alpha: 0.85),
-        border: Border(
-          top: BorderSide(
-              color: Colors.white.withValues(alpha: 0.08), width: 1),
-        ),
-      ),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              widget.onBack?.call();
-            },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.chevron_left,
-                    color: Colors.white.withValues(alpha: 0.6), size: 22),
-                const SizedBox(height: 2),
-                Text(
-                  'BACK',
-                  style: GoogleFonts.spaceGrotesk(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Spacer(),
-          GestureDetector(
-            onTap: isUploading ? null : _handleNext,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 36, vertical: 14),
-              decoration: BoxDecoration(
-                color: isUploading
-                    ? AppColors.primaryContainer.withValues(alpha: 0.5)
-                    : AppColors.primaryContainer,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: isUploading
-                    ? []
-                    : [
-                        BoxShadow(
-                          color: AppColors.primaryContainer
-                              .withValues(alpha: 0.35),
-                          blurRadius: 20,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-              ),
-              child: isUploading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                            Color(0xFF2B3400)),
-                      ),
-                    )
-                  : Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.bolt,
-                            color: const Color(0xFF2B3400), size: 18),
-                        const SizedBox(height: 2),
-                        Text(
-                          'NEXT',
-                          style: GoogleFonts.spaceGrotesk(
-                            color: const Color(0xFF2B3400),
-                            fontWeight: FontWeight.w800,
-                            fontSize: 11,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

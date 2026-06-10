@@ -1,3 +1,7 @@
 {
-    "cmake.sourceDirectory": "C:/Users/2023/AndroidStudioProjects/domfix/linux"
+    "cmake.sourceDirectory": "D:/FlutterProjects/DomFix/linux",
+    "Codegeex.SidebarUI.LanguagePreference": "English",
+    "Codegeex.Chat.LanguagePreference": "English",
+    "Codegeex.Comment.LanguagePreference": "English",
+    "Codegeex.CommitMessage.LanguagePreference": "English"
 }

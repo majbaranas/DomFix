@@ -3,8 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
+import '../models/marketplace_technician.dart';
+import '../services/technician_profile_service.dart';
 import '../widgets/floating_ai_button.dart';
 import '../widgets/expert_card.dart';
+import 'find_pros_screen.dart';
+import 'technician_profile_screen.dart';
 
 class ServicesHomeScreen extends StatefulWidget {
   const ServicesHomeScreen({super.key});
@@ -387,74 +391,132 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen>
   }
 
   Widget _buildTechnicians() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(children: [
-                AnimatedBuilder(
-                  animation: _pulseCtrl,
-                  builder: (_, __) => Opacity(
-                    opacity: 0.7 + _pulseCtrl.value * 0.3,
-                    child: Container(
-                      width: 6, height: 6,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryFixed,
-                        shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: AppColors.primaryFixed, blurRadius: 8)],
+    return StreamBuilder<List<MarketplaceTechnician>>(
+      stream: TechnicianProfileService().watchMarketplaceTechnicians(),
+      builder: (context, snapshot) {
+        final techs = (snapshot.data ?? []).take(3).toList();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(children: [
+                    AnimatedBuilder(
+                      animation: _pulseCtrl,
+                      builder: (_, __) => Opacity(
+                        opacity: 0.7 + _pulseCtrl.value * 0.3,
+                        child: Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryFixed,
+                            shape: BoxShape.circle,
+                            boxShadow: [BoxShadow(color: AppColors.primaryFixed, blurRadius: 8)],
+                          ),
+                        ),
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text('Certified Technicians',
+                        style: GoogleFonts.spaceGrotesk(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
+                  ]),
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const FindProsScreen()),
+                    ),
+                    child: Row(children: [
+                      Text('View All', style: GoogleFonts.inter(fontSize: 12, color: Colors.white.withValues(alpha: 0.6))),
+                      const SizedBox(width: 4),
+                      Icon(Icons.arrow_forward, size: 14, color: Colors.white.withValues(alpha: 0.6)),
+                    ]),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (snapshot.connectionState == ConnectionState.waiting)
+              SizedBox(
+                height: 248,
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.primaryFixed,
+                  ),
+                ),
+              )
+            else if (techs.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF101419).withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                  ),
+                  child: Text(
+                    'No live technicians are available right now.',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: Colors.white.withValues(alpha: 0.7),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Text('Certified Technicians',
-                    style: GoogleFonts.spaceGrotesk(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
-              ]),
-              GestureDetector(
-                onTap: () {},
-                child: Row(children: [
-                  Text('View All', style: GoogleFonts.inter(fontSize: 12, color: Colors.white.withValues(alpha: 0.6))),
-                  const SizedBox(width: 4),
-                  Icon(Icons.arrow_forward, size: 14, color: Colors.white.withValues(alpha: 0.6)),
-                ]),
+              )
+            else
+              SizedBox(
+                height: 248,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  itemCount: techs.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 16),
+                  itemBuilder: (context, index) {
+                    final tech = techs[index];
+                    return ExpertCard(
+                      name: tech.fullName,
+                      level: tech.speciality,
+                      rating: tech.rating > 0 ? tech.rating.toStringAsFixed(1) : 'New',
+                      eta: tech.distanceKm < double.infinity
+                          ? '${tech.distanceKm.toStringAsFixed(0)} km'
+                          : 'Nearby',
+                      clearance: tech.isAvailable ? 'Live' : 'Offline',
+                      imageUrl: tech.profileImage ?? '',
+                      isAvailable: tech.isAvailable,
+                      onDispatch: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => TechnicianProfileScreen(
+                              technicianId: tech.id,
+                              initialName: tech.fullName,
+                            ),
+                          ),
+                        );
+                      },
+                      onProfile: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => TechnicianProfileScreen(
+                              technicianId: tech.id,
+                              initialName: tech.fullName,
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 248,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            children: [
-              ExpertCard(
-                name: 'Marcus Chen',
-                level: 'Level 4 Tech',
-                rating: '4.9',
-                eta: '12 min',
-                clearance: 'Class A',
-                imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCT-C0VUZA1U7r9KTy-zpHjjK0xqRsT5C7DIb7WjlywrjSKb5ydDv5uGEL08g1XDjX-MPW27KThQHFgQrkJuAdguqk5SFhQKA_9N5hIU6tfA7ToZbasBigWEGRCK_Y6OcFwDzTUdZ9b4_fsG4GhtSqdwi0qM8e3GuNm9DEQHA3MCcRMBTPEwJcrpfD5rJ-Zzk6IfGgWwa5ZoaHtedk__IJjSq9jYD-ExK_3VG4B5tfcDYVRiEGNjtjkWLIWrtoWxGB5hzAqq2MvsFQ',
-                isAvailable: true,
-              ),
-              const SizedBox(width: 16),
-              ExpertCard(
-                name: 'Sarah Miller',
-                level: 'Level 3 Tech',
-                rating: '4.8',
-                eta: '18 min',
-                clearance: 'Class B',
-                imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDkoTb0IKZ7S5D87BRSm4fYKpTA3qc-EKG3Rr-mvDP9TRf2v6I3T42v5VVAsZM5pqef-iKX7ZzSwVN2tzEMKXe0i8HjDMNOMSBY7R9gzRZ3HKi3yiNJN7x4wpOYrjXRfM1Y0UNyFuWOkuzauX-2FEcsSLooMQXEdi8c2vyle32BjQWhmvdFwipMh1tHe_Nmbsa2uwQiVucYNOedgC5tJnayQwQQUg18CMOopAQwaYd2nwHFpaF6x-LWsqiASKeKZSEA8GyPDnCxAaA',
-                isAvailable: false,
-              ),
-            ],
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 

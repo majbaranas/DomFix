@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
@@ -7,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -19,13 +17,6 @@ import 'find_pros_screen_content.dart';
 import 'technician_profile_screen.dart';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-String _timeAgo(DateTime dt) {
-  final diff = DateTime.now().difference(dt);
-  if (diff.inSeconds < 60) return '${diff.inSeconds}s ago';
-  if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-  return '${diff.inHours}h ago';
-}
 
 bool _isOnline(DateTime updatedAt) =>
     DateTime.now().difference(updatedAt).inSeconds <= 10;
@@ -1080,6 +1071,9 @@ class _TechPreviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final online = _isOnline(tech.updatedAt);
     final shortId = tech.id.length >= 6 ? tech.id.substring(0, 6) : tech.id;
+    final displayName = tech.fullName ?? tech.name ?? 'Technician $shortId';
+    final primarySpecialty = tech.speciality ??
+        (tech.specialties.isNotEmpty ? tech.specialties.first : 'Specialist');
     
     // Use route-based distance if available, otherwise fallback to Haversine
     final distText = routeInfo?.distanceText ?? 
@@ -1114,18 +1108,9 @@ class _TechPreviewCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: AppColors.neonAccent.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                          color:
-                              AppColors.neonAccent.withValues(alpha: 0.25)),
-                    ),
-                    child: Icon(Icons.engineering_rounded,
-                        color: AppColors.neonAccent, size: 26),
+                  _TechAvatar(
+                    imageUrl: tech.profileImage,
+                    fallbackLabel: displayName,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -1133,12 +1118,23 @@ class _TechPreviewCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          tech.name ?? 'Technician $shortId',
+                          displayName,
                           style: GoogleFonts.spaceGrotesk(
                             color: AppColors.onSurface,
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             letterSpacing: -0.2,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          primarySpecialty,
+                          style: GoogleFonts.inter(
+                            color: AppColors.onSurfaceVariant.withValues(alpha: 0.72),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -1223,6 +1219,39 @@ class _TechPreviewCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 14),
+              if (tech.specialties.isNotEmpty) ...[
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: tech.specialties
+                      .take(4)
+                      .map(
+                        (specialty) => Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.04),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.06),
+                            ),
+                          ),
+                          child: Text(
+                            specialty,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.onSurface.withValues(alpha: 0.85),
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 14),
+              ],
               // Route info row: Distance + ETA
               Row(
                 children: [
@@ -1305,7 +1334,7 @@ class _TechPreviewCard extends StatelessWidget {
                         MaterialPageRoute(
                           builder: (_) => TechnicianProfileScreen(
                             technicianId: tech.id,
-                            initialName: tech.name ?? 'Technician $shortId',
+                            initialName: displayName,
                           ),
                         ),
                       ),
@@ -1323,7 +1352,7 @@ class _TechPreviewCard extends StatelessWidget {
                         MaterialPageRoute(
                           builder: (_) => ChatScreen(
                             otherUserId: tech.id,
-                            otherUserName: tech.name ?? 'Technician $shortId',
+                            otherUserName: displayName,
                             otherUserRole: 'technician',
                           ),
                         ),
@@ -1334,6 +1363,71 @@ class _TechPreviewCard extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TechAvatar extends StatelessWidget {
+  const _TechAvatar({
+    required this.fallbackLabel,
+    this.imageUrl,
+  });
+
+  final String? imageUrl;
+  final String fallbackLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final initials = fallbackLabel
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => part.substring(0, 1).toUpperCase())
+        .join();
+
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        color: AppColors.neonAccent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.neonAccent.withValues(alpha: 0.25),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: imageUrl != null && imageUrl!.trim().isNotEmpty
+          ? Image.network(
+              imageUrl!,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) =>
+                  _AvatarFallback(initials: initials),
+            )
+          : _AvatarFallback(initials: initials),
+    );
+  }
+}
+
+class _AvatarFallback extends StatelessWidget {
+  const _AvatarFallback({required this.initials});
+
+  final String initials;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.neonAccent.withValues(alpha: 0.1),
+      alignment: Alignment.center,
+      child: Text(
+        initials.isEmpty ? 'T' : initials,
+        style: GoogleFonts.spaceGrotesk(
+          color: AppColors.neonAccent,
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.4,
         ),
       ),
     );

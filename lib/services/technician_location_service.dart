@@ -7,32 +7,59 @@ import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+import 'technician_ranking_service.dart';
+import '../utils/technician_specialty_catalog.dart';
+
 class TechnicianLocation {
   const TechnicianLocation({
     required this.id,
     required this.point,
     required this.updatedAt,
     this.name,
+    this.fullName,
     this.speciality,
+    this.specialties = const [],
+    this.servicesProvided = const [],
     this.profileImage,
     this.isOnline = true,
     this.role,
     this.rankScore = 0.0,
     this.averageRating = 0.0,
     this.completedJobs = 0,
+    this.reviewCount = 0,
+    this.profileCompletionScore = 0.0,
+    this.responseSpeedScore = 0.0,
+    this.availabilityScore = 0.0,
+    this.activityScore = 0.0,
+    this.onboardingCompleted = true,
+    this.profileCompleted = true,
+    this.availabilityEnabled = true,
+    this.activeAccount = true,
   });
 
   final String id;
   final LatLng point;
   final DateTime updatedAt;
   final String? name;
+  final String? fullName;
   final String? speciality;
+  final List<String> specialties;
+  final List<String> servicesProvided;
   final String? profileImage;
   final bool isOnline;
   final String? role;
   final double rankScore;
   final double averageRating;
   final int completedJobs;
+  final int reviewCount;
+  final double profileCompletionScore;
+  final double responseSpeedScore;
+  final double availabilityScore;
+  final double activityScore;
+  final bool onboardingCompleted;
+  final bool profileCompleted;
+  final bool availabilityEnabled;
+  final bool activeAccount;
 
   factory TechnicianLocation.fromDoc(DocumentSnapshot doc) {
     final data = doc.data();
@@ -47,14 +74,26 @@ class TechnicianLocation {
       id: doc.id,
       point: point,
       updatedAt: updatedAt,
-      name: _readString(data['fullName'] ?? data['name']),
+      name: _readString(data['fullName'] ?? data['name'] ?? data['displayName']),
+      fullName: _readString(data['fullName'] ?? data['name'] ?? data['displayName']),
       speciality: _readString(data['speciality'] ?? data['specialty'] ?? data['job']),
-      profileImage: _readString(data['profileImage'] ?? data['photoUrl']),
+      specialties: _readList(data['specialties'] ?? data['servicesProvided']),
+      servicesProvided: _readList(data['servicesProvided'] ?? data['specialties']),
+      profileImage: _readString(data['profileImage'] ?? data['profilePhotoUrl'] ?? data['photoUrl']),
       isOnline: data['isOnline'] != false,
       role: _readString(data['role']),
-      rankScore: (data['rankScore'] as num?)?.toDouble() ?? 0.0,
-      averageRating: (data['averageRating'] ?? data['rating'] as num?)?.toDouble() ?? 0.0,
-      completedJobs: (data['completedJobs'] ?? data['jobsCompleted'] as num?)?.toInt() ?? 0,
+      rankScore: _readDouble(data['rankScore']),
+      averageRating: _readDouble(data['averageRating'] ?? data['rating']),
+      completedJobs: _readInt(data['completedJobs'] ?? data['jobsCompleted']),
+      reviewCount: _readInt(data['reviewCount'] ?? data['totalReviews']),
+      profileCompletionScore: _readDouble(data['profileCompletionScore'] ?? data['profileCompletenessScore']),
+      responseSpeedScore: _readDouble(data['responseSpeedScore']),
+      availabilityScore: _readDouble(data['availabilityScore']),
+      activityScore: _readDouble(data['activityScore']),
+      onboardingCompleted: data['onboardingCompleted'] != false,
+      profileCompleted: data['profileCompleted'] != false,
+      availabilityEnabled: data['availabilityEnabled'] != false,
+      activeAccount: data['activeAccount'] != false,
     );
   }
 
@@ -92,6 +131,26 @@ class TechnicianLocation {
     if (value is! String) return null;
     final trimmed = value.trim();
     return trimmed.isEmpty ? null : trimmed;
+  }
+
+  static double _readDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  static int _readInt(dynamic value) {
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  static List<String> _readList(dynamic value) {
+    if (value is! List) return const <String>[];
+    return value
+        .map((item) => item.toString().trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
   }
 }
 
@@ -230,6 +289,54 @@ class TechnicianLocationService {
       print('   Accuracy: ${pos.accuracy}m');
       print('   Timestamp: ${DateTime.now()}');
 
+      final profileFuture = Future.wait([
+        _firestore.collection('users').doc(uid).get(),
+        _firestore.collection('technician_profiles').doc(uid).get(),
+        _firestore.collection('technician_stats').doc(uid).get(),
+      ]);
+      final profileResults = await profileFuture;
+      final userData = profileResults[0].data() ?? <String, dynamic>{};
+      final profileData = profileResults[1].data() ?? <String, dynamic>{};
+      final statsData = profileResults[2].data() ?? <String, dynamic>{};
+
+      final specialties = _mergeSpecialties(
+        userData['specialties'],
+        profileData['specialties'],
+        profileData['servicesProvided'],
+      );
+      final primarySpecialty = (profileData['primarySpecialty'] ??
+              userData['speciality'] ??
+              userData['specialty'] ??
+              (specialties.isNotEmpty ? specialties.first : 'Specialist'))
+          .toString();
+      final fullName = (userData['fullName'] ?? userData['name'] ?? 'Technician')
+          .toString();
+      final profileImage = (userData['profileImage'] ?? profileData['profilePhotoUrl'] ?? '')
+          .toString();
+      final averageRating = (statsData['averageRating'] as num?)?.toDouble() ?? (userData['averageRating'] as num?)?.toDouble() ?? (userData['rating'] as num?)?.toDouble() ?? 0.0;
+      final completedJobs = (statsData['completedJobs'] as num?)?.toInt() ?? (userData['jobsCompleted'] as num?)?.toInt() ?? 0;
+      final rankScore = (statsData['rankScore'] as num?)?.toDouble() ?? (userData['rankScore'] as num?)?.toDouble() ?? 0.0;
+      final reviewCount = (statsData['totalReviews'] as num?)?.toInt() ?? (statsData['reviewCount'] as num?)?.toInt() ?? (userData['reviewCount'] as num?)?.toInt() ?? 0;
+      final profileCompletionScore = (statsData['profileCompletenessScore'] as num?)?.toDouble() ??
+          (statsData['profileCompletionScore'] as num?)?.toDouble() ??
+          (userData['profileCompletionScore'] as num?)?.toDouble() ??
+          0.0;
+      final responseSpeedScore = (statsData['responseSpeedScore'] as num?)?.toDouble() ?? 0.0;
+      final availabilityScore = (statsData['availabilityScore'] as num?)?.toDouble() ?? 0.0;
+      final activityScore = (statsData['activityScore'] as num?)?.toDouble() ?? 0.0;
+      final availabilityEnabled = userData['availabilityEnabled'] ??
+          profileData['availabilityEnabled'] ??
+          statsData['availabilityEnabled'] ??
+          userData['isAvailable'] ??
+          profileData['isAvailable'] ??
+          true;
+      final onboardingCompleted = userData['onboardingCompleted'] ?? profileData['onboardingCompleted'] ?? true;
+      final profileCompleted = userData['profileCompleted'] ?? profileData['profileCompleted'] ?? true;
+      final activeAccount = userData['activeAccount'] ??
+          (userData['accountStatus'] == 'active') ??
+          profileData['activeAccount'] ??
+          true;
+
       final locationPayload = <String, dynamic>{
         'lat': pos.latitude,
         'lng': pos.longitude,
@@ -239,6 +346,29 @@ class TechnicianLocationService {
           'lat': pos.latitude,
           'lng': pos.longitude,
         },
+        'fullName': fullName,
+        'name': fullName,
+        'displayName': fullName,
+        'profileImage': profileImage,
+        'speciality': primarySpecialty,
+        'specialties': specialties,
+        'servicesProvided': specialties,
+        'averageRating': averageRating,
+        'rating': averageRating,
+        'completedJobs': completedJobs,
+        'jobsCompleted': completedJobs,
+        'reviewCount': reviewCount,
+        'totalReviews': reviewCount,
+        'rankScore': rankScore,
+        'profileCompletionScore': profileCompletionScore,
+        'profileCompletenessScore': profileCompletionScore,
+        'responseSpeedScore': responseSpeedScore,
+        'availabilityScore': availabilityScore,
+        'activityScore': activityScore,
+        'onboardingCompleted': onboardingCompleted == true,
+        'profileCompleted': profileCompleted == true,
+        'availabilityEnabled': availabilityEnabled == true,
+        'activeAccount': activeAccount == true,
         'updatedAt': FieldValue.serverTimestamp(),
         'updated_at': FieldValue.serverTimestamp(),
         'isOnline': true,
@@ -261,6 +391,27 @@ class TechnicianLocationService {
                   'lat': pos.latitude,
                   'lng': pos.longitude,
                 },
+                'fullName': fullName,
+                'profileImage': profileImage,
+                'speciality': primarySpecialty,
+                'specialties': specialties,
+                'servicesProvided': specialties,
+                'averageRating': averageRating,
+                'rating': averageRating,
+                'completedJobs': completedJobs,
+                'jobsCompleted': completedJobs,
+                'reviewCount': reviewCount,
+                'totalReviews': reviewCount,
+                'rankScore': rankScore,
+                'profileCompletionScore': profileCompletionScore,
+                'profileCompletenessScore': profileCompletionScore,
+                'responseSpeedScore': responseSpeedScore,
+                'availabilityScore': availabilityScore,
+                'activityScore': activityScore,
+                'onboardingCompleted': onboardingCompleted == true,
+                'profileCompleted': profileCompleted == true,
+                'availabilityEnabled': availabilityEnabled == true,
+                'activeAccount': activeAccount == true,
                 'updatedAt': FieldValue.serverTimestamp(),
                 'updated_at': FieldValue.serverTimestamp(),
                 'isOnline': true,
@@ -324,6 +475,13 @@ class TechnicianLocationService {
               return false;
             }
 
+            if (!t.activeAccount || !t.onboardingCompleted || !t.profileCompleted || !t.availabilityEnabled) {
+              debugPrint(
+                '[TechnicianLocationService] Technician ${t.id} skipped because publishability flags are false',
+              );
+              return false;
+            }
+
             // Filter 1: Check if last update was within 10 seconds (online check)
             final secondsSinceUpdate = now.difference(t.updatedAt).inSeconds;
             final isOnline = secondsSinceUpdate <= 10;
@@ -348,13 +506,36 @@ class TechnicianLocationService {
       
       // Sort by rankScore DESC (highest ranked first)
       // Technicians with more reviews, higher ratings, and more completed jobs appear first
-      techs.sort((a, b) => b.rankScore.compareTo(a.rankScore));
+      techs.sort((a, b) {
+        final scoreA = a.rankScore + TechnicianRankingService.freshnessBonus(a.updatedAt);
+        final scoreB = b.rankScore + TechnicianRankingService.freshnessBonus(b.updatedAt);
+        return scoreB.compareTo(scoreA);
+      });
       
       return techs;
     });
   }
 
   static double distanceKmPublic(LatLng a, LatLng b) => _distanceKm(a, b);
+
+  List<String> _mergeSpecialties(dynamic a, dynamic b, dynamic c) {
+    final values = <String>{};
+
+    void addAll(dynamic source) {
+      if (source is! List) return;
+      for (final item in source) {
+        final value = TechnicianSpecialtyCatalog.normalize(item.toString());
+        if (value != null && value.isNotEmpty) {
+          values.add(value);
+        }
+      }
+    }
+
+    addAll(a);
+    addAll(b);
+    addAll(c);
+    return values.toList();
+  }
 
   static double _distanceKm(LatLng a, LatLng b) {
     const r = 6371.0;
