@@ -469,13 +469,15 @@ class ReviewFinishScreenState extends State<ReviewFinishScreen>
                   children: [
                     Row(
                       children: [
-                        Text('VERIFY IDENTITY',
-                            style: GoogleFonts.spaceGrotesk(
-                              color: AppColors.primaryContainer,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 2,
-                            )),
+                        Flexible(
+                          child: Text('VERIFY IDENTITY',
+                              style: GoogleFonts.spaceGrotesk(
+                                color: AppColors.primaryContainer,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 2,
+                              )),
+                        ),
                         if (isUploaded) ...[
                           const SizedBox(width: 8),
                           Icon(Icons.check_circle,

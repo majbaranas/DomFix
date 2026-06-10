@@ -274,28 +274,39 @@ class ExperiencePortfolioScreenState extends State<ExperiencePortfolioScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    'YEARS IN FIELD',
-                    style: GoogleFonts.inter(
-                      color: AppColors.onSurfaceVariant,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 2,
+                  Flexible(
+                    flex: 1,
+                    child: Text(
+                      'YEARS IN FIELD',
+                      style: GoogleFonts.inter(
+                        color: AppColors.onSurfaceVariant,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 2,
+                      ),
                     ),
                   ),
-                  Text(
-                    _yearsLabel(_yearsSlider),
-                    style: GoogleFonts.spaceGrotesk(
-                      color: AppColors.primaryContainer,
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      height: 1,
-                      shadows: [
-                        Shadow(
-                          color: AppColors.primaryContainer.withValues(alpha: 0.4),
-                          blurRadius: 16,
-                        )
-                      ],
+                  const SizedBox(width: 8),
+                  Flexible(
+                    flex: 2,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        _yearsLabel(_yearsSlider),
+                        style: GoogleFonts.spaceGrotesk(
+                          color: AppColors.primaryContainer,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          height: 1,
+                          shadows: [
+                            Shadow(
+                              color: AppColors.primaryContainer.withValues(alpha: 0.4),
+                              blurRadius: 16,
+                            )
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ],
