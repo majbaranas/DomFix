@@ -14,6 +14,7 @@ import '../widgets/audio_recorder_widget.dart';
 import '../widgets/audio_player_widget.dart';
 import '../widgets/image_message_widget.dart';
 import '../widgets/file_message_widget.dart';
+import '../widgets/live_status_badge.dart';
 
 class ChatScreen extends StatefulWidget {
   final String otherUserId;
@@ -191,13 +192,35 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(widget.otherUserName, style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
-                if (widget.otherUserRole != null)
-                  Text(widget.otherUserRole!, style: GoogleFonts.inter(fontSize: 11, color: AppColors.onSurfaceVariant)),
-              ],
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance.collection('users').doc(widget.otherUserId).snapshots(),
+              builder: (context, snapshot) {
+                final status = snapshot.hasData && snapshot.data?.data() != null 
+                    ? (snapshot.data!.data() as Map<String, dynamic>)['liveStatus'] as String? ?? 'offline' 
+                    : 'offline';
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            widget.otherUserName, 
+                            style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.onSurface), 
+                            overflow: TextOverflow.ellipsis,
+                          )
+                        ),
+                        if (widget.otherUserRole == 'technician') ...[
+                          const SizedBox(width: 8),
+                          LiveStatusBadge(status: status, size: 8),
+                        ],
+                      ],
+                    ),
+                    if (widget.otherUserRole != null)
+                      Text(widget.otherUserRole!, style: GoogleFonts.inter(fontSize: 11, color: AppColors.onSurfaceVariant)),
+                  ],
+                );
+              }
             ),
           ),
         ],

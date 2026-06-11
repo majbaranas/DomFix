@@ -8,6 +8,7 @@ import '../services/technician_profile_service.dart';
 import '../models/review_model.dart';
 import '../models/technician_profile_model.dart';
 import '../theme/app_colors.dart';
+import '../widgets/live_status_badge.dart';
 import 'chat_screen.dart';
 import 'booking_flow_screen.dart';
 
@@ -173,7 +174,14 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          Text(p.fullName, style: GoogleFonts.spaceGrotesk(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(p.fullName, style: GoogleFonts.spaceGrotesk(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
+              const SizedBox(width: 8),
+              LiveStatusBadge(status: p.liveStatus),
+            ],
+          ),
           const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

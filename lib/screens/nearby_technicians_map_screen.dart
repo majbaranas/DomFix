@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/technician_location_service.dart';
 import '../services/route_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/live_status_badge.dart';
 import 'chat_screen.dart';
 import 'find_pros_screen_content.dart';
 import 'technician_profile_screen.dart';
@@ -1142,38 +1143,7 @@ class _TechPreviewCard extends StatelessWidget {
                         const SizedBox(height: 3),
                         Row(
                           children: [
-                            Container(
-                              width: 7,
-                              height: 7,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: online
-                                    ? AppColors.success
-                                    : AppColors.onSurfaceVariant
-                                        .withValues(alpha: 0.4),
-                                boxShadow: online
-                                    ? [
-                                        BoxShadow(
-                                          color: AppColors.success
-                                              .withValues(alpha: 0.5),
-                                          blurRadius: 6,
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              online ? 'Online' : 'Offline',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: online
-                                    ? AppColors.success
-                                    : AppColors.onSurfaceVariant
-                                        .withValues(alpha: 0.5),
-                              ),
-                            ),
+                            LiveStatusBadge(status: tech.liveStatus, size: 8),
                             const SizedBox(width: 10),
                             Icon(Icons.star_rounded, size: 12, color: AppColors.neonAccent),
                             const SizedBox(width: 3),

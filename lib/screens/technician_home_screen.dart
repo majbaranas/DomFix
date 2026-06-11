@@ -102,19 +102,19 @@ class TechnicianDashboard extends StatefulWidget {
 
 class _TechnicianDashboardState extends State<TechnicianDashboard> with WidgetsBindingObserver {
   final _locationService = TechnicianLocationService();
-  bool _isOnline = false;
+  String _liveStatus = 'offline';
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _locationService.startPublishing();
+    _locationService.startLocationTracking();
     _loadOnlineStatus();
   }
 
   @override
   void dispose() {
-    _locationService.stopPublishing();
+    _locationService.stopLocationTracking();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -124,13 +124,13 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> with WidgetsB
     super.didChangeAppLifecycleState(state);
     switch (state) {
       case AppLifecycleState.resumed:
-        _locationService.startPublishing();
+        _locationService.startLocationTracking();
         break;
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
-        _locationService.stopPublishing();
+        _locationService.stopLocationTracking();
         break;
     }
   }
@@ -140,15 +140,14 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> with WidgetsB
     if (uid == null) return;
     final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
     if (mounted) {
-      setState(() => _isOnline = doc.data()?['isOnline'] ?? false);
+      setState(() => _liveStatus = doc.data()?['liveStatus'] ?? 'offline');
     }
   }
 
   void _toggleOnlineStatus(bool value) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    setState(() => _isOnline = value);
-    FirebaseFirestore.instance.collection('users').doc(uid).update({'isOnline': value});
+    final status = value ? 'online' : 'offline';
+    setState(() => _liveStatus = status);
+    _locationService.updateLiveStatus(status);
   }
 
   @override
@@ -171,7 +170,7 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> with WidgetsB
                 DashboardHeader(
                   technicianId: uid,
                   performanceBadge: metrics.performanceBadge,
-                  isOnline: _isOnline,
+                  isOnline: _liveStatus != 'offline',
                 ),
                 const SizedBox(height: AppColors.space24),
                 LiveStatusCard(
@@ -206,8 +205,8 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> with WidgetsB
                 ),
                 const SizedBox(height: AppColors.space24),
                 QuickActions(
-                  isOnline: _isOnline,
-                  onGoOnline: () => _toggleOnlineStatus(!_isOnline),
+                  isOnline: _liveStatus != 'offline',
+                  onGoOnline: () => _toggleOnlineStatus(_liveStatus == 'offline'),
                   onViewNearbyJobs: () {},
                   onUpdateAvailability: () {},
                   onOpenMessages: () {},
@@ -410,6 +409,8 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
+    _updateLiveStatusForJob(normalized);
+
     final technicianId = FirebaseAuth.instance.currentUser?.uid;
     if (technicianId != null && technicianId.isNotEmpty) {
       final chatId = ChatService.generateChatId(item.clientId, technicianId);
@@ -442,6 +443,8 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
       'status': normalized,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    _updateLiveStatusForJob(normalized);
 
     await _firestore.collection('chats').doc(booking.chatId).set({
       'participants': [booking.clientId, booking.technicianId],
@@ -502,6 +505,20 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
       );
     } catch (e) {
       debugPrint('[TechnicianJobsScreen] Notification write failed: $e');
+    }
+  }
+
+  void _updateLiveStatusForJob(String normalizedStatus) {
+    if (normalizedStatus == 'accepted' || normalizedStatus == 'confirmed') {
+      TechnicianLocationService().updateLiveStatus('busy');
+    } else if (normalizedStatus == 'on_the_way' || 
+               normalizedStatus == 'arrived' || 
+               normalizedStatus == 'in_progress') {
+      TechnicianLocationService().updateLiveStatus('on_job');
+    } else if (normalizedStatus == 'completed' || 
+               normalizedStatus == 'rejected' || 
+               normalizedStatus == 'cancelled') {
+      TechnicianLocationService().updateLiveStatus('online');
     }
   }
 

@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../services/technician_profile_service.dart';
 import '../models/marketplace_technician.dart';
 import 'technician_profile_screen.dart';
+import '../widgets/live_status_badge.dart';
 
 class FindProsScreen extends StatefulWidget {
   const FindProsScreen({super.key});
@@ -468,14 +469,23 @@ class _FindProsScreenState extends State<FindProsScreen> with TickerProviderStat
           ),
           const SizedBox(height: 16),
           // Name
-          Text(
-            profile.fullName,
-            style: GoogleFonts.spaceGrotesk(
-              fontSize: 36,
-              fontWeight: FontWeight.w900,
-              color: AppColors.onSurface,
-              letterSpacing: -1,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  profile.fullName,
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 36,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.onSurface,
+                    letterSpacing: -1,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              LiveStatusBadge(status: profile.liveStatus),
+            ],
           ),
           const SizedBox(height: 8),
           // Profession and Rating

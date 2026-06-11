@@ -54,7 +54,7 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _locationService.stopPublishing();
+    _locationService.stopLocationTracking();
     super.dispose();
   }
 
@@ -63,7 +63,7 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
     super.didChangeAppLifecycleState(state);
 
     if (state == AppLifecycleState.resumed && _isOnline) {
-      _locationService.startPublishing();
+      _locationService.startLocationTracking();
       return;
     }
 
@@ -71,7 +71,7 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached ||
         state == AppLifecycleState.hidden) {
-      _locationService.stopPublishing();
+      _locationService.stopLocationTracking();
     }
   }
 
@@ -108,7 +108,7 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
         _loadingAvailability = false;
       });
       if (isOnline) {
-        await _locationService.startPublishing();
+        await _locationService.startLocationTracking();
       }
     } catch (_) {
       if (mounted) setState(() => _loadingAvailability = false);
@@ -132,9 +132,9 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
       });
 
       if (value) {
-        await _locationService.startPublishing();
+        await _locationService.startLocationTracking();
       } else {
-        _locationService.stopPublishing();
+        _locationService.stopLocationTracking();
       }
     } catch (e) {
       if (mounted) {
@@ -795,6 +795,7 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
     });
     await _syncChatStatus(job.userId, normalizedStatus);
     await _notifyJobStatusChange(job: job, status: normalizedStatus);
+    _syncLiveStatusForJob(normalizedStatus);
   }
 
   Future<void> _acceptBooking(BookingModel booking) async {
@@ -904,6 +905,21 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
       booking: booking,
       status: normalizedStatus,
     );
+    _syncLiveStatusForJob(normalizedStatus);
+  }
+
+  void _syncLiveStatusForJob(String normalizedStatus) {
+    if (normalizedStatus == 'accepted' || normalizedStatus == 'confirmed') {
+      _locationService.updateLiveStatus('busy');
+    } else if (normalizedStatus == 'on_the_way' || 
+               normalizedStatus == 'arrived' || 
+               normalizedStatus == 'in_progress') {
+      _locationService.updateLiveStatus('on_job');
+    } else if (normalizedStatus == 'completed' || 
+               normalizedStatus == 'rejected' || 
+               normalizedStatus == 'cancelled') {
+      _locationService.updateLiveStatus('online');
+    }
   }
 
   Future<void> _syncChatStatus(String clientId, String status) async {

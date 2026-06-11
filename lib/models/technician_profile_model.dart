@@ -45,6 +45,8 @@ class TechnicianProfileModel {
   final double profileCompletionScore;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String liveStatus;
+  final DateTime? lastSeen;
 
   const TechnicianProfileModel({
     required this.id,
@@ -74,6 +76,8 @@ class TechnicianProfileModel {
     required this.profileCompletionScore,
     required this.createdAt,
     required this.updatedAt,
+    this.liveStatus = 'offline',
+    this.lastSeen,
   });
 
   factory TechnicianProfileModel.fromFirestore(
@@ -139,6 +143,8 @@ class TechnicianProfileModel {
       profileCompletionScore: calculateProfileCompletion(userData, profileData),
       createdAt: _parseTimestamp(userData['createdAt'] ?? userData['created_at']),
       updatedAt: _parseTimestamp(userData['updated_at'] ?? profileData?['updatedAt']),
+      liveStatus: userData['liveStatus']?.toString() ?? 'offline',
+      lastSeen: userData['lastSeen'] != null ? _parseTimestamp(userData['lastSeen']) : null,
     );
   }
 

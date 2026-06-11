@@ -57,6 +57,7 @@ class AppColors {
   static const Color onError                = Color(0xFF690005);
   static const Color onErrorContainer       = Color(0xFFFFDAD6);
   static const Color emergency              = Color(0xFFFF4D4D);  // html: emergency accent
+  static const Color warning                = Color(0xFFFFB84D);  // amber gold
 
   // ─── Success ───────────────────────────────────────────
   static const Color success                = Color(0xFF34C759);

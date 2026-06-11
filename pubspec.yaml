@@ -38,6 +38,8 @@ dependencies:
   url_launcher: ^6.3.1
   path: ^1.9.0
   permission_handler: ^11.3.1
+  firebase_database: ^11.3.10
+  rxdart: ^0.28.0
 
 dev_dependencies:
   flutter_test:

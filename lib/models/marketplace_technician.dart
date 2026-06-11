@@ -16,6 +16,8 @@ class MarketplaceTechnician {
   final bool isAvailable;
   final DateTime updatedAt;
   final LatLng? location;
+  final String liveStatus;
+  final DateTime lastSeen;
   
   // Calculated fields
   double distanceKm = 0.0;
@@ -33,7 +35,9 @@ class MarketplaceTechnician {
     required this.isAvailable,
     required this.updatedAt,
     this.location,
-  });
+    this.liveStatus = 'offline',
+    DateTime? lastSeen,
+  }) : lastSeen = lastSeen ?? updatedAt;
 
   factory MarketplaceTechnician.fromDoc(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
@@ -58,6 +62,12 @@ class MarketplaceTechnician {
     final rawUp = data['updated_at'] ?? data['updatedAt'];
     if (rawUp is Timestamp) upAt = rawUp.toDate();
     else if (rawUp is int) upAt = DateTime.fromMillisecondsSinceEpoch(rawUp);
+
+    // Parse lastSeen
+    DateTime lastSeen = upAt;
+    final rawSeen = data['lastSeen'];
+    if (rawSeen is Timestamp) lastSeen = rawSeen.toDate();
+    else if (rawSeen is int) lastSeen = DateTime.fromMillisecondsSinceEpoch(rawSeen);
 
     // Safely parse numbers from Firestore
     double _parseDouble(dynamic val) {
@@ -119,6 +129,8 @@ class MarketplaceTechnician {
       isAvailable: data['isAvailable'] ?? data['availabilityEnabled'] ?? true,
       updatedAt: upAt,
       location: point,
+      liveStatus: data['liveStatus']?.toString() ?? 'offline',
+      lastSeen: lastSeen,
     );
   }
 
@@ -146,8 +158,15 @@ class MarketplaceTechnician {
   static double _rad(double deg) => deg * math.pi / 180;
 
   bool get isOnline {
-    // If updated within last 10 seconds, consider them "Live" 
-    // Usually means the app is open and location is publishing
-    return DateTime.now().difference(updatedAt).inSeconds <= 10;
+    // Treat as offline if the explicitly set status is offline
+    if (liveStatus == 'offline') return false;
+    
+    // Ghost protection: if lastSeen is older than 2 minutes, treat as offline
+    // unless they are explicitly busy or on_job (which might not update location as often)
+    if (liveStatus == 'online' && DateTime.now().difference(lastSeen).inSeconds > 120) {
+      return false;
+    }
+    
+    return true;
   }
 }

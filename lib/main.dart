@@ -9,6 +9,7 @@ import 'services/fcm_service.dart';
 import 'services/user_service.dart';
 import 'services/localization_service.dart';
 import 'services/local_storage_service.dart';
+import 'services/automation_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +40,7 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     _initializeLocale();
     _initializeFCM();
+    AutomationService.instance.startEngine();
   }
 
   /// Load initial locale from SharedPreferences

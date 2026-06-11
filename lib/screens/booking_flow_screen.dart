@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/booking_service.dart';
 import '../services/firebase_storage_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/live_status_badge.dart';
 import 'booking_confirmation_screen.dart';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -2041,13 +2042,30 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            widget.technicianName,
-                            style: GoogleFonts.spaceGrotesk(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.onSurface,
-                            ),
+                          StreamBuilder<DocumentSnapshot>(
+                            stream: FirebaseFirestore.instance.collection('users').doc(widget.technicianId).snapshots(),
+                            builder: (context, snapshot) {
+                              final status = snapshot.hasData && snapshot.data?.data() != null 
+                                  ? (snapshot.data!.data() as Map<String, dynamic>)['liveStatus'] as String? ?? 'offline' 
+                                  : 'offline';
+                              return Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      widget.technicianName,
+                                      style: GoogleFonts.spaceGrotesk(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.onSurface,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  LiveStatusBadge(status: status, size: 8),
+                                ],
+                              );
+                            }
                           ),
                           const SizedBox(height: 4),
                           Text(

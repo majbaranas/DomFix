@@ -15,6 +15,12 @@ class SmartDevice {
   final DateTime lastUpdated;
   final String? esp32Id; // ESP32 device identifier
   final Map<String, dynamic>? metadata; // Extra data
+  
+  // New specific control values
+  final double? brightness; // 0.0 to 1.0
+  final double? speed; // 0.0 to 1.0
+  final String? color; // Hex color string
+  final String? localIp; // ESP32 Local IP address for direct communication
 
   const SmartDevice({
     required this.id,
@@ -28,12 +34,27 @@ class SmartDevice {
     required this.lastUpdated,
     this.esp32Id,
     this.metadata,
+    this.brightness,
+    this.speed,
+    this.color,
+    this.localIp,
   });
 
   factory SmartDevice.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    return SmartDevice.fromMap(doc.id, data);
+  }
+
+  factory SmartDevice.fromMap(String id, Map<dynamic, dynamic> data) {
+    DateTime parseTime(dynamic val) {
+      if (val is Timestamp) return val.toDate();
+      if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+      if (val is String) return DateTime.tryParse(val) ?? DateTime.now();
+      return DateTime.now();
+    }
+
     return SmartDevice(
-      id: doc.id,
+      id: id,
       name: data['name'] as String? ?? 'Unknown Device',
       room: data['room'] as String? ?? 'Unknown',
       type: SmartDeviceType.fromString(data['type'] as String? ?? 'other'),
@@ -41,13 +62,17 @@ class SmartDevice {
       isOn: data['isOn'] as bool? ?? false,
       value: (data['value'] as num?)?.toDouble(),
       unit: data['unit'] as String?,
-      lastUpdated: (data['lastUpdated'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      lastUpdated: parseTime(data['lastUpdated']),
       esp32Id: data['esp32Id'] as String?,
-      metadata: data['metadata'] as Map<String, dynamic>?,
+      metadata: data['metadata'] != null ? Map<String, dynamic>.from(data['metadata'] as Map) : null,
+      brightness: (data['brightness'] as num?)?.toDouble(),
+      speed: (data['speed'] as num?)?.toDouble(),
+      color: data['color'] as String?,
+      localIp: data['localIp'] as String?,
     );
   }
 
-  Map<String, dynamic> toFirestore() => {
+  Map<String, dynamic> toMap() => {
         'name': name,
         'room': room,
         'type': type.key,
@@ -55,10 +80,21 @@ class SmartDevice {
         'isOn': isOn,
         'value': value,
         'unit': unit,
-        'lastUpdated': FieldValue.serverTimestamp(),
+        // When using RTDB we often use ServerValue.timestamp, so we can let the service handle timestamping
+        'lastUpdated': lastUpdated.millisecondsSinceEpoch,
         'esp32Id': esp32Id,
         'metadata': metadata,
+        if (brightness != null) 'brightness': brightness,
+        if (speed != null) 'speed': speed,
+        if (color != null) 'color': color,
+        if (localIp != null) 'localIp': localIp,
       };
+
+  Map<String, dynamic> toFirestore() {
+    final map = toMap();
+    map['lastUpdated'] = FieldValue.serverTimestamp();
+    return map;
+  }
 
   SmartDevice copyWith({
     String? id,
@@ -72,6 +108,10 @@ class SmartDevice {
     DateTime? lastUpdated,
     String? esp32Id,
     Map<String, dynamic>? metadata,
+    double? brightness,
+    double? speed,
+    String? color,
+    String? localIp,
   }) =>
       SmartDevice(
         id: id ?? this.id,
@@ -85,6 +125,10 @@ class SmartDevice {
         lastUpdated: lastUpdated ?? this.lastUpdated,
         esp32Id: esp32Id ?? this.esp32Id,
         metadata: metadata ?? this.metadata,
+        brightness: brightness ?? this.brightness,
+        speed: speed ?? this.speed,
+        color: color ?? this.color,
+        localIp: localIp ?? this.localIp,
       );
 
   /// Check if device was recently active (within 30 seconds)

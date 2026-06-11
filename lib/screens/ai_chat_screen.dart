@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show ImageFilter;
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -5,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../models/smart_device.dart';
 import '../services/ai_service.dart';
+import '../services/iot_service.dart';
 import '../theme/app_colors.dart';
 
 /// AI Home Diagnostician chat screen.
@@ -32,6 +35,10 @@ class _AIChatScreenState extends State<AIChatScreen>
   String? _lastUserPrompt;
   late AnimationController _typingCtrl;
 
+  // Smart Home context: cached device list for AI awareness
+  List<SmartDevice> _cachedDevices = [];
+  StreamSubscription<List<SmartDevice>>? _iotSubscription;
+
   // Suggestions shown before the user sends a message
   static const _suggestions = [
     'My ceiling has a damp patch',
@@ -48,10 +55,17 @@ class _AIChatScreenState extends State<AIChatScreen>
       duration: const Duration(milliseconds: 1400),
     )..repeat();
     _addWelcome();
+
+    // Subscribe to IoT device stream for AI context
+    // Disabled for simplified flow
+    // _iotSubscription = IoTService.instance.devicesStream().listen((devices) {
+    //   _cachedDevices = devices;
+    // });
   }
 
   @override
   void dispose() {
+    _iotSubscription?.cancel();
     _aiService.cancelCurrentRequest();
     _messageController.dispose();
     _scrollController.dispose();
@@ -240,7 +254,7 @@ class _AIChatScreenState extends State<AIChatScreen>
   bool get _isFirstMessage => _messages.length == 1;
 
   List<AiConversationTurn> _buildTranscript() {
-    return _messages
+    final turns = _messages
         .where((message) => !message.isError)
         .map(
           (message) => AiConversationTurn(
@@ -249,7 +263,65 @@ class _AIChatScreenState extends State<AIChatScreen>
           ),
         )
         .where((turn) => turn.content.isNotEmpty)
-        .toList(growable: false);
+        .toList();
+
+    // Inject smart home context as a system-level message at the start
+    final iotContext = _buildIoTContext();
+    if (iotContext.isNotEmpty) {
+      turns.insert(
+        0,
+        AiConversationTurn(
+          role: 'user',
+          content: '[SYSTEM CONTEXT - Smart Home State]\n$iotContext\n[END SYSTEM CONTEXT]\n\nPlease use this context to inform your answers about the user\'s home environment. If the user asks about temperature, humidity, lighting, or device states, refer to this real-time data.',
+        ),
+      );
+    }
+
+    return turns;
+  }
+
+  /// Build a human-readable snapshot of the current smart home state
+  String _buildIoTContext() {
+    try {
+      // final iot = IoTService.instance;
+      // await iot.toggleDevice(target.id, true);haviorSubject
+      // For demo mode, we can access the demo subject directly
+      // For live mode, we build from the last known snapshot
+      final devices = _cachedDevices;
+      if (devices.isEmpty) return '';
+
+      final buffer = StringBuffer();
+      buffer.writeln('Current Smart Home Status:');
+
+      // Group by room
+      final byRoom = <String, List<SmartDevice>>{};
+      for (final d in devices) {
+        byRoom.putIfAbsent(d.room, () => []).add(d);
+      }
+
+      for (final entry in byRoom.entries) {
+        final roomLabel = SmartRoom.fromString(entry.key).label;
+        buffer.writeln('  📍 $roomLabel:');
+        for (final d in entry.value) {
+          if (d.type.isControllable) {
+            buffer.writeln('    - ${d.name}: ${d.isOn ? "ON" : "OFF"}${d.isOnline ? "" : " (OFFLINE)"}');
+            if (d.brightness != null && d.type == SmartDeviceType.light) {
+              buffer.writeln('      Brightness: ${(d.brightness! * 100).toInt()}%');
+            }
+            if (d.speed != null && d.type == SmartDeviceType.fan) {
+              buffer.writeln('      Speed: ${(d.speed! * 100).toInt()}%');
+            }
+          } else {
+            buffer.writeln('    - ${d.name}: ${d.value?.toStringAsFixed(1) ?? "--"}${d.unit ?? ""}');
+          }
+        }
+      }
+
+      // buffer.writeln('  Mode: ${iot.isDemoMode ? "Demo (Simulated)" : "Live (Real Hardware)"}');
+      return buffer.toString();
+    } catch (_) {
+      return '';
+    }
   }
 
   @override

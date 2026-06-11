@@ -22,6 +22,8 @@ class TechnicianLocation {
     this.servicesProvided = const [],
     this.profileImage,
     this.isOnline = true,
+    this.liveStatus = 'offline',
+    DateTime? lastSeen,
     this.role,
     this.rankScore = 0.0,
     this.averageRating = 0.0,
@@ -35,7 +37,7 @@ class TechnicianLocation {
     this.profileCompleted = true,
     this.availabilityEnabled = true,
     this.activeAccount = true,
-  });
+  }) : lastSeen = lastSeen ?? updatedAt;
 
   final String id;
   final LatLng point;
@@ -47,6 +49,8 @@ class TechnicianLocation {
   final List<String> servicesProvided;
   final String? profileImage;
   final bool isOnline;
+  final String liveStatus;
+  final DateTime lastSeen;
   final String? role;
   final double rankScore;
   final double averageRating;
@@ -69,6 +73,7 @@ class TechnicianLocation {
 
     final point = _readPoint(data);
     final updatedAt = _readUpdatedAt(data);
+    final lastSeen = _readLastSeen(data) ?? updatedAt;
 
     return TechnicianLocation(
       id: doc.id,
@@ -81,6 +86,8 @@ class TechnicianLocation {
       servicesProvided: _readList(data['servicesProvided'] ?? data['specialties']),
       profileImage: _readString(data['profileImage'] ?? data['profilePhotoUrl'] ?? data['photoUrl']),
       isOnline: data['isOnline'] != false,
+      liveStatus: _readString(data['liveStatus']) ?? 'offline',
+      lastSeen: lastSeen,
       role: _readString(data['role']),
       rankScore: _readDouble(data['rankScore']),
       averageRating: _readDouble(data['averageRating'] ?? data['rating']),
@@ -127,6 +134,17 @@ class TechnicianLocation {
     return DateTime.now();
   }
 
+  static DateTime? _readLastSeen(Map<String, dynamic> data) {
+    final dynamic raw = data['lastSeen'];
+    if (raw == null) return null;
+    if (raw is Timestamp) return raw.toDate();
+    if (raw is DateTime) return raw;
+    if (raw is int) {
+      return DateTime.fromMillisecondsSinceEpoch(raw);
+    }
+    return null;
+  }
+
   static String? _readString(dynamic value) {
     if (value is! String) return null;
     final trimmed = value.trim();
@@ -157,82 +175,90 @@ class TechnicianLocation {
 class TechnicianLocationService {
   static const _collection = 'technician_locations';
   static const _radiusKm = 10.0;
-  static const _publishInterval = Duration(seconds: 5);
 
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
 
-  Timer? _publishTimer;
-  bool _isPublishing = false;
+  StreamSubscription<Position>? _positionStream;
+  bool _isTracking = false;
   bool _publishInProgress = false;
 
   // ── Technician side ──────────────────────────────────────────────────────
 
-  /// Start publishing technician location every 5 seconds
-  Future<void> startPublishing() async {
-    print('\n🚀 START PUBLISHING CALLED');
+  /// Start listening to location changes and update Firestore when moved
+  Future<void> startLocationTracking() async {
+    print('\n🚀 START LOCATION TRACKING CALLED');
     
-    if (_isPublishing) {
-      print('⚠️  Already publishing - skipping');
-      debugPrint('[TechnicianLocationService] Already publishing');
+    if (_isTracking) {
+      debugPrint('[TechnicianLocationService] Already tracking location');
       return;
     }
 
-    _isPublishing = true;
-    print('✅ Publishing flag set to true');
-    print('⏱️  Will update location every ${_publishInterval.inSeconds} seconds');
-    debugPrint('[TechnicianLocationService] Starting location publishing');
+    print('📍 Checking location permission...');
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      debugPrint('[TechnicianLocationService] Location permission denied');
+      return;
+    }
+
+    _isTracking = true;
     
-    // Publish immediately
-    print('📍 Publishing location immediately...');
-    await _publishOnce();
-    
-    // Then publish every 5 seconds
-    print('⏱️  Setting up periodic timer...');
-    _publishTimer?.cancel();
-    _publishTimer = Timer.periodic(_publishInterval, (timer) async {
-      print('\n⏰ Timer tick #${timer.tick} - Publishing location...');
-      await _publishOnce();
+    // Setup stream
+    _positionStream = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 100, // Update when moved 100 meters
+      ),
+    ).listen((Position position) {
+      _publishLocation(position);
     });
-    print('✅ Periodic timer started successfully\n');
+    
+    // Also update status to online instantly
+    await updateLiveStatus('online');
   }
 
-  /// Stop publishing location updates
-  /// Does NOT set any "online" field - we rely solely on updatedAt timestamp
-  void stopPublishing() {
-    print('\n🛑 STOP PUBLISHING CALLED');
+  /// Stop listening to location changes
+  Future<void> stopLocationTracking() async {
+    print('\n🛑 STOP LOCATION TRACKING CALLED');
     
-    if (!_isPublishing) {
-      print('⚠️  Not currently publishing - skipping');
-      debugPrint('[TechnicianLocationService] Not currently publishing');
-      return;
-    }
+    if (!_isTracking) return;
 
-    print('🛑 Stopping location publishing...');
-    debugPrint('[TechnicianLocationService] Stopping location publishing');
-    _isPublishing = false;
+    _isTracking = false;
+    await _positionStream?.cancel();
+    _positionStream = null;
     
-    // Cancel timer
-    _publishTimer?.cancel();
-    _publishTimer = null;
-    
-    print('✅ Timer cancelled');
-    print('✅ Publishing flag set to false');
-    print('ℹ️  Technician will appear offline when updatedAt becomes old (>10s)');
-    
-    // NO "online" field update - technician is considered offline when updatedAt is old
-    debugPrint('[TechnicianLocationService] Location publishing stopped');
-    print('========================================\n');
+    await updateLiveStatus('offline');
   }
 
-  /// Publish current location once
-  /// ONLY updates: lat, lng, updatedAt (NO "online" field)
-  Future<void> _publishOnce() async {
-    if (_publishInProgress) {
-      debugPrint('[TechnicianLocationService] Publish already in progress');
-      return;
+  /// Explicitly update the live status (online, busy, on_job, offline)
+  Future<void> updateLiveStatus(String status) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+    
+    try {
+      final payload = {
+        'liveStatus': status,
+        'lastSeen': FieldValue.serverTimestamp(),
+      };
+      
+      await Future.wait([
+        _firestore.collection(_collection).doc(uid).set(payload, SetOptions(merge: true)),
+        _firestore.collection('users').doc(uid).set(payload, SetOptions(merge: true)),
+      ]);
+      debugPrint('[TechnicianLocationService] Status updated to: $status');
+    } catch (e) {
+      debugPrint('[TechnicianLocationService] Error updating status: $e');
     }
+  }
 
+  /// Publish given location
+  Future<void> _publishLocation(Position pos) async {
+    if (_publishInProgress) return;
     _publishInProgress = true;
 
     print('\n========================================');
@@ -240,50 +266,9 @@ class TechnicianLocationService {
     print('========================================');
     try {
       final uid = _auth.currentUser?.uid;
-      if (uid == null) {
-        print('❌ ERROR: No authenticated user');
-        debugPrint('[TechnicianLocationService] No authenticated user');
-        return;
-      }
+      if (uid == null) return;
 
       print('✅ User authenticated: $uid');
-
-      print('📍 Checking location services...');
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        print('❌ ERROR: Location services are disabled');
-        debugPrint('[TechnicianLocationService] Location services disabled');
-        return;
-      }
-
-      print('📍 Checking location permission...');
-      var permission = await Geolocator.checkPermission();
-      print('📍 Permission status: $permission');
-
-      if (permission == LocationPermission.denied) {
-        print('📍 Requesting location permission...');
-        permission = await Geolocator.requestPermission();
-        print('📍 Permission after request: $permission');
-      }
-
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        print('❌ ERROR: Location permission denied');
-        debugPrint('[TechnicianLocationService] Location permission denied');
-        return;
-      }
-
-      print('✅ Location permission granted');
-
-      print('📍 Getting current position...');
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 10),
-        ),
-      );
-
-      print('✅ Position obtained:');
       print('   Latitude: ${pos.latitude}');
       print('   Longitude: ${pos.longitude}');
       print('   Accuracy: ${pos.accuracy}m');
@@ -371,7 +356,7 @@ class TechnicianLocationService {
         'activeAccount': activeAccount == true,
         'updatedAt': FieldValue.serverTimestamp(),
         'updated_at': FieldValue.serverTimestamp(),
-        'isOnline': true,
+        'lastSeen': FieldValue.serverTimestamp(),
         'role': 'technician',
       };
 
@@ -414,7 +399,7 @@ class TechnicianLocationService {
                 'activeAccount': activeAccount == true,
                 'updatedAt': FieldValue.serverTimestamp(),
                 'updated_at': FieldValue.serverTimestamp(),
-                'isOnline': true,
+                'lastSeen': FieldValue.serverTimestamp(),
               },
               SetOptions(merge: true),
             ),
@@ -444,8 +429,8 @@ class TechnicianLocationService {
 
   // ── User side ────────────────────────────────────────────────────────────
 
-  /// Emits only RECENTLY ACTIVE technicians within [_radiusKm] of [userPoint]
-  /// A technician is considered online if their last update was within 10 seconds
+  /// Emits only active technicians within [_radiusKm] of [userPoint]
+  /// A technician is considered offline if liveStatus == 'offline' or lastSeen > 120 seconds ago and liveStatus == 'online'
   /// Results are sorted by rankScore DESC (best technicians first)
   /// This eliminates "ghost" technicians who closed their app
   Stream<List<TechnicianLocation>> nearbyStream(
@@ -482,19 +467,26 @@ class TechnicianLocationService {
               return false;
             }
 
-            // Filter 1: Check if last update was within 10 seconds (online check)
-            final secondsSinceUpdate = now.difference(t.updatedAt).inSeconds;
-            final isOnline = secondsSinceUpdate <= 10;
+            // Filter 1: Check online status using new Phase 1 logic
+            final secondsSinceSeen = now.difference(t.lastSeen).inSeconds;
+            bool isOnline = true;
+            if (t.liveStatus == 'offline') {
+              isOnline = false;
+            } else if (t.liveStatus == 'online' && secondsSinceSeen > 120) {
+              // Ghost protection: only 'online' state times out quickly (2 minutes).
+              // 'busy' or 'on_job' states can persist longer as they don't depend on foreground app as much.
+              isOnline = false;
+            }
             
             if (!isOnline) {
-              debugPrint('[TechnicianLocationService] Technician ${t.id} is offline (${secondsSinceUpdate}s ago)');
+              debugPrint('[TechnicianLocationService] Technician ${t.id} is offline (status: ${t.liveStatus}, seen ${secondsSinceSeen}s ago)');
               return false;
             }
             
             // Filter 2: Check if within radius
             final distance = _distanceKm(userPoint, t.point);
             final isNearby = distance <= radiusKm;
-            
+
             if (!isNearby) {
               debugPrint('[TechnicianLocationService] Technician ${t.id} is too far (${distance.toStringAsFixed(1)} km)');
               return false;

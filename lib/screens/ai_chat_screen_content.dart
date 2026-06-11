@@ -1,5 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import '../models/smart_device.dart';
+import '../services/iot_service.dart';
 import '../theme/app_colors.dart';
 
 class AIChatScreenContent extends StatefulWidget {
@@ -19,6 +23,9 @@ class _AIChatScreenContentState extends State<AIChatScreenContent>
   final List<ChatMessage> _messages = [];
   bool _isTyping = false;
   late AnimationController _typingAnimationController;
+  StreamSubscription<List<SmartDevice>>? _iotSubscription;
+  bool _hasWarnedTemp = false;
+  bool _hasWarnedLight = false;
 
   @override
   void initState() {
@@ -28,10 +35,51 @@ class _AIChatScreenContentState extends State<AIChatScreenContent>
       duration: const Duration(milliseconds: 1500),
     )..repeat();
     _loadInitialMessages();
+    _listenToSmartHome();
+  }
+  
+  void _listenToSmartHome() {
+    // Disabled for simplified flow
+  }
+
+  void _addAiRecommendation(String text, String actionText, VoidCallback action) {
+    if (!mounted) return;
+    _simulateTyping();
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      setState(() {
+        _isTyping = false;
+        _messages.add(ChatMessage(
+          text: text,
+          isUser: false,
+          timestamp: _getCurrentTime(),
+          hasProTip: true,
+          proTipText: actionText,
+          onProTipTap: action,
+        ));
+      });
+      _scrollToBottom();
+    });
+  }
+
+  Future<void> _turnOnDevice(List<SmartDevice> devices, SmartDeviceType type) async {
+    final target = devices.where((d) => d.type == type).firstOrNull;
+    if (target != null) {
+      // await IoTService.instance.toggleDevice(target.id, true);
+      setState(() {
+        _messages.add(ChatMessage(
+          text: "I have turned on the ${target.name} for you.",
+          isUser: false,
+          timestamp: _getCurrentTime(),
+        ));
+      });
+      _scrollToBottom();
+    }
   }
 
   @override
   void dispose() {
+    _iotSubscription?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     _typingAnimationController.dispose();
@@ -276,7 +324,10 @@ class _AIChatScreenContentState extends State<AIChatScreenContent>
                   ),
                 if (message.hasProTip) ...[
                   const SizedBox(height: 16),
-                  _buildProTipCard(message.proTipText),
+                  GestureDetector(
+                    onTap: message.onProTipTap,
+                    child: _buildProTipCard(message.proTipText),
+                  ),
                 ],
                 if (message.hasImage) ...[
                   _buildImagePreview(),
@@ -545,6 +596,7 @@ class ChatMessage {
   final bool hasProTip;
   final String proTipText;
   final bool hasImage;
+  final VoidCallback? onProTipTap;
 
   ChatMessage({
     required this.text,
@@ -553,5 +605,6 @@ class ChatMessage {
     this.hasProTip = false,
     this.proTipText = '',
     this.hasImage = false,
+    this.onProTipTap,
   });
 }
