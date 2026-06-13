@@ -5,6 +5,8 @@ enum LogType {
   sensorThreshold('sensor_threshold'),
   automationTriggered('automation_triggered'),
   aiRecommendation('ai_recommendation'),
+  voiceCommand('voice_command'),
+  connectionChange('connection_change'),
   error('error');
 
   final String key;

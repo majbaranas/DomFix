@@ -80,6 +80,10 @@ class _LogItem extends StatelessWidget {
         return Icons.auto_awesome_rounded;
       case LogType.aiRecommendation:
         return Icons.smart_toy_rounded;
+      case LogType.voiceCommand:
+        return Icons.mic_rounded;
+      case LogType.connectionChange:
+        return Icons.wifi_rounded;
       case LogType.error:
         return Icons.error_outline_rounded;
     }
@@ -95,6 +99,10 @@ class _LogItem extends StatelessWidget {
         return Colors.purpleAccent;
       case LogType.aiRecommendation:
         return Colors.blueAccent;
+      case LogType.voiceCommand:
+        return AppColors.neonAccent;
+      case LogType.connectionChange:
+        return Colors.greenAccent;
       case LogType.error:
         return AppColors.error;
     }

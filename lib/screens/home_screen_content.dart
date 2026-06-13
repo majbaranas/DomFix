@@ -5,14 +5,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lottie/lottie.dart';
 
 import '../models/user_device.dart';
 import '../services/chat_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/notification_panel.dart';
 import '../widgets/scroll_reveal.dart';
-import 'ai_chat_screen.dart';
 import 'chat_screen.dart';
 import 'main_layout.dart';
 import 'nearby_technicians_map_screen.dart';
@@ -89,10 +87,6 @@ class _HomeScreenContentState extends State<HomeScreenContent>
   // ─── Navigation helpers ───────────────────────────────────
   void _goToTab(int index) => MainLayoutScope.maybeOf(context)?.selectTab(index);
 
-  void _openAI() => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const AIChatScreen()),
-      );
 
   void _openMap() => Navigator.push(
         context,
@@ -122,10 +116,6 @@ class _HomeScreenContentState extends State<HomeScreenContent>
     super.build(context);
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: _FloatingAIButton(
-        controller: _floatController,
-        onTap: _openAI,
-      ),
       body: Stack(
         children: [
           // Parallax ambient glow: moves upward at 0.3× scroll speed,
@@ -1309,96 +1299,6 @@ class _RecentChatTile extends StatelessWidget {
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: AppColors.neonAccent,
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Floating AI button (functional) ────────────────────────
-class _FloatingAIButton extends StatelessWidget {
-  const _FloatingAIButton({required this.controller, required this.onTap});
-
-  final AnimationController controller;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, child) {
-        final floatY = sin(controller.value * 2 * pi) * 6;
-        return Transform.translate(
-          offset: Offset(0, floatY),
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 72),
-            child: child,
-          ),
-        );
-      },
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppColors.surface.withValues(alpha: 0.85),
-            border: Border.all(color: AppColors.neonAccent.withValues(alpha: 0.4)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.5),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-              BoxShadow(
-                color: AppColors.neonAccent.withValues(alpha: 0.25),
-                blurRadius: 18,
-                spreadRadius: 1,
-              ),
-            ],
-          ),
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: [
-              ClipOval(
-                child: SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: Lottie.asset(
-                    'assets/images/Welcome Animation.json',
-                    fit: BoxFit.contain,
-                    repeat: true,
-                    errorBuilder: (_, _, _) => Icon(
-                      Icons.auto_awesome_rounded,
-                      color: AppColors.neonAccent,
-                      size: 24,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                top: -2,
-                right: -2,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.neonAccent,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    'AI',
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.onPrimary,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

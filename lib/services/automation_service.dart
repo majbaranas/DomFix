@@ -58,11 +58,10 @@ class AutomationService {
   }
 
   void _listenToDevices() {
-    // Disabled for simplified LED-only flow
-    // _devicesSub?.cancel();
-    // _devicesSub = _iot.devicesStream().listen((devices) {
-    //   _evaluateRules(devices);
-    // });
+    _devicesSub?.cancel();
+    _devicesSub = _iot.devicesStream().listen((devices) {
+      _evaluateRules(devices);
+    });
   }
 
   void _evaluateRules(List<SmartDevice> devices) {
@@ -101,11 +100,11 @@ class AutomationService {
     _lastTriggeredTimes[rule.id] = DateTime.now();
 
     try {
-      // if (rule.action.attribute == 'isOn') {
-      //   await _iot.toggleDevice(targetDevice.id, rule.action.value as bool);
-      // } else if (rule.action.attribute == 'brightness' || rule.action.attribute == 'speed') {
-      //   await _iot.changeDeviceValue(targetDevice.id, (rule.action.value as num).toDouble(), valueKey: rule.action.attribute);
-      // }
+      if (rule.action.attribute == 'isOn') {
+        await _iot.toggleDevice(targetDevice.id, rule.action.value as bool);
+      } else if (rule.action.attribute == 'brightness' || rule.action.attribute == 'speed') {
+        await _iot.changeDeviceValue(targetDevice.id, (rule.action.value as num).toDouble(), valueKey: rule.action.attribute);
+      }
       
       // Log it
       await _activityLog.logEvent(

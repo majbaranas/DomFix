@@ -49,8 +49,11 @@ String esp32Uid;       // The ESP32's own auth UID (for logging)
 String targetBasePath; // Path targeting the Flutter user's data
 
 bool ledState = false;
+double ledBrightness = 1.0;
 bool fanState = false;
+double fanSpeed = 1.0;
 bool doorState = false;
+double doorAngle = 0.0;
 
 bool firebaseReady = false;
 bool wifiConnected = false;
@@ -229,6 +232,7 @@ void setup() {
 
 // ================= LOOP =================
 unsigned long lastFirebaseCheck = 0;
+unsigned long lastSensorPublish = 0;
 unsigned long pollCount = 0;
 
 void loop() {
@@ -244,46 +248,85 @@ void loop() {
     return;
   }
 
-  // Poll Firebase every 500ms
+  // Poll Firebase every 500ms for commands
   if (millis() - lastFirebaseCheck > 500) {
     lastFirebaseCheck = millis();
     pollCount++;
 
-    String path = targetBasePath + "/ESP32_LED/isOn";
-
-    // Debug every 20 polls (~10 seconds)
-    if (pollCount % 20 == 1) {
-      Serial.print("[POLL #");
-      Serial.print(pollCount);
-      Serial.print("] Reading: ");
-      Serial.println(path);
-    }
-
-    if (Firebase.RTDB.getBool(&fbdo, path)) {
-      bool targetState = fbdo.boolData();
-
-      // Debug every 20 polls
-      if (pollCount % 20 == 1) {
-        Serial.print("[POLL #");
-        Serial.print(pollCount);
-        Serial.print("] Value: ");
-        Serial.println(targetState ? "true" : "false");
+    // 1. ESP32_LED
+    if (Firebase.RTDB.getJSON(&fbdo, targetBasePath + "/ESP32_LED")) {
+      FirebaseJson &json = fbdo.jsonObject();
+      FirebaseJsonData jsonData;
+      json.get(jsonData, "isOn");
+      bool targetLed = jsonData.success ? jsonData.boolValue : false;
+      json.get(jsonData, "brightness");
+      double targetBright = 1.0;
+      if (jsonData.success) {
+        if (jsonData.typeNum == FirebaseJson::JSON_INT) targetBright = (double)jsonData.intValue;
+        else targetBright = jsonData.doubleValue;
       }
 
-      if (targetState != ledState) {
-        ledState = targetState;
-        digitalWrite(LED_PIN, ledState ? HIGH : LOW);
-
-        if (ledState) {
-          Serial.println("LED ON");
-        } else {
-          Serial.println("LED OFF");
-        }
+      if (targetLed != ledState || targetBright != ledBrightness) {
+        ledState = targetLed;
+        ledBrightness = targetBright;
+        analogWrite(LED_PIN, ledState ? (int)(ledBrightness * 255.0) : 0);
       }
-    } else {
-      Serial.print("[ERROR] Firebase read failed: ");
-      Serial.println(fbdo.errorReason());
     }
+
+    // 2. ESP32_FAN
+    if (Firebase.RTDB.getJSON(&fbdo, targetBasePath + "/ESP32_FAN")) {
+      FirebaseJson &json = fbdo.jsonObject();
+      FirebaseJsonData jsonData;
+      json.get(jsonData, "isOn");
+      bool targetFan = jsonData.success ? jsonData.boolValue : false;
+      json.get(jsonData, "speed");
+      double targetSpeed = 1.0;
+      if (jsonData.success) {
+        if (jsonData.typeNum == FirebaseJson::JSON_INT) targetSpeed = (double)jsonData.intValue;
+        else targetSpeed = jsonData.doubleValue;
+      }
+
+      if (targetFan != fanState || targetSpeed != fanSpeed) {
+        fanState = targetFan;
+        fanSpeed = targetSpeed;
+        analogWrite(FAN_PIN, fanState ? (int)(fanSpeed * 255.0) : 0);
+      }
+    }
+
+    // 3. ESP32_SERVO
+    if (Firebase.RTDB.getJSON(&fbdo, targetBasePath + "/ESP32_SERVO")) {
+      FirebaseJson &json = fbdo.jsonObject();
+      FirebaseJsonData jsonData;
+      json.get(jsonData, "isOn");
+      bool targetDoor = jsonData.success ? jsonData.boolValue : false;
+      json.get(jsonData, "angle");
+      double targetAngle = targetDoor ? 90.0 : 0.0;
+      if (jsonData.success) {
+        if (jsonData.typeNum == FirebaseJson::JSON_INT) targetAngle = (double)jsonData.intValue;
+        else targetAngle = jsonData.doubleValue;
+      }
+
+      if (targetDoor != doorState || targetAngle != doorAngle) {
+        doorState = targetDoor;
+        doorAngle = targetAngle;
+        doorServo.write((int)doorAngle);
+      }
+    }
+  }
+
+  // Publish Sensors every 5000ms
+  if (millis() - lastSensorPublish > 5000) {
+    lastSensorPublish = millis();
+    
+    float t = dht.readTemperature();
+    float h = dht.readHumidity();
+    int ldr = analogRead(LDR_PIN);
+    
+    if (!isnan(t)) Firebase.RTDB.setFloat(&fbdo, targetBasePath + "/ESP32_DHT11_T/value", t);
+    if (!isnan(h)) Firebase.RTDB.setFloat(&fbdo, targetBasePath + "/ESP32_DHT11_H/value", h);
+    Firebase.RTDB.setFloat(&fbdo, targetBasePath + "/ESP32_LDR/value", (float)ldr);
+    
+    Serial.printf("[SENSORS] T: %.1f C, H: %.1f %%, LDR: %d\n", t, h, ldr);
   }
 
   delay(2);
