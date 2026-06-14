@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 
+import '../../theme/app_colors.dart';
+
 /// Shared animation utilities for premium dashboard widgets
 class PremiumAnimations {
   static const Duration subtle = Duration(milliseconds: 400);
@@ -136,7 +138,7 @@ class PremiumAnimations {
               end: Alignment(1.0 + controller.value * 2, 0),
               colors: [
                 Colors.white.withValues(alpha: 0.0),
-                Colors.white.withValues(alpha: 0.2),
+                AppColors.glassHighlight,
                 Colors.white.withValues(alpha: 0.0),
               ],
               stops: const [0.0, 0.5, 1.0],

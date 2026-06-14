@@ -47,7 +47,7 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0E13),
+      backgroundColor: AppColors.surfaceContainerLowest,
       body: Stack(
         children: [
           _ambientGlow(),
@@ -94,9 +94,9 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen>
               left: 24, right: 24, bottom: 12,
             ),
             decoration: BoxDecoration(
-              color: const Color(0xFF101419).withValues(alpha: 0.7),
+              color: AppColors.surface.withValues(alpha: 0.7),
               border: Border(
-                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+                bottom: BorderSide(color: AppColors.glassBorder),
               ),
             ),
             child: Row(
@@ -107,7 +107,7 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen>
                     width: 36, height: 36,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                      border: Border.all(color: AppColors.glassBorder),
                       color: const Color(0xFF181C21),
                     ),
                     child: ClipOval(
@@ -118,14 +118,14 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen>
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text('Good evening, Aymen',
-                          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.white.withValues(alpha: 0.9))),
-                      const SizedBox(height: 2),
+                          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.onSurface)),
+                      SizedBox(height: 2),
                       Row(children: [
                         Container(
                           width: 6, height: 6,
@@ -147,11 +147,11 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen>
                     width: 36, height: 36,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.03),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                      color: AppColors.whiteBorder3,
+                      border: Border.all(color: AppColors.glassBorder),
                     ),
                     child: Stack(alignment: Alignment.center, children: [
-                      const Icon(Icons.notifications_outlined, size: 18, color: Color(0xFFE0E2EA)),
+                      Icon(Icons.notifications_outlined, size: 18, color: AppColors.onSurface),
                       Positioned(
                         top: 8, right: 8,
                         child: Container(
@@ -184,12 +184,12 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen>
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: const Color(0xFF101419).withValues(alpha: 0.7),
+              color: AppColors.surface.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+              border: Border.all(color: AppColors.glassBorder),
               boxShadow: [
                 BoxShadow(color: Colors.black.withValues(alpha: 0.6), blurRadius: 32, offset: const Offset(0, 8)),
-                BoxShadow(color: Colors.white.withValues(alpha: 0.06), blurRadius: 0, offset: const Offset(0, 1), spreadRadius: -1),
+                BoxShadow(color: AppColors.glassBorder, blurRadius: 0, offset: const Offset(0, 1), spreadRadius: -1),
               ],
             ),
             child: Stack(
@@ -210,13 +210,13 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen>
                   children: [
                     Text('Command Center',
                         style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primaryFixed)),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     Text('Need expert\nassistance?',
                         style: GoogleFonts.spaceGrotesk(fontSize: 28, fontWeight: FontWeight.w600, color: Colors.white, height: 1.15, letterSpacing: -0.5)),
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24),
                     Container(
                       padding: const EdgeInsets.only(top: 16),
-                      decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.06)))),
+                      decoration: BoxDecoration(border: Border(top: BorderSide(color: AppColors.glassBorder))),
                       child: Row(children: [
                         _statItem('Node Latency', '18ms', false),
                         const SizedBox(width: 24),
@@ -237,8 +237,8 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen>
 
   Widget _statItem(String label, String value, bool accent) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: GoogleFonts.inter(fontSize: 10, color: Colors.white.withValues(alpha: 0.5))),
-      const SizedBox(height: 4),
+      Text(label, style: GoogleFonts.inter(fontSize: 10, color: AppColors.onSurfaceVariant)),
+      SizedBox(height: 4),
       Text(value, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500,
           color: accent ? AppColors.primaryFixed : Colors.white)),
     ]);
@@ -250,14 +250,14 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen>
       child: Row(children: [
         Expanded(child: _nodeCard(
           icon: Icons.router_outlined,
-          iconColor: Colors.white.withValues(alpha: 0.7),
-          iconBg: Colors.white.withValues(alpha: 0.03),
-          iconBorder: Colors.white.withValues(alpha: 0.06),
+          iconColor: AppColors.onSurface,
+          iconBg: AppColors.whiteBorder3,
+          iconBorder: AppColors.glassBorder,
           label: 'Network',
           value: 'Optimized',
           trailing: Icon(Icons.check_circle, color: AppColors.primaryFixed, size: 18),
         )),
-        const SizedBox(width: 16),
+        SizedBox(width: 16),
         Expanded(child: _nodeCard(
           icon: Icons.bolt,
           iconColor: AppColors.primaryFixed,
@@ -287,9 +287,9 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen>
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF101419).withValues(alpha: 0.7),
+            color: AppColors.surface.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            border: Border.all(color: AppColors.glassBorder),
             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.6), blurRadius: 32, offset: const Offset(0, 8))],
           ),
           child: Row(
@@ -302,9 +302,9 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen>
                       border: Border.all(color: iconBorder)),
                   child: Icon(icon, size: 20, color: iconColor),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(label, style: GoogleFonts.inter(fontSize: 10, color: Colors.white.withValues(alpha: 0.5))),
+                  Text(label, style: GoogleFonts.inter(fontSize: 10, color: AppColors.onSurfaceVariant)),
                   const SizedBox(height: 2),
                   Text(value, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.white)),
                 ]),
@@ -348,24 +348,24 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen>
                       duration: const Duration(milliseconds: 200),
                       width: 64, height: 64,
                       decoration: BoxDecoration(
-                        color: active ? AppColors.primaryFixed : Colors.white.withValues(alpha: 0.03),
+                        color: active ? AppColors.primaryFixed : AppColors.whiteBorder3,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: active ? AppColors.primaryFixed : Colors.white.withValues(alpha: 0.06),
+                          color: active ? AppColors.primaryFixed : AppColors.glassBorder,
                         ),
                         boxShadow: active
                             ? [BoxShadow(color: AppColors.primaryFixed.withValues(alpha: 0.2), blurRadius: 16)]
                             : null,
                       ),
                       child: Icon(_protocols[i].icon, size: 28,
-                          color: active ? const Color(0xFF2B3400) : Colors.white.withValues(alpha: 0.7)),
+                          color: active ? AppColors.onPrimary : AppColors.onSurface),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     Text(_protocols[i].label,
                         style: GoogleFonts.inter(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: active ? Colors.white : Colors.white.withValues(alpha: 0.6)),
+                            color: active ? Colors.white : AppColors.onSurfaceVariant),
                         textAlign: TextAlign.center),
                   ]),
                 ),
@@ -407,7 +407,7 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen>
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Text('Certified Technicians',
                         style: GoogleFonts.spaceGrotesk(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
                   ]),
@@ -417,9 +417,9 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen>
                       MaterialPageRoute(builder: (_) => const FindProsScreen()),
                     ),
                     child: Row(children: [
-                      Text('View All', style: GoogleFonts.inter(fontSize: 12, color: Colors.white.withValues(alpha: 0.6))),
-                      const SizedBox(width: 4),
-                      Icon(Icons.arrow_forward, size: 14, color: Colors.white.withValues(alpha: 0.6)),
+                      Text('View All', style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant)),
+                      SizedBox(width: 4),
+                      Icon(Icons.arrow_forward, size: 14, color: AppColors.onSurfaceVariant),
                     ]),
                   ),
                 ],
@@ -442,15 +442,15 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen>
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF101419).withValues(alpha: 0.7),
+                    color: AppColors.surface.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                    border: Border.all(color: AppColors.glassBorder),
                   ),
                   child: Text(
                     'No live technicians are available right now.',
                     style: GoogleFonts.inter(
                       fontSize: 13,
-                      color: Colors.white.withValues(alpha: 0.7),
+                      color: AppColors.onSurface,
                     ),
                   ),
                 ),
@@ -592,12 +592,12 @@ class _EmergencyButtonState extends State<_EmergencyButton>
                       ),
                       child: const Icon(Icons.warning_outlined, color: Color(0xFFFF4B4B), size: 20),
                     ),
-                    const SizedBox(width: 16),
+                    SizedBox(width: 16),
                     Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text('Critical Override',
                           style: GoogleFonts.spaceGrotesk(
                               fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Row(children: [
                         AnimatedBuilder(
                           animation: _pulseCtrl,
@@ -605,7 +605,7 @@ class _EmergencyButtonState extends State<_EmergencyButton>
                             opacity: _pulseCtrl.value,
                             child: Container(
                               width: 6, height: 6,
-                              decoration: const BoxDecoration(color: Color(0xFFFF4B4B), shape: BoxShape.circle),
+                              decoration: BoxDecoration(color: Color(0xFFFF4B4B), shape: BoxShape.circle),
                             ),
                           ),
                         ),
@@ -621,7 +621,7 @@ class _EmergencyButtonState extends State<_EmergencyButton>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.white.withValues(alpha: _pressed ? 0.1 : 0.05),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                      border: Border.all(color: AppColors.glassBorder),
                     ),
                     child: Icon(Icons.chevron_right,
                         size: 18,

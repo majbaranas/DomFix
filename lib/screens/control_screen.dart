@@ -142,7 +142,7 @@ class _ControlScreenState extends State<ControlScreen>
                     letterSpacing: -0.5,
                   ),
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: 2),
                 Text(
                   'Manage your connected devices',
                   style: GoogleFonts.inter(
@@ -186,7 +186,7 @@ class _ControlScreenState extends State<ControlScreen>
                         ],
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     Text(
                       '$online online',
                       style: GoogleFonts.inter(
@@ -210,7 +210,7 @@ class _ControlScreenState extends State<ControlScreen>
       stream: _devicesStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
+          return Center(
             child: CircularProgressIndicator(
                 color: AppColors.neonAccent, strokeWidth: 2),
           );
@@ -268,7 +268,7 @@ class _ControlScreenState extends State<ControlScreen>
                 color: AppColors.onSurfaceVariant.withValues(alpha: 0.4),
               ),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             Text(
               'No devices yet',
               style: GoogleFonts.spaceGrotesk(
@@ -277,7 +277,7 @@ class _ControlScreenState extends State<ControlScreen>
                 color: AppColors.onSurface,
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               'Tap the + button to add your first home device and start tracking it.',
               textAlign: TextAlign.center,
@@ -378,7 +378,7 @@ class _DeviceCard extends StatelessWidget {
                   : AppColors.onSurfaceVariant.withValues(alpha: 0.5),
             ),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -392,7 +392,7 @@ class _DeviceCard extends StatelessWidget {
                     letterSpacing: -0.2,
                   ),
                 ),
-                const SizedBox(height: 3),
+                SizedBox(height: 3),
                 Row(
                   children: [
                     Container(
@@ -583,13 +583,13 @@ class _AddDeviceSheetState extends State<_AddDeviceSheet> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
           Text('Device Name',
               style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: AppColors.onSurfaceVariant)),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           TextField(
             controller: _nameController,
             autofocus: true,
@@ -704,7 +704,7 @@ class _TypeChip extends StatelessWidget {
                 color: selected
                     ? AppColors.onPrimary
                     : AppColors.onSurfaceVariant),
-            const SizedBox(width: 6),
+            SizedBox(width: 6),
             Text(
               type.label,
               style: GoogleFonts.inter(

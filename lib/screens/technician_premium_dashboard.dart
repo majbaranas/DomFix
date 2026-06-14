@@ -285,7 +285,7 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
     return Row(
       children: [
         _Avatar(name: profile.displayName, imageUrl: profile.photoUrl),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -336,14 +336,14 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
           title: 'Today',
           subtitle: 'At a glance',
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         SizedBox(
           height: 112,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             itemCount: 4,
-            separatorBuilder: (context, index) => const SizedBox(width: 10),
+            separatorBuilder: (context, index) => SizedBox(width: 10),
             itemBuilder: (context, index) {
               switch (index) {
                 case 0:
@@ -455,7 +455,7 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
             ),
           ),
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         if (requests.isEmpty)
           const _EmptyStateCard(
             icon: Icons.inbox_outlined,
@@ -543,7 +543,7 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
           title: 'Recent activity',
           subtitle: 'Lightweight history of what happened',
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         if (activities.isEmpty)
           const _EmptyStateCard(
             icon: Icons.history_rounded,
@@ -601,7 +601,7 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Text(
                   'Notifications',
                   style: GoogleFonts.spaceGrotesk(
@@ -610,7 +610,7 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
                     color: AppColors.onSurface,
                   ),
                 ),
-                const SizedBox(height: 14),
+                SizedBox(height: 14),
                 Row(
                   children: [
                     Expanded(
@@ -648,7 +648,7 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
                     widget.onNavigateTab(1);
                   },
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: 10),
                 _LargeActionButton(
                   icon: _isOnline
                       ? Icons.pause_circle_rounded
@@ -696,7 +696,7 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Text(
                   'Weekly earnings',
                   style: GoogleFonts.spaceGrotesk(
@@ -1921,7 +1921,7 @@ class _SummaryCard extends StatelessWidget {
           Row(
             children: [
               Icon(icon, color: color, size: 18),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Expanded(
                 child: Text(
                   label,
@@ -1977,7 +1977,7 @@ class _SectionHeader extends StatelessWidget {
                 ),
               ),
               if (subtitle != null && subtitle!.isNotEmpty) ...[
-                const SizedBox(height: 3),
+                SizedBox(height: 3),
                 Text(
                   subtitle!,
                   style: GoogleFonts.inter(
@@ -2074,7 +2074,7 @@ class _ActiveRequestCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Text(
                   request.title,
                   maxLines: 2,
@@ -2086,7 +2086,7 @@ class _ActiveRequestCard extends StatelessWidget {
                     color: AppColors.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 14),
+                SizedBox(height: 14),
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
@@ -2229,7 +2229,7 @@ class _RequestCard extends StatelessWidget {
                               color: AppColors.onSurface,
                             ),
                           ),
-                          const SizedBox(height: 6),
+                          SizedBox(height: 6),
                           Text(
                             clientName,
                             style: GoogleFonts.inter(
@@ -2247,7 +2247,7 @@ class _RequestCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
+                SizedBox(height: 14),
                 Wrap(
                   spacing: 10,
                   runSpacing: 8,
@@ -2381,7 +2381,7 @@ class _MetaPill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, color: tint, size: 14),
-          const SizedBox(width: 6),
+          SizedBox(width: 6),
           Text(
             label,
             style: GoogleFonts.inter(
@@ -2445,7 +2445,7 @@ class _EmptyStateCard extends StatelessWidget {
             size: 34,
             color: AppColors.onSurfaceVariant.withValues(alpha: 0.42),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           Text(
             title,
             style: GoogleFonts.spaceGrotesk(
@@ -2454,7 +2454,7 @@ class _EmptyStateCard extends StatelessWidget {
               color: AppColors.onSurface,
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
             message,
             textAlign: TextAlign.center,
@@ -2514,7 +2514,7 @@ class _WeeklyEarningsChart extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Text(
                     days[index],
                     style: GoogleFonts.inter(
@@ -2557,7 +2557,7 @@ class _ActivityRow extends StatelessWidget {
             size: 17,
           ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.only(top: 1),
@@ -2572,7 +2572,7 @@ class _ActivityRow extends StatelessWidget {
                     color: AppColors.onSurface,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   activity.description,
                   maxLines: 1,
@@ -2669,7 +2669,7 @@ class _SheetMetric extends StatelessWidget {
               color: AppColors.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             value,
             style: GoogleFonts.spaceGrotesk(

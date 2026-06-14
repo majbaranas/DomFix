@@ -120,8 +120,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             AppColors.surfaceContainerHigh.withValues(alpha: 0.92),
           ]
         : [
-            Colors.white.withValues(alpha: 0.10),
-            Colors.white.withValues(alpha: 0.04),
+            AppColors.glassHighlight,
+            AppColors.glassBackground,
           ];
 
     final borderOpacity = _isSkipPressed ? 0.55 : 0.26;
@@ -274,7 +274,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 color: AppColors.onPrimary,
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Icon(
               _currentPage == 2 ? Icons.check_circle : Icons.arrow_forward,
               color: AppColors.onPrimary,

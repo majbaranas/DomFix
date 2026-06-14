@@ -184,7 +184,7 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Row(
         children: [
           IconButton(onPressed: () => Navigator.pop(context), icon: Icon(Icons.arrow_back_rounded, color: AppColors.onSurface, size: 22)),
-          const SizedBox(width: 4),
+          SizedBox(width: 4),
           Container(
             width: 36, height: 36,
             decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.surface),
@@ -211,7 +211,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           )
                         ),
                         if (widget.otherUserRole == 'technician') ...[
-                          const SizedBox(width: 8),
+                          SizedBox(width: 8),
                           LiveStatusBadge(status: status, size: 8),
                         ],
                       ],
@@ -237,9 +237,9 @@ class _ChatScreenState extends State<ChatScreen> {
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(Icons.chat_bubble_outline_rounded, color: AppColors.onSurfaceVariant.withValues(alpha: 0.2), size: 48),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Text('No messages yet', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.onSurfaceVariant.withValues(alpha: 0.5))),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text('Start the conversation!', style: GoogleFonts.inter(fontSize: 13, color: AppColors.onSurfaceVariant.withValues(alpha: 0.3))),
           ]));
         }
@@ -278,13 +278,13 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             child: _buildMessageContent(message),
           ),
-          const SizedBox(height: 3),
+          SizedBox(height: 3),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(message.getFormattedTime(), style: GoogleFonts.inter(fontSize: 10, color: AppColors.onSurfaceVariant.withValues(alpha: 0.4))),
               if (isCurrentUser) ...[
-                const SizedBox(width: 4),
+                SizedBox(width: 4),
                 Icon(Icons.done_all, size: 13, color: message.isSeen ? const Color(0xFF007AFF) : AppColors.onSurfaceVariant.withValues(alpha: 0.3)),
               ],
             ],
@@ -329,7 +329,7 @@ class _ChatScreenState extends State<ChatScreen> {
               color: AppColors.neonAccent,
               strokeWidth: 2,
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Text(
               'Uploading... ${(_uploadProgress * 100).toInt()}%',
               style: GoogleFonts.inter(
@@ -357,7 +357,7 @@ class _ChatScreenState extends State<ChatScreen> {
               size: 24,
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Expanded(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -376,7 +376,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           GestureDetector(
             onTap: _messageController.text.trim().isEmpty
                 ? (_isFullAccess ? () => setState(() => _isRecording = true) : _showLockedFeatureHint)
@@ -411,19 +411,19 @@ class _ChatScreenState extends State<ChatScreen> {
               color: AppColors.neonAccent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.lock_outline_rounded,
               color: AppColors.neonAccent,
               size: 18,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                 Text('Text only mode', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   'Share photos, voice notes, and files after the booking is confirmed.',
                   style: GoogleFonts.inter(
@@ -451,7 +451,7 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       child: Row(
         children: [
-          const SizedBox(
+          SizedBox(
             width: 18,
             height: 18,
             child: CircularProgressIndicator(
@@ -459,7 +459,7 @@ class _ChatScreenState extends State<ChatScreen> {
               color: AppColors.neonAccent,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Text(
               'Checking booking access...',
@@ -477,7 +477,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _showLockedFeatureHint() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text('Book first to unlock photos, voice notes, and files.'),
         backgroundColor: AppColors.surfaceContainerHigh,
       ),
@@ -509,7 +509,7 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Row(children: [
         Container(width: 40, height: 40, decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
           child: Icon(icon, color: color, size: 20)),
-        const SizedBox(width: 14),
+        SizedBox(width: 14),
         Text(label, style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.onSurface)),
       ]),
     ));

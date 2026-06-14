@@ -429,7 +429,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: AppColors.onPrimary,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Icon(
                       Icons.arrow_forward_rounded,
                       color: AppColors.onPrimary,
@@ -500,7 +500,7 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 22,
               fit: BoxFit.contain,
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Text(
               'Continue with Google',
               style: GoogleFonts.inter(

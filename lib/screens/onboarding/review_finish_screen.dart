@@ -320,7 +320,7 @@ class ReviewFinishScreenState extends State<ReviewFinishScreen>
               ),
             ),
           ),
-          const SizedBox(width: 24),
+          SizedBox(width: 24),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -332,7 +332,7 @@ class ReviewFinishScreenState extends State<ReviewFinishScreen>
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.5,
                     )),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Text(
                   'Complete verification steps to unlock maximum bidding visibility. You are currently in the ',
                   style: GoogleFonts.inter(
@@ -353,7 +353,7 @@ class ReviewFinishScreenState extends State<ReviewFinishScreen>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1C2025),
+                    color: AppColors.surfaceContainer,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: AppColors.primaryContainer.withValues(alpha: 0.15),
@@ -414,7 +414,7 @@ class ReviewFinishScreenState extends State<ReviewFinishScreen>
       duration: const Duration(milliseconds: 400),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C2025),
+        color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
         border: item.done
             ? Border.all(
@@ -431,7 +431,7 @@ class ReviewFinishScreenState extends State<ReviewFinishScreen>
                 : AppColors.onSurfaceVariant.withValues(alpha: 0.4),
             size: 18,
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: Text(item.label,
                 style: GoogleFonts.inter(
@@ -455,7 +455,7 @@ class ReviewFinishScreenState extends State<ReviewFinishScreen>
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C2025),
+        color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -479,13 +479,13 @@ class ReviewFinishScreenState extends State<ReviewFinishScreen>
                               )),
                         ),
                         if (isUploaded) ...[
-                          const SizedBox(width: 8),
+                          SizedBox(width: 8),
                           Icon(Icons.check_circle,
                               color: AppColors.primaryContainer, size: 14),
                         ],
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text('Official document required for security audit.',
                         style: GoogleFonts.inter(
                             color: AppColors.onSurfaceVariant, fontSize: 12)),
@@ -543,7 +543,7 @@ class ReviewFinishScreenState extends State<ReviewFinishScreen>
               ),
             ),
           ] else ...[
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -554,7 +554,7 @@ class ReviewFinishScreenState extends State<ReviewFinishScreen>
                     onTap: () => _uploadIdDocument('Passport'),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: _docButton(
                     icon: Icons.upload_file_outlined,
@@ -569,7 +569,7 @@ class ReviewFinishScreenState extends State<ReviewFinishScreen>
               const SizedBox(height: 8),
               Text(_idError!,
                   style: GoogleFonts.inter(
-                      color: const Color(0xFFFFB4AB), fontSize: 11)),
+                      color: AppColors.error, fontSize: 11)),
             ],
           ],
         ],
@@ -591,22 +591,22 @@ class ReviewFinishScreenState extends State<ReviewFinishScreen>
           color: const Color(0xFF262A30),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-              color: const Color(0xFF454932).withValues(alpha: 0.2), width: 1),
+              color: AppColors.outlineVariant.withValues(alpha: 0.2), width: 1),
         ),
         child: isLoading
-            ? const Center(
+            ? Center(
                 child: SizedBox(
                     width: 24,
                     height: 24,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       valueColor:
-                          AlwaysStoppedAnimation<Color>(Color(0xFFD9FF00)),
+                          AlwaysStoppedAnimation<Color>(AppColors.neonAccent),
                     )))
             : Column(
                 children: [
                   Icon(icon, color: const Color(0xFFB4D400), size: 26),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Text(label,
                       style: GoogleFonts.spaceGrotesk(
                         color: AppColors.onSurface,
@@ -645,7 +645,7 @@ class ReviewFinishScreenState extends State<ReviewFinishScreen>
                   children: [
                     Icon(Icons.check_circle,
                         color: AppColors.primaryContainer, size: 14),
-                    const SizedBox(width: 4),
+                    SizedBox(width: 4),
                     Text('VERIFIED',
                         style: GoogleFonts.spaceGrotesk(
                           color: AppColors.primaryContainer,
@@ -657,7 +657,7 @@ class ReviewFinishScreenState extends State<ReviewFinishScreen>
                 ),
             ],
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           TextField(
             controller: _phoneController,
             keyboardType: TextInputType.phone,
@@ -671,8 +671,8 @@ class ReviewFinishScreenState extends State<ReviewFinishScreen>
                 color: AppColors.onSurfaceVariant.withValues(alpha: 0.3),
                 fontSize: 16,
               ),
-              enabledBorder: const UnderlineInputBorder(
-                  borderSide: BorderSide(color: Color(0xFF454932), width: 1.5)),
+              enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.outlineVariant, width: 1.5)),
               focusedBorder: UnderlineInputBorder(
                   borderSide: BorderSide(
                       color: AppColors.primaryContainer, width: 2)),
@@ -699,14 +699,14 @@ class ReviewFinishScreenState extends State<ReviewFinishScreen>
                 borderRadius: BorderRadius.circular(10),
               ),
               child: _verifyingPhone
-                  ? const Center(
+                  ? Center(
                       child: SizedBox(
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.5,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                                Color(0xFFD9FF00)),
+                                AppColors.neonAccent),
                           )))
                   : Center(
                       child: Text(
@@ -758,7 +758,7 @@ class _ArcPainter extends CustomPainter {
         sweepAngle,
         false,
         Paint()
-          ..color = const Color(0xFFD9FF00).withValues(alpha: 0.25)
+          ..color = AppColors.neonAccent.withValues(alpha: 0.25)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 14
           ..strokeCap = StrokeCap.round
@@ -771,7 +771,7 @@ class _ArcPainter extends CustomPainter {
         sweepAngle,
         false,
         Paint()
-          ..color = const Color(0xFFD9FF00)
+          ..color = AppColors.neonAccent
           ..style = PaintingStyle.stroke
           ..strokeWidth = 8
           ..strokeCap = StrokeCap.round,

@@ -72,7 +72,7 @@ class FileMessageWidget extends StatelessWidget {
                 size: 24,
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             // File info
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,7 +90,7 @@ class FileMessageWidget extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: 2),
                 Text(
                   _getFileExtension(),
                   style: GoogleFonts.inter(

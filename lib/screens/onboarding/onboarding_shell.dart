@@ -122,7 +122,7 @@ class OnboardingShell extends StatelessWidget {
               );
             }),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           Text(
             'Step $currentStep of $totalSteps',
             style: GoogleFonts.spaceGrotesk(
@@ -132,7 +132,7 @@ class OnboardingShell extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
             stepLabel,
             style: GoogleFonts.spaceGrotesk(
@@ -238,7 +238,7 @@ class OnboardingShell extends StatelessWidget {
                             color: AppColors.onPrimaryContainer,
                             size: 18,
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4),
                           Text(
                             nextLabel,
                             style: GoogleFonts.spaceGrotesk(

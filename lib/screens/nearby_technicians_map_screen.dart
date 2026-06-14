@@ -372,7 +372,7 @@ class _NearbyTechniciansMapScreenState
                               strokeWidth: 2,
                               color: AppColors.neonAccent),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Text('Calculating route…',
                             style: GoogleFonts.inter(
                                 fontSize: 12,
@@ -402,7 +402,7 @@ class _NearbyTechniciansMapScreenState
             child: CircularProgressIndicator(
                 strokeWidth: 2.5, color: AppColors.neonAccent),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Text('Locating you…',
               style: GoogleFonts.inter(
                   fontSize: 14, color: AppColors.onSurfaceVariant)),
@@ -581,7 +581,7 @@ class _NearbyTechniciansMapScreenState
               color: const Color(0xFF0B0F14).withValues(alpha: 0.78),
               border: Border(
                 bottom: BorderSide(
-                    color: Colors.white.withValues(alpha: 0.06)),
+                    color: AppColors.glassBorder),
               ),
             ),
             child: Column(
@@ -596,7 +596,7 @@ class _NearbyTechniciansMapScreenState
                       icon: Icons.arrow_back_ios_new_rounded,
                       onTap: () => Navigator.of(context).pop(),
                     ),
-                    const SizedBox(width: 10),
+                    SizedBox(width: 10),
                     // Title + live count
                     Expanded(
                       child: Column(
@@ -655,7 +655,7 @@ class _NearbyTechniciansMapScreenState
                           ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: 10),
                 // Search bar — tapping opens Find Pros screen
                 GestureDetector(
                   onTap: () => Navigator.push(
@@ -680,7 +680,7 @@ class _NearbyTechniciansMapScreenState
                             size: 19,
                             color: AppColors.neonAccent
                                 .withValues(alpha: 0.7)),
-                        const SizedBox(width: 10),
+                        SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             'Search service or pro…',
@@ -794,12 +794,12 @@ class _OverlayButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: accent
               ? AppColors.neonAccent.withValues(alpha: 0.12)
-              : Colors.white.withValues(alpha: 0.06),
+              : AppColors.glassBorder,
           shape: BoxShape.circle,
           border: Border.all(
             color: accent
                 ? AppColors.neonAccent.withValues(alpha: 0.35)
-                : Colors.white.withValues(alpha: 0.08),
+                : AppColors.glassBorder,
           ),
         ),
         child: Icon(
@@ -846,7 +846,7 @@ class _MapFab extends StatelessWidget {
                 color: const Color(0xFF181C21).withValues(alpha: 0.85),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.1)),
+                    color: AppColors.glassHighlight),
               ),
               child: Icon(icon,
                   size: iconSize, color: AppColors.onSurface),
@@ -883,7 +883,7 @@ class _StatusCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: const Color(0xFF0E1218).withValues(alpha: 0.92),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            border: Border.all(color: AppColors.glassBorder),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -897,7 +897,7 @@ class _StatusCard extends StatelessWidget {
                 ),
                 child: Icon(icon, color: AppColors.neonAccent, size: 24),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Text(
                 title,
                 textAlign: TextAlign.center,
@@ -907,7 +907,7 @@ class _StatusCard extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: 6),
               Text(
                 subtitle,
                 textAlign: TextAlign.center,
@@ -1091,7 +1091,7 @@ class _TechPreviewCard extends StatelessWidget {
             color: const Color(0xFF0E1218).withValues(alpha: 0.92),
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.08),
+              color: AppColors.glassBorder,
             ),
             boxShadow: [
               BoxShadow(
@@ -1113,7 +1113,7 @@ class _TechPreviewCard extends StatelessWidget {
                     imageUrl: tech.profileImage,
                     fallbackLabel: displayName,
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1129,7 +1129,7 @@ class _TechPreviewCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 3),
+                        SizedBox(height: 3),
                         Text(
                           primarySpecialty,
                           style: GoogleFonts.inter(
@@ -1178,9 +1178,9 @@ class _TechPreviewCard extends StatelessWidget {
                       height: 34,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: 0.06),
+                        color: AppColors.glassBorder,
                         border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.08)),
+                            color: AppColors.glassBorder),
                       ),
                       child: Icon(Icons.close_rounded,
                           size: 16, color: AppColors.onSurfaceVariant),
@@ -1202,10 +1202,10 @@ class _TechPreviewCard extends StatelessWidget {
                             vertical: 7,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.04),
+                            color: AppColors.glassBackground,
                             borderRadius: BorderRadius.circular(999),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.06),
+                              color: AppColors.glassBorder,
                             ),
                           ),
                           child: Text(
@@ -1230,10 +1230,10 @@ class _TechPreviewCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 9),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.04),
+                        color: AppColors.glassBackground,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.06)),
+                            color: AppColors.glassBorder),
                       ),
                       child: Row(
                         children: [
@@ -1262,10 +1262,10 @@ class _TechPreviewCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 9),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.04),
+                          color: AppColors.glassBackground,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.06)),
+                              color: AppColors.glassBorder),
                         ),
                         child: Row(
                           children: [
@@ -1437,7 +1437,7 @@ class _CardButton extends StatelessWidget {
           border: Border.all(
             color: filled
                 ? AppColors.neonAccent
-                : Colors.white.withValues(alpha: 0.1),
+                : AppColors.glassHighlight,
           ),
         ),
         child: Row(
@@ -1448,7 +1448,7 @@ class _CardButton extends StatelessWidget {
               size: 16,
               color: filled ? AppColors.onPrimary : AppColors.onSurface,
             ),
-            const SizedBox(width: 6),
+            SizedBox(width: 6),
             Text(
               label,
               style: GoogleFonts.inter(

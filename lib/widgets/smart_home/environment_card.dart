@@ -115,7 +115,7 @@ class EnvironmentCard extends StatelessWidget {
                           Icon(Icons.wifi_off_rounded, size: 14, color: AppColors.error),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -132,7 +132,7 @@ class EnvironmentCard extends StatelessWidget {
                                 letterSpacing: -1,
                               ),
                             ),
-                            const SizedBox(width: 4),
+                            SizedBox(width: 4),
                             Text(
                               unit,
                               style: GoogleFonts.inter(

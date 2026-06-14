@@ -10,10 +10,13 @@ import 'services/user_service.dart';
 import 'services/localization_service.dart';
 import 'services/local_storage_service.dart';
 import 'services/automation_service.dart';
+import 'theme/app_theme_manager.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await AppThemeManager.instance.initialize();
   runApp(const MyApp());
 }
 
@@ -41,6 +44,17 @@ class _MyAppState extends State<MyApp> {
     _initializeLocale();
     _initializeFCM();
     AutomationService.instance.startEngine();
+    AppThemeManager.instance.addListener(_onThemeChanged);
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    AppThemeManager.instance.removeListener(_onThemeChanged);
+    super.dispose();
   }
 
   /// Load initial locale from SharedPreferences
@@ -136,15 +150,9 @@ class _MyAppState extends State<MyApp> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      themeMode: ThemeMode.dark,
-      darkTheme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF0B0F14),
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFFD9FF00),
-          secondary: Color(0xFFD9FF00),
-          surface: Color(0xFF101419),
-        ),
-      ),
+      themeMode: AppThemeManager.instance.themeMode,
+      darkTheme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
       home: const SplashScreen(),
     );
   }

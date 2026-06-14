@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 
 class QuickActionPill extends StatelessWidget {
   final IconData icon;
@@ -24,12 +25,12 @@ class QuickActionPill extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppColors.space12,
-          vertical: AppColors.space12,
+          horizontal: AppSpacing.space12,
+          vertical: AppSpacing.space12,
         ),
         decoration: BoxDecoration(
           color: backgroundColor ?? AppColors.surface,
-          borderRadius: BorderRadius.circular(AppColors.radiusMedium),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
           border: Border.all(
             color: backgroundColor != null ? backgroundColor!.withValues(alpha: 0.5) : AppColors.divider,
           ),
@@ -42,7 +43,7 @@ class QuickActionPill extends StatelessWidget {
               color: iconColor ?? AppColors.neonAccent,
               size: 20,
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             Text(
               label,
               textAlign: TextAlign.center,
@@ -85,7 +86,7 @@ class QuickActions extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space20),
           child: Text(
             'Quick Actions',
             style: GoogleFonts.spaceGrotesk(
@@ -95,9 +96,9 @@ class QuickActions extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: AppColors.space12),
+        SizedBox(height: AppSpacing.space12),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space20),
           child: SizedBox(
             height: 100,
             child: SingleChildScrollView(
@@ -111,25 +112,25 @@ class QuickActions extends StatelessWidget {
                     backgroundColor: isOnline ? AppColors.success.withValues(alpha: 0.15) : AppColors.neonAccent.withValues(alpha: 0.15),
                     iconColor: isOnline ? AppColors.success : AppColors.neonAccent,
                   ),
-                  const SizedBox(width: AppColors.space12),
+                  const SizedBox(width: AppSpacing.space12),
                   QuickActionPill(
                     icon: Icons.location_on,
                     label: 'Nearby Jobs',
                     onTap: onViewNearbyJobs,
                   ),
-                  const SizedBox(width: AppColors.space12),
+                  const SizedBox(width: AppSpacing.space12),
                   QuickActionPill(
                     icon: Icons.schedule,
                     label: 'Availability',
                     onTap: onUpdateAvailability,
                   ),
-                  const SizedBox(width: AppColors.space12),
+                  const SizedBox(width: AppSpacing.space12),
                   QuickActionPill(
                     icon: Icons.message,
                     label: 'Messages',
                     onTap: onOpenMessages,
                   ),
-                  const SizedBox(width: AppColors.space12),
+                  const SizedBox(width: AppSpacing.space12),
                   QuickActionPill(
                     icon: Icons.emergency,
                     label: 'Support',

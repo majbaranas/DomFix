@@ -16,7 +16,7 @@ class ActivityLogScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.onSurface),
+        iconTheme: IconThemeData(color: AppColors.onSurface),
         title: Text(
           'Activity Timeline',
           style: GoogleFonts.spaceGrotesk(
@@ -35,7 +35,7 @@ class ActivityLogScreen extends StatelessWidget {
         stream: ActivityLogService.instance.getLogs(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
+            return Center(
               child: CircularProgressIndicator(color: AppColors.neonAccent),
             );
           }
@@ -128,7 +128,7 @@ class _LogItem extends StatelessWidget {
             ),
             child: Icon(_getIcon(), color: _getColor(), size: 24),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -141,7 +141,7 @@ class _LogItem extends StatelessWidget {
                     color: AppColors.onSurface,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   log.description,
                   style: GoogleFonts.inter(

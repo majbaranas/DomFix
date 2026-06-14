@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../models/booking_model.dart';
 
 class JobCard extends StatelessWidget {
@@ -45,14 +46,14 @@ class JobCard extends StatelessWidget {
       width: 280,
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppColors.radiusMedium),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
         border: Border.all(color: AppColors.divider),
       ),
       child: Column(
         children: [
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(AppColors.space16),
+              padding: const EdgeInsets.all(AppSpacing.space16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -92,7 +93,7 @@ class JobCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       Text(
                         booking.description,
                         style: GoogleFonts.inter(
@@ -111,7 +112,7 @@ class JobCard extends StatelessWidget {
                       Row(
                         children: [
                           Icon(Icons.access_time, size: 14, color: AppColors.onSurfaceVariant),
-                          const SizedBox(width: 6),
+                          SizedBox(width: 6),
                           Text(
                             booking.scheduledAt.toString().split(' ')[0],
                             style: GoogleFonts.inter(
@@ -154,7 +155,7 @@ class JobCard extends StatelessWidget {
             ),
           ),
           Container(
-            padding: const EdgeInsets.all(AppColors.space12),
+            padding: const EdgeInsets.all(AppSpacing.space12),
             decoration: BoxDecoration(
               border: Border(top: BorderSide(color: AppColors.divider)),
             ),
@@ -221,7 +222,7 @@ class JobsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space20),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -236,7 +237,7 @@ class JobsSection extends StatelessWidget {
                       color: AppColors.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(
                     '${bookings.length} active',
                     style: GoogleFonts.inter(
@@ -266,15 +267,15 @@ class JobsSection extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: AppColors.space12),
+        SizedBox(height: AppSpacing.space12),
         if (bookings.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space20),
             child: Container(
-              padding: const EdgeInsets.all(AppColors.space20),
+              padding: const EdgeInsets.all(AppSpacing.space20),
               decoration: BoxDecoration(
                 color: AppColors.surface,
-                borderRadius: BorderRadius.circular(AppColors.radiusMedium),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
                 border: Border.all(color: AppColors.divider),
               ),
               child: Center(
@@ -301,12 +302,12 @@ class JobsSection extends StatelessWidget {
         else
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space20),
             child: Row(
               children: List.generate(
                 bookings.length,
                 (index) => Padding(
-                  padding: EdgeInsets.only(right: index == bookings.length - 1 ? 0 : AppColors.space12),
+                  padding: EdgeInsets.only(right: index == bookings.length - 1 ? 0 : AppSpacing.space12),
                   child: JobCard(
                     booking: bookings[index],
                     onAccept: () {},

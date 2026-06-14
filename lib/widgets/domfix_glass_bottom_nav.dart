@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_styles.dart';
 
 /// Premium floating glass bottom navigation bar.
 /// Inspired by Arc browser, Tesla app, and modern iOS design language.
@@ -53,15 +54,8 @@ class DomfixGlassBottomNav extends StatelessWidget {
     ];
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: AppStyles.bottomNavDecoration.copyWith(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.neonAccent.withValues(alpha: 0.05),
-            blurRadius: 24,
-            offset: const Offset(0, -4),
-          ),
-        ],
       ),
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -69,11 +63,11 @@ class DomfixGlassBottomNav extends StatelessWidget {
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF101419).withValues(alpha: 0.60),
+              color: AppColors.surface.withValues(alpha: 0.85), // Cleaner than glass
               borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
               border: Border(
                 top: BorderSide(
-                  color: Colors.white.withValues(alpha: 0.05),
+                  color: AppColors.divider,
                   width: 1,
                 ),
               ),
@@ -138,7 +132,7 @@ class _GlassNavTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final activeColor = AppColors.neonAccent;
-    final inactiveColor = const Color(0xFFE0E2EA).withValues(alpha: 0.50);
+    final inactiveColor = AppColors.onSurface.withValues(alpha: 0.50);
     final color = selected ? activeColor : inactiveColor;
 
     return GestureDetector(
@@ -183,7 +177,7 @@ class _GlassNavTab extends StatelessWidget {
                         color: AppColors.emergency,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: const Color(0xFF101419),
+                          color: AppColors.surface,
                           width: 1.5,
                         ),
                       ),
@@ -208,10 +202,8 @@ class _GlassNavTab extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               item.label,
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                letterSpacing: 0.02,
+              style: AppStyles.caption.copyWith(
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                 color: color,
               ),
             ),

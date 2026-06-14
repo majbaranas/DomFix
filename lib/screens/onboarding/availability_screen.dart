@@ -110,8 +110,8 @@ class AvailabilityScreenState extends State<AvailabilityScreen>
       data: Theme.of(ctx).copyWith(
         colorScheme: ColorScheme.dark(
           primary: AppColors.primaryContainer,
-          onPrimary: const Color(0xFF2B3400),
-          surface: const Color(0xFF1C2025),
+          onPrimary: AppColors.onPrimary,
+          surface: AppColors.surfaceContainer,
           onSurface: AppColors.onSurface,
         ),
       ),
@@ -220,7 +220,7 @@ class AvailabilityScreenState extends State<AvailabilityScreen>
         color: const Color(0xFF181C21),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFF454932).withValues(alpha: 0.3), width: 1),
+          color: AppColors.outlineVariant.withValues(alpha: 0.3), width: 1),
       ),
       child: Column(
         children: [
@@ -233,7 +233,7 @@ class AvailabilityScreenState extends State<AvailabilityScreen>
                     Text('Active Status',
                       style: GoogleFonts.inter(color: AppColors.onSurface,
                         fontSize: 16, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text('Allow clients to find you now',
                       style: GoogleFonts.inter(
                         color: AppColors.onSurfaceVariant, fontSize: 13)),
@@ -271,7 +271,7 @@ class AvailabilityScreenState extends State<AvailabilityScreen>
                         shape: BoxShape.circle,
                         color: _isAvailable
                             ? const Color(0xFF181E00)
-                            : Colors.white.withValues(alpha: 0.6),
+                            : AppColors.onSurfaceVariant,
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.2),
@@ -285,7 +285,7 @@ class AvailabilityScreenState extends State<AvailabilityScreen>
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           Row(
             children: [
               Container(
@@ -303,7 +303,7 @@ class AvailabilityScreenState extends State<AvailabilityScreen>
                   ] : [],
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Text(
                 _isAvailable ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE',
                 style: GoogleFonts.spaceGrotesk(
@@ -351,7 +351,7 @@ class AvailabilityScreenState extends State<AvailabilityScreen>
                   border: Border.all(
                     color: selected
                         ? AppColors.primaryContainer
-                        : const Color(0xFF454932).withValues(alpha: 0.4),
+                        : AppColors.outlineVariant.withValues(alpha: 0.4),
                     width: 1.5,
                   ),
                   boxShadow: selected ? [
@@ -403,16 +403,16 @@ class AvailabilityScreenState extends State<AvailabilityScreen>
             color: AppColors.onSurfaceVariant, fontSize: 10,
             fontWeight: FontWeight.w700, letterSpacing: 1.5,
           )),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         GestureDetector(
           onTap: () => _pickTime(isStart: isStart),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: const Color(0xFF1C2025),
+              color: AppColors.surfaceContainer,
               borderRadius: BorderRadius.circular(12),
-              border: const Border(
-                bottom: BorderSide(color: Color(0xFF454932), width: 2),
+              border: Border(
+                bottom: BorderSide(color: AppColors.outlineVariant, width: 2),
               ),
             ),
             child: Row(
@@ -444,7 +444,7 @@ class AvailabilityScreenState extends State<AvailabilityScreen>
             color: AppColors.onSurfaceVariant, fontSize: 10,
             fontWeight: FontWeight.w700, letterSpacing: 2,
           )),
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
 
         // Map placeholder + detect button
         ClipRRect(
@@ -489,9 +489,9 @@ class AvailabilityScreenState extends State<AvailabilityScreen>
                             width: 30,
                             height: 30,
                             alignment: Alignment.center,
-                            child: const Icon(
+                            child: Icon(
                               Icons.location_on,
-                              color: Color(0xFFD9FF00),
+                              color: AppColors.neonAccent,
                               size: 30,
                             ),
                           ),
@@ -538,22 +538,22 @@ class AvailabilityScreenState extends State<AvailabilityScreen>
                           ],
                         ),
                         child: _detectingLocation
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 20, height: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2.5,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                      Color(0xFF101419)),
+                                      AppColors.surface),
                                 ))
                             : Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.my_location,
-                                      color: Color(0xFF101419), size: 18),
+                                  Icon(Icons.my_location,
+                                      color: AppColors.surface, size: 18),
                                   const SizedBox(width: 8),
                                   Text('Detect Current Location',
                                     style: GoogleFonts.inter(
-                                      color: const Color(0xFF101419),
+                                      color: AppColors.surface,
                                       fontWeight: FontWeight.w700,
                                       fontSize: 13,
                                     )),
@@ -571,7 +571,7 @@ class AvailabilityScreenState extends State<AvailabilityScreen>
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1C2025),
+                          color: AppColors.surfaceContainer,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
@@ -581,7 +581,7 @@ class AvailabilityScreenState extends State<AvailabilityScreen>
                           ],
                         ),
                         child: _detectingLocation
-                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5, valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD9FF00))))
+                           ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5, valueColor: AlwaysStoppedAnimation<Color>(AppColors.neonAccent)))
                            : const Icon(Icons.my_location, color: Colors.white, size: 20),
                       ),
                     ),
@@ -627,7 +627,7 @@ class _MapGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFFD9FF00).withValues(alpha: 0.06)
+      ..color = AppColors.neonAccent.withValues(alpha: 0.06)
       ..strokeWidth = 1;
 
     const spacing = 24.0;
@@ -640,18 +640,18 @@ class _MapGridPainter extends CustomPainter {
 
     // Center circle
     final circlePaint = Paint()
-      ..color = const Color(0xFFD9FF00).withValues(alpha: 0.15)
+      ..color = AppColors.neonAccent.withValues(alpha: 0.15)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     final center = Offset(size.width / 2, size.height / 2);
     canvas.drawCircle(center, 50, circlePaint);
     canvas.drawCircle(center, 80, circlePaint
-      ..color = const Color(0xFFD9FF00).withValues(alpha: 0.07));
+      ..color = AppColors.neonAccent.withValues(alpha: 0.07));
 
     // Center dot
     canvas.drawCircle(
       center, 5,
-      Paint()..color = const Color(0xFFD9FF00).withValues(alpha: 0.8),
+      Paint()..color = AppColors.neonAccent.withValues(alpha: 0.8),
     );
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 
 class PerformanceRing extends StatefulWidget {
   final double completionRate;
@@ -40,7 +41,7 @@ class _PerformanceRingState extends State<PerformanceRing> with SingleTickerProv
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space20),
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -51,10 +52,10 @@ class _PerformanceRingState extends State<PerformanceRing> with SingleTickerProv
               AppColors.surfaceContainer.withValues(alpha: 0.4),
             ],
           ),
-          borderRadius: BorderRadius.circular(AppColors.radiusLarge),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
           border: Border.all(color: AppColors.divider),
         ),
-        padding: const EdgeInsets.all(AppColors.space20),
+        padding: const EdgeInsets.all(AppSpacing.space20),
         child: Column(
           children: [
             Text(
@@ -65,7 +66,7 @@ class _PerformanceRingState extends State<PerformanceRing> with SingleTickerProv
                 color: AppColors.onSurface,
               ),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             // Circular progress indicator
             Center(
               child: SizedBox(
@@ -118,7 +119,7 @@ class _PerformanceRingState extends State<PerformanceRing> with SingleTickerProv
                             );
                           },
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Text(
                           'Completed',
                           style: GoogleFonts.inter(
@@ -132,7 +133,7 @@ class _PerformanceRingState extends State<PerformanceRing> with SingleTickerProv
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
 
             // Stats row
             Row(
@@ -185,7 +186,7 @@ class _StatColumn extends StatelessWidget {
             icon,
             style: const TextStyle(fontSize: 18),
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -207,7 +208,7 @@ class _StatColumn extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
             label,
             style: GoogleFonts.inter(

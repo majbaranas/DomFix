@@ -177,7 +177,7 @@ class _SplashScreenState extends State<SplashScreen>
             color: AppColors.onSurface,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Text(
           'INTELLIGENCE • CONTROL • TRUST',
           style: GoogleFonts.inter(
@@ -244,7 +244,7 @@ class _SplashScreenState extends State<SplashScreen>
               color: AppColors.onSurface.withValues(alpha: 0.3),
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(

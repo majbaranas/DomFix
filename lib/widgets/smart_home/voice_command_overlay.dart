@@ -89,7 +89,7 @@ class _VoiceCommandOverlayState extends State<VoiceCommandOverlay> with SingleTi
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             // Pulsing Mic
             AnimatedBuilder(
               animation: _pulseController,
@@ -137,7 +137,7 @@ class _VoiceCommandOverlayState extends State<VoiceCommandOverlay> with SingleTi
                 );
               },
             ),
-            const SizedBox(height: 48),
+            SizedBox(height: 48),
             // Transcription
             Text(
               _transcription,
@@ -149,7 +149,7 @@ class _VoiceCommandOverlayState extends State<VoiceCommandOverlay> with SingleTi
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             // Feedback
             AnimatedOpacity(
               duration: const Duration(milliseconds: 300),

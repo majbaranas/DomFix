@@ -1,4 +1,3 @@
-import 'dart:math' show sin, pi;
 import 'dart:ui' show ImageFilter;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/user_device.dart';
 import '../services/chat_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme_manager.dart';
 import '../widgets/notification_panel.dart';
 import '../widgets/scroll_reveal.dart';
 import 'chat_screen.dart';
@@ -207,7 +207,7 @@ class _HomeScreenContentState extends State<HomeScreenContent>
           padding: EdgeInsets.fromLTRB(
               24, MediaQuery.of(context).padding.top + 16, 24, 16),
           decoration: BoxDecoration(
-            color: AppColors.surface.withValues(alpha: 0.7),
+            color: AppThemeManager.instance.isDarkMode ? AppColors.surface.withValues(alpha: 0.7) : AppColors.background.withValues(alpha: 0.9),
             border: Border(
               bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
             ),

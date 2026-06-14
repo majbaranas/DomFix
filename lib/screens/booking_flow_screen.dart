@@ -638,7 +638,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: 2),
                 Text(
                   'Step ${_currentStep + 1} of $_totalSteps · ${_stepLabels[_currentStep]}',
                   style: GoogleFonts.inter(
@@ -662,12 +662,12 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                 Container(
                   width: 7,
                   height: 7,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.success,
                     shape: BoxShape.circle,
                   ),
                 ),
-                const SizedBox(width: 6),
+                SizedBox(width: 6),
                 Text(
                   widget.replyTime,
                   style: GoogleFonts.inter(
@@ -731,7 +731,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                   else
                     Icon(_stepIcons[index], size: 16, color: color),
                   if (isActive) ...[
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     Text(
                       _stepLabels[index],
                       style: GoogleFonts.inter(
@@ -787,7 +787,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             flex: 2,
             child: GestureDetector(
@@ -817,7 +817,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                 ),
                 child: Center(
                   child: _isSubmitting
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
@@ -946,7 +946,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                                 color: tint,
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.check,
                                 size: 14,
                                 color: AppColors.onPrimary,
@@ -968,7 +968,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                               color: AppColors.onSurface,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4),
                           Text(
                             _estimatedDurationForService(service),
                             style: GoogleFonts.inter(
@@ -1082,7 +1082,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                                 : AppColors.onSurfaceVariant,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Text(
                           '${date.day}',
                           style: GoogleFonts.spaceGrotesk(
@@ -1112,7 +1112,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
               },
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
 
           // ─── Availability Badge ─────────────────────────
           Container(
@@ -1134,7 +1134,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                     shape: BoxShape.circle,
                   ),
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Text(
                   _isLoadingSlots
                       ? 'Checking availability...'
@@ -1171,7 +1171,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
           const SizedBox(height: 10),
 
           if (_isLoadingSlots)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 24),
               child: Center(
                 child: CircularProgressIndicator(
@@ -1240,7 +1240,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                                     : AppColors.onSurface,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Text(
                           disabled
                               ? (booked ? 'Booked' : 'Past')
@@ -1287,7 +1287,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
               color: AppColors.onSurface,
             ),
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Text(
             'Try another day to see more availability.',
             style: GoogleFonts.inter(
@@ -1319,13 +1319,13 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                   color: AppColors.emergency.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.event_busy_rounded,
                   color: AppColors.emergency,
                   size: 28,
                 ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               Text(
                 'Time Slot Unavailable',
                 style: GoogleFonts.spaceGrotesk(
@@ -1334,7 +1334,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                   color: AppColors.onSurface,
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Text(
                 isBooked
                     ? 'This time slot is already reserved. Please choose another available time.'
@@ -1396,7 +1396,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
             subtitle:
                 'Provide a clear description so the technician can prepare for the job.',
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           Container(
             decoration: BoxDecoration(
               color: AppColors.surface,
@@ -1428,7 +1428,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
               ),
             ),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           Row(
             children: [
               if (hasError)
@@ -1485,7 +1485,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
             subtitle:
                 'Add photos of the issue to help the technician come prepared. This step is optional.',
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1507,7 +1507,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           if (_selectedImages.isEmpty)
             GestureDetector(
               onTap: _showImageSourcePicker,
@@ -1532,7 +1532,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                         color: AppColors.neonAccent.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.add_a_photo_rounded,
                         color: AppColors.neonAccent,
                         size: 28,
@@ -1592,7 +1592,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                                         .withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.add_photo_alternate_outlined,
                                     color: AppColors.neonAccent,
                                   ),
@@ -1626,7 +1626,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                                 width: 130,
                                 height: 130,
                                 color: AppColors.surfaceContainerHigh,
-                                child: const Icon(
+                                child: Icon(
                                   Icons.image_not_supported_outlined,
                                   color: AppColors.onSurfaceVariant,
                                 ),
@@ -1693,7 +1693,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   Widget _buildStep5Priority() {
-    const priorities = [
+    final priorities = [
       _PriorityOption(
         label: 'Low',
         icon: Icons.arrow_downward_rounded,
@@ -1777,7 +1777,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                           size: 24,
                         ),
                       ),
-                      const SizedBox(width: 14),
+                      SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1790,7 +1790,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                                 color: AppColors.onSurface,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            SizedBox(height: 4),
                             Text(
                               priority.description,
                               style: GoogleFonts.inter(
@@ -1847,7 +1847,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
             subtitle:
                 'Transparent pricing is shown before confirmation so the booking feels clear and trustworthy.',
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
 
           // ─── Main Price Card ────────────────────────────
           Container(
@@ -1877,12 +1877,12 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                         color: AppColors.neonAccent.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.payments_outlined,
                         color: AppColors.neonAccent,
                       ),
                     ),
-                    const SizedBox(width: 14),
+                    SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1998,7 +1998,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
             subtitle:
                 'This is your final check before sending the booking request.',
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
 
           // ─── Technician Card ────────────────────────────
           Container(
@@ -2067,7 +2067,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                               );
                             }
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4),
                           Text(
                             widget.technicianRole,
                             style: GoogleFonts.inter(
@@ -2090,12 +2090,12 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.star_rounded,
                             size: 14,
                             color: AppColors.neonAccent,
                           ),
-                          const SizedBox(width: 4),
+                          SizedBox(width: 4),
                           Text(
                             widget.technicianRating.toStringAsFixed(1),
                             style: GoogleFonts.inter(
@@ -2190,14 +2190,14 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                   color: AppColors.success.withValues(alpha: 0.2),
                 ),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.check_rounded,
                 size: 56,
                 color: AppColors.success,
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
 
           Text(
             'Booking request sent!',
@@ -2208,7 +2208,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
               color: AppColors.onSurface,
             ),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           Text(
             'Full chat is unlocked. You can share photos, send voice notes, and stay in real-time contact with ${widget.technicianName}.',
             textAlign: TextAlign.center,
@@ -2294,7 +2294,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: GestureDetector(
                   onTap: () => Navigator.pop(context),
@@ -2380,7 +2380,7 @@ class _SectionHeader extends StatelessWidget {
             color: AppColors.onSurface,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Text(
           subtitle,
           style: GoogleFonts.inter(
@@ -2411,7 +2411,7 @@ class _EstimateRow extends StatelessWidget {
     return Row(
       children: [
         Icon(icon, size: 18, color: AppColors.onSurfaceVariant),
-        const SizedBox(width: 10),
+        SizedBox(width: 10),
         Expanded(
           child: Text(
             label,
@@ -2446,7 +2446,7 @@ class _SummaryLine extends StatelessWidget {
     return Row(
       children: [
         Icon(icon, size: 16, color: AppColors.neonAccent),
-        const SizedBox(width: 8),
+        SizedBox(width: 8),
         Expanded(
           child: Text(
             label,
@@ -2500,7 +2500,7 @@ class _ReviewRow extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: 4),
         Text(
           value,
           style: GoogleFonts.inter(
@@ -2569,7 +2569,7 @@ class _ImageSourceSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           Text(
             'Add Photo',
             style: GoogleFonts.spaceGrotesk(
@@ -2578,7 +2578,7 @@ class _ImageSourceSheet extends StatelessWidget {
               color: AppColors.onSurface,
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
             '$maxRemaining ${maxRemaining == 1 ? 'photo' : 'photos'} remaining',
             style: GoogleFonts.inter(
@@ -2608,7 +2608,7 @@ class _ImageSourceSheet extends StatelessWidget {
                             color: AppColors.neonAccent.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.camera_alt_rounded,
                             color: AppColors.neonAccent,
                           ),
@@ -2648,7 +2648,7 @@ class _ImageSourceSheet extends StatelessWidget {
                                 .withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.photo_library_rounded,
                             color: AppColors.mediumPriority,
                           ),

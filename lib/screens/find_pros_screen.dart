@@ -157,7 +157,7 @@ class _FindProsScreenState extends State<FindProsScreen> with TickerProviderStat
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Text(
                 'DOMFIX',
                 style: GoogleFonts.spaceGrotesk(
@@ -250,7 +250,7 @@ class _FindProsScreenState extends State<FindProsScreen> with TickerProviderStat
                 color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               'Find Pros',
               style: GoogleFonts.spaceGrotesk(
@@ -467,7 +467,7 @@ class _FindProsScreenState extends State<FindProsScreen> with TickerProviderStat
               );
             }).toList(),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           // Name
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -483,7 +483,7 @@ class _FindProsScreenState extends State<FindProsScreen> with TickerProviderStat
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               LiveStatusBadge(status: profile.liveStatus),
             ],
           ),
@@ -653,7 +653,7 @@ class _FindProsScreenState extends State<FindProsScreen> with TickerProviderStat
             ),
           ],
         ),
-        const SizedBox(width: 32),
+        SizedBox(width: 32),
         Row(
           children: [
             Text(
@@ -725,7 +725,7 @@ class _FindProsScreenState extends State<FindProsScreen> with TickerProviderStat
                   : AppColors.onSurfaceVariant.withValues(alpha: 0.5),
               size: 24,
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               label,
               style: GoogleFonts.inter(

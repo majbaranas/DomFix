@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 
 class EarningsCard extends StatefulWidget {
   final double todayEarnings;
@@ -39,7 +40,7 @@ class _EarningsCardState extends State<EarningsCard> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space20),
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -50,7 +51,7 @@ class _EarningsCardState extends State<EarningsCard> with SingleTickerProviderSt
               AppColors.neonAccent.withValues(alpha: 0.04),
             ],
           ),
-          borderRadius: BorderRadius.circular(AppColors.radiusLarge),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
           border: Border.all(
             color: AppColors.neonAccent.withValues(alpha: 0.25),
             width: 1.5,
@@ -64,7 +65,7 @@ class _EarningsCardState extends State<EarningsCard> with SingleTickerProviderSt
             ),
           ],
         ),
-        padding: const EdgeInsets.all(AppColors.space20),
+        padding: const EdgeInsets.all(AppSpacing.space20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -84,7 +85,7 @@ class _EarningsCardState extends State<EarningsCard> with SingleTickerProviderSt
                         letterSpacing: 0.5,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Row(
                       children: [
                         Text(
@@ -128,7 +129,7 @@ class _EarningsCardState extends State<EarningsCard> with SingleTickerProviderSt
               ],
             ),
 
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
 
             // Weekly comparison
             Row(
@@ -140,7 +141,7 @@ class _EarningsCardState extends State<EarningsCard> with SingleTickerProviderSt
                     icon: '📊',
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: _EarningsComparison(
                     label: 'Projected',
@@ -212,7 +213,7 @@ class _EarningsComparison extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.surfaceContainer.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(AppColors.radiusMedium),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
         border: Border.all(color: AppColors.divider),
       ),
       child: Column(
@@ -222,7 +223,7 @@ class _EarningsComparison extends StatelessWidget {
             icon,
             style: const TextStyle(fontSize: 16),
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Text(
             label,
             style: GoogleFonts.inter(
@@ -231,7 +232,7 @@ class _EarningsComparison extends StatelessWidget {
               color: AppColors.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           TweenAnimationBuilder<double>(
             tween: Tween(begin: 0, end: amount),
             duration: const Duration(milliseconds: 1200),

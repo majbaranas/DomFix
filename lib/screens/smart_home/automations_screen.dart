@@ -16,7 +16,7 @@ class AutomationsScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.onSurface),
+        iconTheme: IconThemeData(color: AppColors.onSurface),
         title: Text(
           'Automations',
           style: GoogleFonts.spaceGrotesk(
@@ -29,7 +29,7 @@ class AutomationsScreen extends StatelessWidget {
         stream: AutomationService.instance.getRules(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
+            return Center(
               child: CircularProgressIndicator(color: AppColors.neonAccent),
             );
           }
@@ -64,7 +64,7 @@ class AutomationsScreen extends StatelessWidget {
           );
         },
         backgroundColor: AppColors.neonAccent,
-        child: const Icon(Icons.add_rounded, color: AppColors.onPrimary),
+        child: Icon(Icons.add_rounded, color: AppColors.onPrimary),
       ),
     );
   }
@@ -107,9 +107,9 @@ class _AutomationCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           _buildConditionRow(),
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 8),
             child: Icon(Icons.arrow_downward_rounded, size: 16, color: AppColors.onSurfaceVariant),
           ),
@@ -129,7 +129,7 @@ class _AutomationCard extends StatelessWidget {
       child: Row(
         children: [
           const Icon(Icons.sensor_door_outlined, size: 20, color: Colors.orangeAccent),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Text(
               'IF ${rule.condition.attribute} ${rule.condition.operator.name} ${rule.condition.targetValue}',
@@ -154,8 +154,8 @@ class _AutomationCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.flash_on_rounded, size: 20, color: AppColors.neonAccent),
-          const SizedBox(width: 12),
+          Icon(Icons.flash_on_rounded, size: 20, color: AppColors.neonAccent),
+          SizedBox(width: 12),
           Expanded(
             child: Text(
               'THEN Set ${rule.action.attribute} to ${rule.action.value}',

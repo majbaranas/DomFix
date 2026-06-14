@@ -110,7 +110,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         // Waveform placeholder and duration
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -132,7 +132,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                 ),
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             // Duration
             Text(
               _isPlaying 

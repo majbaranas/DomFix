@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../services/technician_location_service.dart';
 
 class LiveMapWidget extends StatefulWidget {
@@ -43,12 +44,12 @@ class _LiveMapWidgetState extends State<LiveMapWidget> with SingleTickerProvider
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space20),
       child: GestureDetector(
         onTap: widget.onMapTap,
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppColors.radiusLarge),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
             border: Border.all(color: AppColors.neonAccent.withValues(alpha: 0.2)),
             boxShadow: [
               BoxShadow(
@@ -105,7 +106,7 @@ class _LiveMapWidgetState extends State<LiveMapWidget> with SingleTickerProvider
                                       ),
                                     ],
                                   ),
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.location_on,
                                     color: AppColors.onPrimary,
                                     size: 20,
@@ -177,7 +178,7 @@ class _LiveMapWidgetState extends State<LiveMapWidget> with SingleTickerProvider
                 left: 0,
                 right: 0,
                 child: Container(
-                  padding: const EdgeInsets.all(AppColors.space16),
+                  padding: const EdgeInsets.all(AppSpacing.space16),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
@@ -232,7 +233,7 @@ class _LiveMapWidgetState extends State<LiveMapWidget> with SingleTickerProvider
                 left: 0,
                 right: 0,
                 child: Container(
-                  padding: const EdgeInsets.all(AppColors.space16),
+                  padding: const EdgeInsets.all(AppSpacing.space16),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.bottomCenter,
@@ -246,7 +247,7 @@ class _LiveMapWidgetState extends State<LiveMapWidget> with SingleTickerProvider
                   child: Row(
                     children: [
                       Icon(Icons.location_on_rounded, color: AppColors.neonAccent, size: 18),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'Tap to view all nearby requests',

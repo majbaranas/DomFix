@@ -79,13 +79,13 @@ class _DashboardSkeletonState extends State<DashboardSkeleton> with SingleTicker
             Row(
               children: [
                 _buildShimmerBox(56, 56),
-                const SizedBox(width: 16),
+                SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildShimmerBox(120, 14),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       _buildShimmerBox(180, 24),
                     ],
                   ),

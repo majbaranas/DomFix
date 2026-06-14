@@ -261,7 +261,7 @@ class ProfessionalIdentityScreenState
             letterSpacing: -0.5,
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Text(
           'This is how clients will see you. Make it count.',
           style: GoogleFonts.inter(
@@ -294,7 +294,7 @@ class ProfessionalIdentityScreenState
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Text(
           'UPLOAD PROFESSIONAL PORTRAIT',
           style: GoogleFonts.inter(
@@ -306,11 +306,11 @@ class ProfessionalIdentityScreenState
         ),
         if (_photoUploadState == _UploadState.error &&
             _photoErrorMessage != null) ...[
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Text(
             _photoErrorMessage!,
             style: GoogleFonts.inter(
-              color: const Color(0xFFFFB4AB),
+              color: AppColors.error,
               fontSize: 11,
             ),
             textAlign: TextAlign.center,
@@ -357,11 +357,11 @@ class ProfessionalIdentityScreenState
       case _UploadState.success:
         return AppColors.primaryContainer;
       case _UploadState.error:
-        return const Color(0xFFFFB4AB);
+        return AppColors.error;
       case _UploadState.uploading:
         return AppColors.primaryContainer.withValues(alpha: 0.5);
       case _UploadState.idle:
-        return const Color(0xFF454932);
+        return AppColors.outlineVariant;
     }
   }
 
@@ -374,14 +374,14 @@ class ProfessionalIdentityScreenState
           if (_photoUploadState == _UploadState.uploading)
             Container(
               color: Colors.black.withValues(alpha: 0.55),
-              child: const Center(
+              child: Center(
                 child: SizedBox(
                   width: 30,
                   height: 30,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.5,
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      Color(0xFFD9FF00),
+                      AppColors.neonAccent,
                     ),
                   ),
                 ),
@@ -397,7 +397,7 @@ class ProfessionalIdentityScreenState
                   color: AppColors.primaryContainer,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check, size: 12, color: Color(0xFF2B3400)),
+                child: Icon(Icons.check, size: 12, color: AppColors.onPrimary),
               ),
             ),
         ],
@@ -412,14 +412,14 @@ class ProfessionalIdentityScreenState
           Icons.add_a_photo_outlined,
           size: 34,
           color: _photoUploadState == _UploadState.error
-              ? const Color(0xFFFFB4AB)
-              : const Color(0xFF8F9378),
+              ? AppColors.error
+              : AppColors.outline,
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: 6),
         Text(
           'ADD PHOTO',
           style: GoogleFonts.spaceGrotesk(
-            color: const Color(0xFF8F9378),
+            color: AppColors.outline,
             fontSize: 9,
             fontWeight: FontWeight.w600,
             letterSpacing: 1.5,
@@ -444,7 +444,7 @@ class ProfessionalIdentityScreenState
           ),
         ],
       ),
-      child: const Icon(Icons.edit, size: 14, color: Color(0xFF2B3400)),
+      child: Icon(Icons.edit, size: 14, color: AppColors.onPrimary),
     );
   }
 
@@ -533,7 +533,7 @@ class ProfessionalIdentityScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(Icons.info_outline, color: AppColors.primaryContainer, size: 20),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -604,7 +604,7 @@ class _DomfixTextField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         labelStyle: GoogleFonts.spaceGrotesk(
-          color: const Color(0xFF8F9378),
+          color: AppColors.outline,
           fontSize: 11,
           fontWeight: FontWeight.w600,
           letterSpacing: 1.8,
@@ -626,14 +626,14 @@ class _DomfixTextField extends StatelessWidget {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFFFB4AB), width: 1.5),
+          borderSide: BorderSide(color: AppColors.error, width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFFFB4AB), width: 2),
+          borderSide: BorderSide(color: AppColors.error, width: 2),
         ),
         errorStyle: GoogleFonts.inter(
-          color: const Color(0xFFFFB4AB),
+          color: AppColors.error,
           fontSize: 11,
         ),
         filled: true,
@@ -681,7 +681,7 @@ class _DomfixTextArea extends StatelessWidget {
               labelText: 'SHORT BIO',
               alignLabelWithHint: true,
               labelStyle: GoogleFonts.spaceGrotesk(
-                color: const Color(0xFF8F9378),
+                color: AppColors.outline,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.8,
@@ -699,13 +699,13 @@ class _DomfixTextArea extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: 4),
         Text(
           '$charCount/$maxChars CHARACTERS',
           style: GoogleFonts.inter(
             color: charCount >= maxChars
-                ? const Color(0xFFFFB4AB)
-                : const Color(0xFF8F9378),
+                ? AppColors.error
+                : AppColors.outline,
             fontSize: 10,
             fontWeight: FontWeight.w500,
             letterSpacing: 1,
@@ -736,8 +736,8 @@ class _ImageSourceSheet extends StatelessWidget {
         bottom: MediaQuery.of(context).padding.bottom + 16,
         top: 8,
       ),
-      decoration: const BoxDecoration(
-        color: Color(0xFF1C2025),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(24),
           topRight: Radius.circular(24),
@@ -752,7 +752,7 @@ class _ImageSourceSheet extends StatelessWidget {
             height: 4,
             margin: const EdgeInsets.only(bottom: 20),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
+              color: AppColors.glassHighlight,
               borderRadius: BorderRadius.circular(99),
             ),
           ),
@@ -810,7 +810,7 @@ class _SheetOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = isDestructive
-        ? const Color(0xFFFFB4AB)
+        ? AppColors.error
         : AppColors.onSurface;
 
     return InkWell(

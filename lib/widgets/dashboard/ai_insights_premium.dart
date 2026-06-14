@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../models/dashboard_metrics.dart';
 
 class AIInsightsPremium extends StatefulWidget {
@@ -40,7 +41,7 @@ class _AIInsightsPremiumState extends State<AIInsightsPremium> with SingleTicker
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space20),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -71,9 +72,9 @@ class _AIInsightsPremiumState extends State<AIInsightsPremium> with SingleTicker
             ],
           ),
         ),
-        const SizedBox(height: AppColors.space12),
+        const SizedBox(height: AppSpacing.space12),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space20),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -81,7 +82,7 @@ class _AIInsightsPremiumState extends State<AIInsightsPremium> with SingleTicker
                 widget.insights.length,
                 (index) => Padding(
                   padding: EdgeInsets.only(
-                    right: index == widget.insights.length - 1 ? 0 : AppColors.space12,
+                    right: index == widget.insights.length - 1 ? 0 : AppSpacing.space12,
                   ),
                   child: _AIInsightCard(
                     insight: widget.insights[index],
@@ -161,7 +162,7 @@ class _AIInsightCardState extends State<_AIInsightCard> {
               _getInsightColor().withValues(alpha: 0.04),
             ],
           ),
-          borderRadius: BorderRadius.circular(AppColors.radiusMedium),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
           border: Border.all(
             color: _getInsightColor().withValues(alpha: 0.25),
           ),
@@ -173,7 +174,7 @@ class _AIInsightCardState extends State<_AIInsightCard> {
             ),
           ],
         ),
-        padding: const EdgeInsets.all(AppColors.space12),
+        padding: const EdgeInsets.all(AppSpacing.space12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -192,7 +193,7 @@ class _AIInsightCardState extends State<_AIInsightCard> {
                     style: const TextStyle(fontSize: 16),
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     widget.insight.title,
@@ -207,7 +208,7 @@ class _AIInsightCardState extends State<_AIInsightCard> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
 
             // Description
             Text(

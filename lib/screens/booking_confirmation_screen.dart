@@ -90,10 +90,10 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen>
                       color: AppColors.onSurface,
                     ),
                   ),
-                  const SizedBox(width: 48),
+                  SizedBox(width: 48),
                 ],
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
               Expanded(
                 child: FadeTransition(
                   opacity: _fade,
@@ -115,7 +115,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen>
                                     .withValues(alpha: 0.2),
                               ),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.check_rounded,
                               size: 72,
                               color: AppColors.neonAccent,
@@ -309,7 +309,7 @@ class _BookingStatusTracker extends StatelessWidget {
                   color: AppColors.emergency,
                   size: 22,
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     _statusLabels[currentStatus] ?? currentStatus,
@@ -385,7 +385,7 @@ class _BookingStatusTracker extends StatelessWidget {
                                     .withValues(alpha: 0.3),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        SizedBox(width: 12),
                         Text(
                           _statusLabels[step] ?? step,
                           style: GoogleFonts.inter(
@@ -477,12 +477,12 @@ class _InfoCard extends StatelessWidget {
                   color: AppColors.neonAccent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.chat_bubble_outline_rounded,
                   color: AppColors.neonAccent,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -495,7 +495,7 @@ class _InfoCard extends StatelessWidget {
                         color: AppColors.onSurface,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text(
                       'Conversation unlocked for service coordination',
                       style: GoogleFonts.inter(

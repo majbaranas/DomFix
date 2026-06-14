@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../models/dashboard_metrics.dart';
 
 class AIInsightCard extends StatelessWidget {
@@ -16,10 +17,10 @@ class AIInsightCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppColors.radiusMedium),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
         border: Border.all(color: AppColors.divider),
       ),
-      padding: const EdgeInsets.all(AppColors.space16),
+      padding: const EdgeInsets.all(AppSpacing.space16),
       child: Row(
         children: [
           Container(
@@ -36,7 +37,7 @@ class AIInsightCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: AppColors.space12),
+          SizedBox(width: AppSpacing.space12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -49,7 +50,7 @@ class AIInsightCard extends StatelessWidget {
                     color: AppColors.onSurface,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   insight.description,
                   style: GoogleFonts.inter(
@@ -65,7 +66,7 @@ class AIInsightCard extends StatelessWidget {
           ),
           if (insight.metric != null)
             Padding(
-              padding: const EdgeInsets.only(left: AppColors.space8),
+              padding: const EdgeInsets.only(left: AppSpacing.space8),
               child: Text(
                 '+${insight.metric!.toStringAsFixed(0)}%',
                 style: GoogleFonts.spaceGrotesk(
@@ -99,7 +100,7 @@ class AIInsightsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space20),
           child: Row(
             children: [
               Text(
@@ -110,7 +111,7 @@ class AIInsightsSection extends StatelessWidget {
                   color: AppColors.onSurface,
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -129,15 +130,15 @@ class AIInsightsSection extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: AppColors.space12),
+        const SizedBox(height: AppSpacing.space12),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space20),
           child: Column(
             children: List.generate(
               insights.length,
               (index) => Padding(
                 padding: EdgeInsets.only(
-                  bottom: index == insights.length - 1 ? 0 : AppColors.space12,
+                  bottom: index == insights.length - 1 ? 0 : AppSpacing.space12,
                 ),
                 child: AIInsightCard(insight: insights[index]),
               ),

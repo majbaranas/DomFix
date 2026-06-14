@@ -75,7 +75,7 @@ class OnboardingPage1 extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Text(
           'Describe your home issue and let our intelligence find the fix.',
           textAlign: TextAlign.center,

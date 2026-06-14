@@ -119,13 +119,13 @@ class _ReviewRatingModalState extends State<ReviewRatingModal> with SingleTicker
                   shape: BoxShape.circle,
                   color: AppColors.neonAccent.withValues(alpha: 0.12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.check_circle_rounded,
                   color: AppColors.neonAccent,
                   size: 28,
                 ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               Text(
                 'Job Completed!',
                 style: GoogleFonts.spaceGrotesk(
@@ -134,7 +134,7 @@ class _ReviewRatingModalState extends State<ReviewRatingModal> with SingleTicker
                   color: AppColors.onSurface,
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Text(
                 'How was your experience with ${widget.booking.technicianName}?',
                 textAlign: TextAlign.center,
@@ -162,7 +162,7 @@ class _ReviewRatingModalState extends State<ReviewRatingModal> with SingleTicker
                 }),
               ),
               if (_rating > 0) ...[
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Text(
                   _getRatingText(_rating),
                   style: GoogleFonts.inter(
@@ -172,7 +172,7 @@ class _ReviewRatingModalState extends State<ReviewRatingModal> with SingleTicker
                   ),
                 ),
               ],
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
               TextField(
                 controller: _commentController,
                 enabled: !_submitting,
@@ -237,7 +237,6 @@ class _ReviewRatingModalState extends State<ReviewRatingModal> with SingleTicker
                                   width: 20,
                                   height: 20,
                                   child: CircularProgressIndicator(
-                                    color: AppColors.onPrimary,
                                     strokeWidth: 2,
                                   ),
                                 )

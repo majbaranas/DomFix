@@ -13,7 +13,7 @@ class SmartHomeSearchDelegate extends SearchDelegate<SmartDevice?> {
   ThemeData appBarTheme(BuildContext context) {
     return Theme.of(context).copyWith(
       scaffoldBackgroundColor: AppColors.background,
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: AppColors.background,
         elevation: 0,
         iconTheme: IconThemeData(color: AppColors.onSurface),
@@ -36,7 +36,7 @@ class SmartHomeSearchDelegate extends SearchDelegate<SmartDevice?> {
     return [
       if (query.isNotEmpty)
         IconButton(
-          icon: const Icon(Icons.clear_rounded, color: AppColors.onSurfaceVariant),
+          icon: Icon(Icons.clear_rounded, color: AppColors.onSurfaceVariant),
           onPressed: () {
             query = '';
             showSuggestions(context);
@@ -48,7 +48,7 @@ class SmartHomeSearchDelegate extends SearchDelegate<SmartDevice?> {
   @override
   Widget? buildLeading(BuildContext context) {
     return IconButton(
-      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.onSurface),
+      icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.onSurface),
       onPressed: () => close(context, null),
     );
   }

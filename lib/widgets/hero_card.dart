@@ -19,16 +19,16 @@ class HeroCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             begin: Alignment(-0.3, -1.0),
             end: Alignment(0.3, 1.0),
             colors: [
-              Color(0xFF1C2025),
-              Color(0xFF101419),
+              AppColors.surfaceContainer,
+              AppColors.surface,
             ],
           ),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          border: Border.all(color: AppColors.whiteBorder5),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.50),
@@ -125,7 +125,7 @@ class HeroCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.bolt, size: 14, color: AppColors.neonAccent),
-                        const SizedBox(width: 6),
+                        SizedBox(width: 6),
                         Text(
                           'AI DIAGNOSTICS',
                           style: GoogleFonts.inter(
@@ -138,7 +138,7 @@ class HeroCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   Text(
                     'Describe your issue',
                     style: GoogleFonts.spaceGrotesk(

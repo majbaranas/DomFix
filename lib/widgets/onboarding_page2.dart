@@ -75,7 +75,7 @@ class OnboardingPage2 extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Text(
           'Connect with certified pros in minutes. Simple, fast, reliable.',
           textAlign: TextAlign.center,

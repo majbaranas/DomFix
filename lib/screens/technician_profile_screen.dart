@@ -8,6 +8,8 @@ import '../services/technician_profile_service.dart';
 import '../models/review_model.dart';
 import '../models/technician_profile_model.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_styles.dart';
+import '../theme/app_spacing.dart';
 import '../widgets/live_status_badge.dart';
 import 'chat_screen.dart';
 import 'booking_flow_screen.dart';
@@ -109,7 +111,7 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
             children: [
               IconButton(icon: const Icon(Icons.arrow_back_rounded), color: AppColors.onSurface, onPressed: () => Navigator.pop(context)),
               const Spacer(),
-              Text('Profile', style: GoogleFonts.spaceGrotesk(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
+              Text('Profile', style: AppStyles.titleMedium.copyWith(fontSize: 16)),
               const Spacer(),
               IconButton(icon: const Icon(Icons.more_horiz_rounded), color: AppColors.onSurfaceVariant, onPressed: () {}),
             ],
@@ -173,12 +175,12 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
                 )),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(p.fullName, style: GoogleFonts.spaceGrotesk(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
-              const SizedBox(width: 8),
+              Text(p.fullName, style: AppStyles.titleLarge),
+              SizedBox(width: 8),
               LiveStatusBadge(status: p.liveStatus),
             ],
           ),
@@ -186,7 +188,7 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(p.primarySpecialty, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.onSurfaceVariant)),
+              Text(p.primarySpecialty, style: AppStyles.bodyMedium.copyWith(fontWeight: FontWeight.w500, color: AppColors.onSurfaceVariant)),
               if (p.profileCompletionScore >= 50) ...[
                 const SizedBox(width: 8),
                 _ProfileBadge(tier: p.profileTier, score: p.profileCompletionScore),
@@ -199,8 +201,8 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
             children: [
               Icon(Icons.star_rounded, size: 16, color: AppColors.neonAccent),
               const SizedBox(width: 4),
-              Text(p.rating.toStringAsFixed(1), style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
-              Text(' (${p.reviewCount})', style: GoogleFonts.inter(fontSize: 13, color: AppColors.onSurfaceVariant)),
+              Text(p.rating.toStringAsFixed(1), style: AppStyles.bodyMedium.copyWith(fontWeight: FontWeight.w700, color: AppColors.onSurface)),
+              Text(' (${p.reviewCount})', style: AppStyles.bodySmall.copyWith(color: AppColors.onSurfaceVariant)),
             ],
           ),
         ],
@@ -224,9 +226,9 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('About', style: GoogleFonts.spaceGrotesk(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
-        const SizedBox(height: 8),
-        Text(p.bio ?? 'Professional technician', style: GoogleFonts.inter(fontSize: 14, height: 1.6, color: AppColors.onSurfaceVariant)),
+        Text('About', style: AppStyles.titleMedium.copyWith(fontSize: 16)),
+        SizedBox(height: 8),
+        Text(p.bio ?? 'Professional technician', style: AppStyles.bodyMedium.copyWith(height: 1.6, color: AppColors.onSurfaceVariant)),
       ],
     );
   }
@@ -244,7 +246,7 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Recent Work', style: GoogleFonts.spaceGrotesk(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
+        Text('Recent Work', style: AppStyles.titleMedium.copyWith(fontSize: 16)),
         const SizedBox(height: 12),
         SizedBox(
           height: 160,
@@ -267,7 +269,7 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
                       Positioned(left: 0, right: 0, bottom: 0, child: Container(
                         padding: const EdgeInsets.fromLTRB(12, 24, 12, 10),
                         decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Color(0xCC000000)])),
-                        child: Text(photo.serviceName, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white)),
+                        child: Text(photo.serviceName, style: AppStyles.caption.copyWith(color: Colors.white)),
                       )),
                     ],
                   ),
@@ -284,13 +286,13 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Reviews', style: GoogleFonts.spaceGrotesk(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
-        const SizedBox(height: 12),
+        Text('Reviews', style: AppStyles.titleMedium.copyWith(fontSize: 16)),
+        SizedBox(height: 12),
         if (_reviews.isEmpty)
           Container(
             padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.divider)),
-            child: Center(child: Text('No reviews yet', style: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurfaceVariant))),
+            decoration: AppStyles.standardCardDecoration.copyWith(borderRadius: BorderRadius.circular(12)),
+            child: Center(child: Text('No reviews yet', style: AppStyles.bodyMedium.copyWith(color: AppColors.onSurfaceVariant))),
           )
         else
           ..._reviews.map((r) {
@@ -299,7 +301,7 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.divider)),
+              decoration: AppStyles.standardCardDecoration.copyWith(borderRadius: BorderRadius.circular(12)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -310,17 +312,17 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
                         child: ClipOval(child: r.clientPhotoUrl != null
                           ? Image.network(r.clientPhotoUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _reviewInitial(r.clientName ?? 'Anonymous'))
                           : _reviewInitial(r.clientName ?? 'Anonymous'))),
-                      const SizedBox(width: 10),
+                      SizedBox(width: 10),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(r.clientName ?? 'Anonymous', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
+                        Text(r.clientName ?? 'Anonymous', style: AppStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
                         Row(children: List.generate(5, (i) => Icon(i < r.rating ? Icons.star_rounded : Icons.star_outline_rounded, size: 12, color: AppColors.neonAccent))),
                       ])),
-                      if (timeAgo.isNotEmpty) Text(timeAgo, style: GoogleFonts.inter(fontSize: 11, color: AppColors.onSurfaceVariant)),
+                      if (timeAgo.isNotEmpty) Text(timeAgo, style: AppStyles.caption),
                     ],
                   ),
                   if (r.comment.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    Text('"${r.comment}"', style: GoogleFonts.inter(fontSize: 13, fontStyle: FontStyle.italic, height: 1.5, color: AppColors.onSurfaceVariant)),
+                    SizedBox(height: 10),
+                    Text('"${r.comment}"', style: AppStyles.bodyMedium.copyWith(fontStyle: FontStyle.italic, color: AppColors.onSurfaceVariant)),
                   ],
                 ],
               ),
@@ -350,8 +352,8 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
               onTap: _openingChat ? null : () => _openMessageChat(p),
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.divider)),
-                child: Center(child: Text('Message', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.onSurface))),
+                decoration: AppStyles.standardCardDecoration.copyWith(borderRadius: BorderRadius.circular(12)),
+                child: Center(child: Text('Message', style: AppStyles.buttonText.copyWith(color: AppColors.onSurface))),
               ),
             ),
           ),
@@ -389,7 +391,7 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 decoration: BoxDecoration(color: AppColors.neonAccent, borderRadius: BorderRadius.circular(12)),
-                child: Center(child: Text('Book Now', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.onPrimary))),
+                child: Center(child: Text('Book Now', style: AppStyles.buttonText)),
               ),
             ),
           ),
@@ -403,7 +405,7 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
     if (user == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Please sign in to message.', style: GoogleFonts.inter()), backgroundColor: AppColors.error),
+          SnackBar(content: Text('Please sign in to message.', style: AppStyles.bodyMedium), backgroundColor: AppColors.error),
         );
       }
       return;
@@ -446,9 +448,9 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
       Padding(padding: const EdgeInsets.all(8), child: Row(children: [
         IconButton(icon: const Icon(Icons.arrow_back_rounded), color: AppColors.onSurface, onPressed: () => Navigator.pop(context)),
       ])),
-      const SizedBox(height: 32),
+      SizedBox(height: 32),
       Container(width: 96, height: 96, decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.surface)),
-      const SizedBox(height: 16),
+      SizedBox(height: 16),
       Container(width: 140, height: 20, decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(8))),
       const SizedBox(height: 8),
       Container(width: 80, height: 14, decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(6))),
@@ -462,25 +464,25 @@ class _TechnicianProfileScreenState extends State<TechnicianProfileScreen> {
       ])),
       const Spacer(),
       Icon(Icons.person_off_outlined, size: 56, color: AppColors.onSurfaceVariant.withValues(alpha: 0.3)),
-      const SizedBox(height: 16),
-      Text('Not Found', style: GoogleFonts.spaceGrotesk(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
-      const SizedBox(height: 8),
-      Text(_error ?? '', style: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurfaceVariant)),
+      SizedBox(height: 16),
+      Text('Not Found', style: AppStyles.titleLarge.copyWith(fontSize: 20)),
+      SizedBox(height: 8),
+      Text(_error ?? '', style: AppStyles.bodyMedium.copyWith(color: AppColors.onSurfaceVariant)),
       const SizedBox(height: 20),
       GestureDetector(onTap: _fetchProfile, child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         decoration: BoxDecoration(color: AppColors.neonAccent, borderRadius: BorderRadius.circular(10)),
-        child: Text('Try Again', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.onPrimary)),
+        child: Text('Try Again', style: AppStyles.buttonText),
       )),
       const Spacer(),
     ]));
   }
 
   Widget _defaultAvatar(String name) => Container(color: AppColors.surfaceContainerHigh, child: Center(
-    child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: GoogleFonts.spaceGrotesk(fontSize: 36, fontWeight: FontWeight.w700, color: AppColors.neonAccent))));
+    child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: AppStyles.titleLarge.copyWith(fontSize: 36, color: AppColors.neonAccent))));
 
   Widget _reviewInitial(String name) => Container(color: AppColors.surfaceContainerHigh, child: Center(
-    child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.neonAccent))));
+    child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: AppStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600, color: AppColors.neonAccent))));
 }
 
 class _StatCard extends StatelessWidget {
@@ -490,11 +492,11 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.divider)),
+      decoration: AppStyles.standardCardDecoration.copyWith(borderRadius: BorderRadius.circular(12)),
       child: Column(children: [
-        Text(value, style: GoogleFonts.spaceGrotesk(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.neonAccent)),
-        const SizedBox(height: 4),
-        Text(label, style: GoogleFonts.inter(fontSize: 11, color: AppColors.onSurfaceVariant)),
+        Text(value, style: AppStyles.titleMedium.copyWith(color: AppColors.neonAccent)),
+        SizedBox(height: 4),
+        Text(label, style: AppStyles.caption),
       ]),
     );
   }
@@ -520,7 +522,7 @@ class _ProfileBadge extends StatelessWidget {
         children: [
           Icon(Icons.shield_rounded, size: 12, color: color),
           const SizedBox(width: 4),
-          Text(tier, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+          Text(tier, style: AppStyles.caption.copyWith(fontSize: 10, color: color)),
         ],
       ),
     );

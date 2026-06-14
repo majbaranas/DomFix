@@ -56,7 +56,7 @@ class ImageMessageWidget extends StatelessWidget {
                       color: AppColors.onSurfaceVariant.withValues(alpha: 0.5),
                       size: 48,
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     Text(
                       'Failed to load image',
                       style: GoogleFonts.inter(

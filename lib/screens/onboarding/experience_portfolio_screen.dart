@@ -241,7 +241,7 @@ class ExperiencePortfolioScreenState extends State<ExperiencePortfolioScreen>
         Row(
           children: [
             Icon(Icons.bolt, color: AppColors.primaryContainer, size: 20),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Text(
               'EXPERIENCE & EXPERTISE',
               style: GoogleFonts.spaceGrotesk(
@@ -253,7 +253,7 @@ class ExperiencePortfolioScreenState extends State<ExperiencePortfolioScreen>
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
           decoration: BoxDecoration(
@@ -335,7 +335,7 @@ class ExperiencePortfolioScreenState extends State<ExperiencePortfolioScreen>
                   },
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -381,7 +381,7 @@ class ExperiencePortfolioScreenState extends State<ExperiencePortfolioScreen>
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: _certError != null
-                    ? const Color(0xFFFFB4AB)
+                    ? AppColors.error
                     : const Color(0xFF31353B).withValues(alpha: 0.5),
                 style: BorderStyle.solid,
                 width: 1.5,
@@ -409,7 +409,7 @@ class ExperiencePortfolioScreenState extends State<ExperiencePortfolioScreen>
                       : Icon(Icons.upload_file,
                           color: AppColors.primaryContainer, size: 30),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Text(
                   _certUploading
                       ? 'UPLOADING...'
@@ -421,7 +421,7 @@ class ExperiencePortfolioScreenState extends State<ExperiencePortfolioScreen>
                     letterSpacing: 0.5,
                   ),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 Text(
                   'Tap to select professional licenses\nor PDF certifications.',
                   textAlign: TextAlign.center,
@@ -436,7 +436,7 @@ class ExperiencePortfolioScreenState extends State<ExperiencePortfolioScreen>
                   Text(
                     _certError!,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFFB4AB),
+                      color: AppColors.error,
                       fontSize: 11,
                     ),
                     textAlign: TextAlign.center,
@@ -489,7 +489,7 @@ class ExperiencePortfolioScreenState extends State<ExperiencePortfolioScreen>
               children: [
                 Icon(Icons.grid_view,
                     color: AppColors.primaryContainer, size: 20),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Text(
                   'PAST PROJECT PORTFOLIO',
                   style: GoogleFonts.spaceGrotesk(
@@ -516,14 +516,14 @@ class ExperiencePortfolioScreenState extends State<ExperiencePortfolioScreen>
               ),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         _buildPortfolioGrid(images),
         if (_portfolioError != null) ...[
           const SizedBox(height: 8),
           Text(
             _portfolioError!,
             style: GoogleFonts.inter(
-              color: const Color(0xFFFFB4AB),
+              color: AppColors.error,
               fontSize: 11,
             ),
           ),
@@ -587,7 +587,7 @@ class _UploadedFileRow extends StatelessWidget {
             child: Icon(Icons.description,
                 color: AppColors.primaryContainer, size: 20),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -601,7 +601,7 @@ class _UploadedFileRow extends StatelessWidget {
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: 2),
                 Text(
                   'UPLOADED',
                   style: GoogleFonts.inter(
@@ -748,7 +748,7 @@ class _AddPhotoTile extends StatelessWidget {
                 children: [
                   Icon(Icons.add_a_photo_outlined,
                       color: AppColors.onSurfaceVariant, size: 28),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Text(
                     'ADD PROJECT',
                     style: GoogleFonts.spaceGrotesk(

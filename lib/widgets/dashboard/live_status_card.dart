@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../models/dashboard_metrics.dart';
 
 class LiveStatusCard extends StatefulWidget {
@@ -43,7 +44,7 @@ class _LiveStatusCardState extends State<LiveStatusCard> with SingleTickerProvid
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space20),
       child: GestureDetector(
         onTap: () => widget.onStatusToggle(!widget.metrics.isOnline),
         child: AnimatedBuilder(
@@ -64,7 +65,7 @@ class _LiveStatusCardState extends State<LiveStatusCard> with SingleTickerProvid
                   AppColors.neonAccent.withValues(alpha: 0.05),
                 ],
               ),
-              borderRadius: BorderRadius.circular(AppColors.radiusLarge),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
               border: Border.all(
                 color: AppColors.neonAccent.withValues(alpha: 0.3),
                 width: 2,
@@ -78,7 +79,7 @@ class _LiveStatusCardState extends State<LiveStatusCard> with SingleTickerProvid
                 ),
               ],
             ),
-            padding: const EdgeInsets.all(AppColors.space24),
+            padding: const EdgeInsets.all(AppSpacing.space24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -97,7 +98,7 @@ class _LiveStatusCardState extends State<LiveStatusCard> with SingleTickerProvid
                             letterSpacing: 0.5,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: 8),
                         Row(
                           children: [
                             Container(
@@ -117,7 +118,7 @@ class _LiveStatusCardState extends State<LiveStatusCard> with SingleTickerProvid
                                     : null,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: 8),
                             Text(
                               widget.metrics.isOnline ? 'Online' : 'Offline',
                               style: GoogleFonts.spaceGrotesk(
@@ -235,7 +236,7 @@ class _MetricColumn extends StatelessWidget {
             icon,
             style: const TextStyle(fontSize: 18),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           TweenAnimationBuilder<double>(
             tween: Tween(begin: 0, end: double.tryParse(value.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0),
             duration: const Duration(milliseconds: 1000),
@@ -257,7 +258,7 @@ class _MetricColumn extends StatelessWidget {
               );
             },
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
             label,
             textAlign: TextAlign.center,

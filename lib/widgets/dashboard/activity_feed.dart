@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../models/dashboard_metrics.dart';
 
 class ActivityItemWidget extends StatelessWidget {
@@ -74,7 +75,7 @@ class ActivityItemWidget extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(width: AppColors.space16),
+        SizedBox(width: AppSpacing.space16),
         Expanded(
           child: Padding(
             padding: EdgeInsets.only(
@@ -92,7 +93,7 @@ class ActivityItemWidget extends StatelessWidget {
                     color: AppColors.onSurface,
                   ),
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: 2),
                 Text(
                   activity.description,
                   style: GoogleFonts.inter(
@@ -147,7 +148,7 @@ class ActivityFeed extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space20),
           child: Text(
             'Recent Activity',
             style: GoogleFonts.spaceGrotesk(
@@ -157,15 +158,15 @@ class ActivityFeed extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: AppColors.space12),
+        SizedBox(height: AppSpacing.space12),
         if (activities.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space20),
             child: Container(
-              padding: const EdgeInsets.all(AppColors.space20),
+              padding: const EdgeInsets.all(AppSpacing.space20),
               decoration: BoxDecoration(
                 color: AppColors.surface,
-                borderRadius: BorderRadius.circular(AppColors.radiusMedium),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
                 border: Border.all(color: AppColors.divider),
               ),
               child: Center(
@@ -181,14 +182,14 @@ class ActivityFeed extends StatelessWidget {
           )
         else
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space20),
             child: Container(
               decoration: BoxDecoration(
                 color: AppColors.surface,
-                borderRadius: BorderRadius.circular(AppColors.radiusMedium),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
                 border: Border.all(color: AppColors.divider),
               ),
-              padding: const EdgeInsets.all(AppColors.space16),
+              padding: const EdgeInsets.all(AppSpacing.space16),
               child: Column(
                 children: List.generate(
                   activities.length,

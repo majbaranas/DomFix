@@ -111,13 +111,13 @@ class _JobCompletionDialogState extends State<JobCompletionDialog> {
                 shape: BoxShape.circle,
                 color: AppColors.neonAccent.withValues(alpha: 0.12),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.task_alt_rounded,
                 color: AppColors.neonAccent,
                 size: 28,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(
               'Complete Job',
               style: GoogleFonts.spaceGrotesk(
@@ -126,7 +126,7 @@ class _JobCompletionDialogState extends State<JobCompletionDialog> {
                 color: AppColors.onSurface,
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               'Add photos of your work (optional)',
               textAlign: TextAlign.center,
@@ -273,7 +273,7 @@ class _JobCompletionDialogState extends State<JobCompletionDialog> {
                 ],
               ),
             
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             Row(
               children: [
                 Expanded(
@@ -301,7 +301,7 @@ class _JobCompletionDialogState extends State<JobCompletionDialog> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   flex: 2,
                   child: GestureDetector(
@@ -318,7 +318,6 @@ class _JobCompletionDialogState extends State<JobCompletionDialog> {
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(
-                                  color: AppColors.onPrimary,
                                   strokeWidth: 2,
                                 ),
                               )

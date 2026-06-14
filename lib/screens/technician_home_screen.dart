@@ -7,6 +7,7 @@ import '../services/technician_location_service.dart';
 import '../services/dashboard_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 import '../services/chat_service.dart';
 import '../models/booking_model.dart';
 import '../models/dashboard_metrics.dart';
@@ -86,7 +87,7 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> with Widget
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Icon(sel ? activeIcon : icon, color: sel ? AppColors.neonAccent : AppColors.onSurfaceVariant.withValues(alpha: 0.5), size: 22),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(label, style: GoogleFonts.inter(fontSize: 10, fontWeight: sel ? FontWeight.w600 : FontWeight.w400, color: sel ? AppColors.neonAccent : AppColors.onSurfaceVariant.withValues(alpha: 0.5))),
         ]),
       ),
@@ -172,12 +173,12 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> with WidgetsB
                   performanceBadge: metrics.performanceBadge,
                   isOnline: _liveStatus != 'offline',
                 ),
-                const SizedBox(height: AppColors.space24),
+                const SizedBox(height: AppSpacing.space24),
                 LiveStatusCard(
                   metrics: metrics,
                   onStatusToggle: _toggleOnlineStatus,
                 ),
-                const SizedBox(height: AppColors.space24),
+                const SizedBox(height: AppSpacing.space24),
                 StreamBuilder<List<BookingModel>>(
                   stream: DashboardService.instance.getTodayBookings(uid),
                   builder: (context, jobsSnapshot) {
@@ -185,9 +186,9 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> with WidgetsB
                     return JobsSection(bookings: jobs);
                   },
                 ),
-                const SizedBox(height: AppColors.space24),
+                const SizedBox(height: AppSpacing.space24),
                 AnalyticsSection(metrics: metrics),
-                const SizedBox(height: AppColors.space24),
+                const SizedBox(height: AppSpacing.space24),
                 StreamBuilder<List<AIInsight>>(
                   stream: DashboardService.instance.getAIInsights(uid),
                   builder: (context, insightsSnapshot) {
@@ -195,7 +196,7 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> with WidgetsB
                     return AIInsightsSection(insights: insights);
                   },
                 ),
-                const SizedBox(height: AppColors.space24),
+                const SizedBox(height: AppSpacing.space24),
                 StreamBuilder<List<ActivityItem>>(
                   stream: DashboardService.instance.getRecentActivity(uid),
                   builder: (context, activitySnapshot) {
@@ -203,7 +204,7 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> with WidgetsB
                     return ActivityFeed(activities: activities);
                   },
                 ),
-                const SizedBox(height: AppColors.space24),
+                const SizedBox(height: AppSpacing.space24),
                 QuickActions(
                   isOnline: _liveStatus != 'offline',
                   onGoOnline: () => _toggleOnlineStatus(_liveStatus == 'offline'),
@@ -212,7 +213,7 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> with WidgetsB
                   onOpenMessages: () {},
                   onEmergencySupport: () {},
                 ),
-                const SizedBox(height: AppColors.space40),
+                const SizedBox(height: AppSpacing.space40),
               ],
             ),
           );
@@ -572,7 +573,7 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
                   color: AppColors.onSurface,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               Text(
                 subtitle,
                 style: GoogleFonts.inter(
@@ -583,7 +584,7 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         if (items.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -719,7 +720,7 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
                     color: AppColors.onSurface,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   'Live requests update automatically. Emergency jobs appear first.',
                   style: GoogleFonts.inter(
@@ -772,7 +773,7 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
                               color: AppColors.onSurfaceVariant
                                   .withValues(alpha: 0.2),
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: 12),
                             Text(
                               'No requests yet',
                               style: GoogleFonts.inter(
@@ -1023,7 +1024,7 @@ class _QueueCard extends StatelessWidget {
                             color: AppColors.onSurface,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Text(
                           clientName,
                           style: GoogleFonts.inter(
@@ -1052,7 +1053,7 @@ class _QueueCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -1143,7 +1144,7 @@ class _Pill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 14, color: AppColors.onSurfaceVariant),
-          const SizedBox(width: 6),
+          SizedBox(width: 6),
           Text(
             label,
             style: GoogleFonts.inter(
@@ -1195,7 +1196,7 @@ class _ActionButton extends StatelessWidget {
               size: 16,
               color: filled ? AppColors.onPrimary : color,
             ),
-            const SizedBox(width: 6),
+            SizedBox(width: 6),
             Text(
               label,
               style: GoogleFonts.inter(
@@ -1217,11 +1218,11 @@ class TechnicianProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text('My Profile', style: GoogleFonts.spaceGrotesk(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
-      const SizedBox(height: 24),
+      SizedBox(height: 24),
       Center(child: Column(children: [
         Container(width: 80, height: 80, decoration: BoxDecoration(color: AppColors.surface, shape: BoxShape.circle),
           child: Icon(Icons.person_rounded, size: 40, color: AppColors.onSurfaceVariant)),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Text('Professional Technician', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
       ])),
     ])));

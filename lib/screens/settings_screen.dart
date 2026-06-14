@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../services/local_storage_service.dart';
 import '../services/firebase_navigation_service.dart';
 import '../services/localization_service.dart';
+import '../theme/app_theme_manager.dart';
 import '../main.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -123,6 +124,66 @@ class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAlive
     );
   }
 
+  void _showThemePicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 8, bottom: 16, right: 8),
+                  child: Text(
+                    'Theme',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.onSurface,
+                    ),
+                  ),
+                ),
+                _themeOption(ThemeMode.light, 'Light Mode', Icons.light_mode_rounded),
+                _themeOption(ThemeMode.dark, 'Dark Mode', Icons.dark_mode_rounded),
+                _themeOption(ThemeMode.system, 'System Default', Icons.brightness_auto_rounded),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _themeOption(ThemeMode mode, String title, IconData icon) {
+    final currentMode = AppThemeManager.instance.themeMode;
+    final isSelected = currentMode == mode;
+
+    return ListTile(
+      leading: Icon(icon, color: isSelected ? AppColors.neonAccent : AppColors.onSurfaceVariant),
+      title: Text(
+        title,
+        style: GoogleFonts.inter(
+          color: isSelected ? AppColors.neonAccent : AppColors.onSurface,
+          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+        ),
+      ),
+      trailing: isSelected
+          ? Icon(Icons.check_circle_rounded, color: AppColors.neonAccent)
+          : null,
+      onTap: () {
+        AppThemeManager.instance.setThemeMode(mode);
+        Navigator.pop(context);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -148,6 +209,7 @@ class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAlive
               _settingItem(Icons.shield_outlined, context.translate('privacy_security'), () {}),
               _settingItem(Icons.help_outline_rounded, context.translate('help_support'), () {}),
               _settingItem(Icons.language_rounded, context.translate('language'), _showLanguagePicker),
+              _settingItem(Icons.palette_outlined, 'Theme', _showThemePicker),
               const SizedBox(height: 16),
               _logoutButton(),
             ],
@@ -171,7 +233,7 @@ class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAlive
         child: Row(
           children: [
             Icon(icon, color: AppColors.onSurfaceVariant, size: 22),
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
             Expanded(
               child: Text(
                 title,
@@ -208,7 +270,7 @@ class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAlive
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Text(
               context.translate('logout'),
               style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.error),

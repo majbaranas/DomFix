@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 
 class DashboardHeader extends StatelessWidget {
   final String technicianId;
@@ -43,7 +44,7 @@ class DashboardHeader extends StatelessWidget {
         final profileImage = userData?['profileImage'];
 
         return Padding(
-          padding: const EdgeInsets.all(AppColors.space20),
+          padding: const EdgeInsets.all(AppSpacing.space20),
           child: Column(
             children: [
               Row(
@@ -101,7 +102,7 @@ class DashboardHeader extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(width: AppColors.space16),
+                  SizedBox(width: AppSpacing.space16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,7 +115,7 @@ class DashboardHeader extends StatelessWidget {
                             color: AppColors.onSurfaceVariant,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Text(
                           name,
                           style: GoogleFonts.spaceGrotesk(
@@ -144,11 +145,11 @@ class DashboardHeader extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: AppColors.space16),
+              const SizedBox(height: AppSpacing.space16),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: AppColors.space12,
-                  vertical: AppColors.space8,
+                  horizontal: AppSpacing.space12,
+                  vertical: AppSpacing.space8,
                 ),
                 decoration: BoxDecoration(
                   color: AppColors.neonAccent.withValues(alpha: 0.1),

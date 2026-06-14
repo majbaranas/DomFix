@@ -66,7 +66,7 @@ class _DeviceControlSheetState extends State<DeviceControlSheet> {
       case SmartDeviceType.door:
       case SmartDeviceType.garage:
       case SmartDeviceType.lock:
-        return const Color(0xFFFFB84D);
+        return AppColors.warning;
       case SmartDeviceType.temperature:
       case SmartDeviceType.heater:
         return const Color(0xFFFF512F);
@@ -111,7 +111,7 @@ class _DeviceControlSheetState extends State<DeviceControlSheet> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 // Drag handle
                 Container(
                   width: 40,
@@ -121,7 +121,7 @@ class _DeviceControlSheetState extends State<DeviceControlSheet> {
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: 24),
                 // Header
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -240,7 +240,7 @@ class _DeviceControlSheetState extends State<DeviceControlSheet> {
                 color: AppColors.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -301,11 +301,11 @@ class _DeviceControlSheetState extends State<DeviceControlSheet> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
           Row(
             children: [
               Icon(Icons.brightness_low_rounded, color: AppColors.onSurfaceVariant),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
               Expanded(
                 child: SizedBox(
                   height: 48,
@@ -334,7 +334,7 @@ class _DeviceControlSheetState extends State<DeviceControlSheet> {
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
               Icon(Icons.brightness_high_rounded, color: AppColors.onSurfaceVariant),
             ],
           ),
@@ -372,11 +372,11 @@ class _DeviceControlSheetState extends State<DeviceControlSheet> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
           Row(
             children: [
               Icon(Icons.wind_power_outlined, color: AppColors.onSurfaceVariant),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
               Expanded(
                 child: SizedBox(
                   height: 48,
@@ -405,7 +405,7 @@ class _DeviceControlSheetState extends State<DeviceControlSheet> {
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
               Icon(Icons.cyclone_rounded, color: AppColors.onSurfaceVariant),
             ],
           ),
@@ -436,7 +436,7 @@ class _DeviceControlSheetState extends State<DeviceControlSheet> {
                 size: 64,
                 color: device.isOn ? dColor : AppColors.onSurfaceVariant,
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
               Text(
                 device.isOn ? 'Tap to Close' : 'Tap to Open',
                 style: GoogleFonts.inter(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_styles.dart';
+import '../theme/app_spacing.dart';
 import '../widgets/scroll_reveal.dart';
 import 'nearby_technicians_map_screen.dart';
 import '../services/technician_profile_service.dart';
@@ -41,13 +43,13 @@ class _FindProsScreenContentState extends State<FindProsScreenContent> with Auto
             SliverToBoxAdapter(child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(children: [
-                Text('Find Pros', style: GoogleFonts.spaceGrotesk(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
+                Text('Find Pros', style: AppStyles.titleLarge),
                 const Spacer(),
                 GestureDetector(
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NearbyTechniciansMapScreen())),
                   child: Container(
                     padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.divider)),
+                    decoration: AppStyles.standardCardDecoration.copyWith(borderRadius: BorderRadius.circular(10), boxShadow: []),
                     child: Icon(Icons.map_rounded, color: AppColors.neonAccent, size: 20),
                   ),
                 ),
@@ -58,10 +60,10 @@ class _FindProsScreenContentState extends State<FindProsScreenContent> with Auto
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: TextField(
                 focusNode: _searchFocus,
-                style: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurface),
+                style: AppStyles.bodyMedium,
                 onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
                 decoration: InputDecoration(
-                  hintText: 'Search for services...', hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurfaceVariant.withValues(alpha: 0.4)),
+                  hintText: 'Search for services...', hintStyle: AppStyles.bodyMedium.copyWith(color: AppColors.onSurfaceVariant.withValues(alpha: 0.4)),
                   prefixIcon: Icon(Icons.search_rounded, color: AppColors.onSurfaceVariant.withValues(alpha: 0.4), size: 20),
                   filled: true, fillColor: AppColors.surface,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -100,7 +102,7 @@ class _FindProsScreenContentState extends State<FindProsScreenContent> with Auto
                     return Center(child: CircularProgressIndicator(color: AppColors.neonAccent));
                   }
                   if (snapshot.hasError) {
-                    return Center(child: Text('Could not load technicians', style: GoogleFonts.inter(color: AppColors.onSurfaceVariant)));
+                    return Center(child: Text('Could not load technicians', style: AppStyles.bodyMedium.copyWith(color: AppColors.onSurfaceVariant)));
                   }
                   
                   var allTechs = snapshot.data ?? [];
@@ -136,10 +138,10 @@ class _FindProsScreenContentState extends State<FindProsScreenContent> with Auto
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.engineering_outlined, size: 48, color: AppColors.onSurfaceVariant.withValues(alpha: 0.3)),
-                          const SizedBox(height: 16),
-                          Text('No professionals found', style: GoogleFonts.spaceGrotesk(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
-                          const SizedBox(height: 8),
-                          Text('Try adjusting your search filters.', style: GoogleFonts.inter(fontSize: 13, color: AppColors.onSurfaceVariant)),
+                          SizedBox(height: 16),
+                          Text('No professionals found', style: AppStyles.titleMedium),
+                          SizedBox(height: 8),
+                          Text('Try adjusting your search filters.', style: AppStyles.bodyMedium.copyWith(color: AppColors.onSurfaceVariant)),
                         ],
                       ),
                     );
@@ -157,8 +159,8 @@ class _FindProsScreenContentState extends State<FindProsScreenContent> with Auto
                         Padding(
                           padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
                           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                            Text('Top Rated', style: GoogleFonts.spaceGrotesk(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
-                            Text('View all', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.neonAccent)),
+                            Text('Top Rated', style: AppStyles.titleMedium),
+                            Text('View all', style: AppStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600, color: AppColors.neonAccent)),
                           ]),
                         ),
                         Padding(
@@ -167,7 +169,7 @@ class _FindProsScreenContentState extends State<FindProsScreenContent> with Auto
                             color: AppColors.background,
                             child: SizedBox(height: 210, child: ListView.separated(
                               scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 20),
-                              itemCount: featured.length, separatorBuilder: (_, _) => const SizedBox(width: 12),
+                              itemCount: featured.length, separatorBuilder: (_, _) => SizedBox(width: 12),
                               itemBuilder: (_, i) => RevealItem(
                                 delay: Duration(milliseconds: i * 90),
                                 child: _FeaturedCard(tech: featured[i]),
@@ -181,7 +183,7 @@ class _FindProsScreenContentState extends State<FindProsScreenContent> with Auto
                       if (nearby.isNotEmpty) ...[
                         Padding(
                           padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-                          child: Text('More Specialists', style: GoogleFonts.spaceGrotesk(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
+                          child: Text('More Specialists', style: AppStyles.titleMedium),
                         ),
                         ...List.generate(nearby.length, (i) => Padding(
                           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
@@ -226,8 +228,8 @@ class _FeaturedCard extends StatelessWidget {
               decoration: BoxDecoration(color: AppColors.background.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(6)),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.star_rounded, size: 13, color: AppColors.neonAccent),
-                const SizedBox(width: 3),
-                Text(tech.rating > 0 ? tech.rating.toStringAsFixed(1) : 'New', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
+                SizedBox(width: 3),
+                Text(tech.rating > 0 ? tech.rating.toStringAsFixed(1) : 'New', style: AppStyles.caption.copyWith(color: AppColors.onSurface)),
               ]),
             )),
             
@@ -236,16 +238,16 @@ class _FeaturedCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4), border: Border.all(color: AppColors.success.withValues(alpha: 0.5))),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Container(width: 6, height: 6, decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle)),
-                  const SizedBox(width: 4),
-                  Text('Live', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.success)),
+                  Container(width: 6, height: 6, decoration: BoxDecoration(color: AppColors.success, shape: BoxShape.circle)),
+                  SizedBox(width: 4),
+                  Text('Live', style: AppStyles.caption.copyWith(color: AppColors.success, fontSize: 10)),
                 ]),
               )),
           ])),
           Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(tech.fullName, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.onSurface), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(tech.fullName, style: AppStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 2),
-            Text(tech.speciality, style: GoogleFonts.inter(fontSize: 11, color: AppColors.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(tech.speciality, style: AppStyles.caption.copyWith(color: AppColors.onSurfaceVariant, fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
           ])),
         ]),
       )),
@@ -262,20 +264,20 @@ class _NearbyCard extends StatelessWidget {
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TechnicianProfileScreen(technicianId: tech.id))),
       child: Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.divider)),
+        decoration: AppStyles.standardCardDecoration,
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           ClipRRect(borderRadius: BorderRadius.circular(10),
             child: tech.profileImage != null
               ? Image.network(tech.profileImage!, width: 72, height: 72, fit: BoxFit.cover,
                   errorBuilder: (_, _, _) => Container(width: 72, height: 72, color: AppColors.surfaceContainerHigh, child: Icon(Icons.person_outline, color: AppColors.onSurfaceVariant)))
               : Container(width: 72, height: 72, color: AppColors.surfaceContainerHigh, child: Icon(Icons.person_outline, color: AppColors.onSurfaceVariant))),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(
                   children: [
-                    Expanded(child: Text(tech.fullName, style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.onSurface), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    Expanded(child: Text(tech.fullName, style: AppStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
                     if (tech.isOnline)
                       Container(
                         margin: const EdgeInsets.only(left: 8),
@@ -284,21 +286,21 @@ class _NearbyCard extends StatelessWidget {
                       ),
                   ],
                 ),
-                const SizedBox(height: 2),
-                Text(tech.speciality, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.neonAccent), maxLines: 1, overflow: TextOverflow.ellipsis),
+                SizedBox(height: 2),
+                Text(tech.speciality, style: AppStyles.bodySmall.copyWith(fontWeight: FontWeight.w500, color: AppColors.neonAccent), maxLines: 1, overflow: TextOverflow.ellipsis),
               ])),
             ]),
             const SizedBox(height: 8),
             Row(children: [
               Icon(Icons.star_rounded, size: 14, color: AppColors.neonAccent), const SizedBox(width: 3),
-              Text(tech.rating > 0 ? tech.rating.toStringAsFixed(1) : 'New', style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant)),
+              Text(tech.rating > 0 ? tech.rating.toStringAsFixed(1) : 'New', style: AppStyles.bodySmall),
               const SizedBox(width: 14),
               Icon(Icons.work_rounded, size: 12, color: AppColors.onSurfaceVariant), const SizedBox(width: 3),
-              Text('${tech.jobsCompleted} jobs', style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant)),
+              Text('${tech.jobsCompleted} jobs', style: AppStyles.bodySmall),
               if (tech.distanceKm < double.infinity) ...[
                 const SizedBox(width: 14),
                 Icon(Icons.near_me_outlined, size: 12, color: AppColors.onSurfaceVariant), const SizedBox(width: 3),
-                Text('${tech.distanceKm.toStringAsFixed(1)} km', style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant)),
+                Text('${tech.distanceKm.toStringAsFixed(1)} km', style: AppStyles.bodySmall),
               ]
             ]),
           ])),

@@ -2,6 +2,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_styles.dart';
+import '../theme/app_spacing.dart';
 
 class ExpertCard extends StatefulWidget {
   final String name;
@@ -56,7 +58,7 @@ class _ExpertCardState extends State<ExpertCard> {
               decoration: BoxDecoration(
                 color: AppColors.surfaceContainerLowest.withValues(alpha: 0.8),
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                border: Border.all(color: AppColors.divider),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.6),
@@ -64,7 +66,7 @@ class _ExpertCardState extends State<ExpertCard> {
                     offset: const Offset(0, 8),
                   ),
                   BoxShadow(
-                    color: Colors.white.withValues(alpha: 0.06),
+                    color: AppColors.glassBorder,
                     blurRadius: 0,
                     spreadRadius: 0,
                     offset: const Offset(0, -1),
@@ -116,7 +118,7 @@ class _ExpertCardState extends State<ExpertCard> {
               height: 48,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                border: Border.all(color: AppColors.divider),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -139,7 +141,7 @@ class _ExpertCardState extends State<ExpertCard> {
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  border: Border.all(color: AppColors.glassHighlight),
                 ),
                 child: Center(
                   child: Container(
@@ -155,7 +157,7 @@ class _ExpertCardState extends State<ExpertCard> {
             ),
           ],
         ),
-        const SizedBox(width: 16),
+        SizedBox(width: 16),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,7 +175,7 @@ class _ExpertCardState extends State<ExpertCard> {
                 widget.level,
                 style: GoogleFonts.inter(
                   fontSize: 12,
-                  color: Colors.white.withValues(alpha: 0.5),
+                  color: AppColors.onSurfaceVariant,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -183,9 +185,9 @@ class _ExpertCardState extends State<ExpertCard> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
+            color: AppColors.whiteBorder5,
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            border: Border.all(color: AppColors.divider),
           ),
           child: Row(
             children: [
@@ -212,7 +214,7 @@ class _ExpertCardState extends State<ExpertCard> {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.02),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(color: AppColors.divider),
       ),
       child: Row(
         children: [
@@ -220,7 +222,7 @@ class _ExpertCardState extends State<ExpertCard> {
             child: Container(
               decoration: BoxDecoration(
                 border: Border(
-                  right: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+                  right: BorderSide(color: AppColors.glassBorder),
                 ),
               ),
               child: Column(
@@ -230,10 +232,10 @@ class _ExpertCardState extends State<ExpertCard> {
                     'ETA',
                     style: GoogleFonts.inter(
                       fontSize: 10,
-                      color: Colors.white.withValues(alpha: 0.5),
+                      color: AppColors.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: 2),
                   Text(
                     widget.eta,
                     style: GoogleFonts.inter(
@@ -256,10 +258,10 @@ class _ExpertCardState extends State<ExpertCard> {
                     'Clearance',
                     style: GoogleFonts.inter(
                       fontSize: 10,
-                      color: Colors.white.withValues(alpha: 0.5),
+                      color: AppColors.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: 2),
                   Row(
                     children: [
                       Icon(Icons.verified_user, size: 12, color: AppColors.primaryFixed),
@@ -295,11 +297,11 @@ class _ExpertCardState extends State<ExpertCard> {
               decoration: BoxDecoration(
                 color: widget.isAvailable
                     ? AppColors.primaryFixed
-                    : Colors.white.withValues(alpha: 0.05),
+                    : AppColors.whiteBorder5,
                 borderRadius: BorderRadius.circular(12),
                 border: widget.isAvailable
                     ? null
-                    : Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                    : Border.all(color: AppColors.glassBorder),
               ),
               child: Center(
                 child: Text(
@@ -308,24 +310,24 @@ class _ExpertCardState extends State<ExpertCard> {
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: widget.isAvailable
-                        ? const Color(0xFF2B3400)
-                        : Colors.white.withValues(alpha: 0.4),
+                        ? AppColors.onPrimary
+                        : AppColors.onSurfaceVariant,
                   ),
                 ),
               ),
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         Expanded(
           child: GestureDetector(
             onTap: widget.onProfile,
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
+                color: AppColors.whiteBorder5,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                border: Border.all(color: AppColors.divider),
               ),
               child: Center(
                 child: Text(

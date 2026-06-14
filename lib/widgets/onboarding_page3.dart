@@ -75,7 +75,7 @@ class OnboardingPage3 extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Text(
           'Manage your smart home devices from one unified dashboard.',
           textAlign: TextAlign.center,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../models/dashboard_metrics.dart';
 
 class AnalyticsCard extends StatelessWidget {
@@ -8,7 +9,7 @@ class AnalyticsCard extends StatelessWidget {
   final String value;
   final String unit;
   final List<double>? chartData;
-  final Color accentColor;
+  final Color? accentColor;
   final IconData icon;
 
   const AnalyticsCard({
@@ -17,19 +18,20 @@ class AnalyticsCard extends StatelessWidget {
     required this.value,
     required this.unit,
     this.chartData,
-    this.accentColor = AppColors.neonAccent,
+    this.accentColor,
     required this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
+    final effectiveAccent = accentColor ?? AppColors.neonAccent;
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppColors.radiusMedium),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
         border: Border.all(color: AppColors.divider),
       ),
-      padding: const EdgeInsets.all(AppColors.space16),
+      padding: const EdgeInsets.all(AppSpacing.space16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -47,10 +49,10 @@ class AnalyticsCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.1),
+                  color: effectiveAccent.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, size: 16, color: accentColor),
+                child: Icon(icon, size: 16, color: effectiveAccent),
               ),
             ],
           ),
@@ -69,12 +71,12 @@ class AnalyticsCard extends StatelessWidget {
                     style: GoogleFonts.spaceGrotesk(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
-                      color: accentColor,
+                      color: effectiveAccent,
                     ),
                   );
                 },
               ),
-              const SizedBox(width: 4),
+              SizedBox(width: 4),
               Text(
                 unit,
                 style: GoogleFonts.inter(
@@ -89,7 +91,7 @@ class AnalyticsCard extends StatelessWidget {
             const SizedBox(height: 12),
             SizedBox(
               height: 40,
-              child: _MiniChart(data: chartData!, color: accentColor),
+              child: _MiniChart(data: chartData!, color: effectiveAccent),
             ),
           ],
         ],
@@ -168,7 +170,7 @@ class AnalyticsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space20),
           child: Text(
             'Performance Analytics',
             style: GoogleFonts.spaceGrotesk(
@@ -178,16 +180,16 @@ class AnalyticsSection extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: AppColors.space12),
+        SizedBox(height: AppSpacing.space12),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space20),
           child: GridView(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              crossAxisSpacing: AppColors.space12,
-              mainAxisSpacing: AppColors.space12,
+              crossAxisSpacing: AppSpacing.space12,
+              mainAxisSpacing: AppSpacing.space12,
               childAspectRatio: 1.1,
             ),
             children: [

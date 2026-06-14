@@ -217,7 +217,7 @@ class SpecialtiesScreenState extends State<SpecialtiesScreen>
             letterSpacing: 2,
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Row(
           children: [
             Expanded(
@@ -233,9 +233,9 @@ class SpecialtiesScreenState extends State<SpecialtiesScreen>
                     color: AppColors.onSurfaceVariant.withValues(alpha: 0.4),
                     fontSize: 14,
                   ),
-                  enabledBorder: const UnderlineInputBorder(
+                  enabledBorder: UnderlineInputBorder(
                     borderSide:
-                        BorderSide(color: Color(0xFF454932), width: 1.5),
+                        BorderSide(color: AppColors.outlineVariant, width: 1.5),
                   ),
                   focusedBorder: UnderlineInputBorder(
                     borderSide: BorderSide(
@@ -247,7 +247,7 @@ class SpecialtiesScreenState extends State<SpecialtiesScreen>
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             GestureDetector(
               onTap: _addCustomSkill,
               child: Container(
@@ -295,7 +295,7 @@ class SpecialtiesScreenState extends State<SpecialtiesScreen>
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(width: 6),
+              SizedBox(width: 6),
               GestureDetector(
                 onTap: () => _removeCustomSkill(skill),
                 child: Icon(Icons.close,
@@ -322,7 +322,7 @@ class SpecialtiesScreenState extends State<SpecialtiesScreen>
         children: [
           Icon(Icons.info_outline,
               color: AppColors.primaryContainer, size: 16),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Text(
               'Selecting at least 3 specialties increases your match rate by up to 45%. You can adjust these later in your profile settings.',
@@ -449,7 +449,7 @@ class _SkillChip extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (skill.badge != null) ...[
-                  const SizedBox(height: 6),
+                  SizedBox(height: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(

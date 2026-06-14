@@ -30,7 +30,7 @@ class QuickActionCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surfaceContainerLow.withValues(alpha: 0.80),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          border: Border.all(color: AppColors.whiteBorder5),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -46,7 +46,7 @@ class QuickActionCard extends StatelessWidget {
                 child: Icon(icon, color: accentColor, size: 20),
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               title,
               style: GoogleFonts.inter(

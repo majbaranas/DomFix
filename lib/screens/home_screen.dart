@@ -77,7 +77,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Text(
               'DOMFIX',
               style: GoogleFonts.spaceGrotesk(
@@ -169,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
             color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Text(
           'Good morning, Alex',
           style: GoogleFonts.spaceGrotesk(
@@ -232,7 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
           Text(
             'Identify Issue',
             style: GoogleFonts.spaceGrotesk(
@@ -241,7 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
               color: AppColors.onSurface,
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Text(
             'Point your camera at the problem.\nOur neural network will diagnose\nand suggest immediate fixes.',
             style: GoogleFonts.inter(
@@ -353,7 +353,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 size: 26,
               ),
             ),
-            const SizedBox(width: 16),
+            SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -366,7 +366,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: AppColors.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(
                     'Top rated specialists nearby',
                     style: GoogleFonts.inter(
@@ -417,7 +417,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 size: 24,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(
               'Control',
               style: GoogleFonts.spaceGrotesk(
@@ -426,7 +426,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: AppColors.onSurface,
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               'Manage devices',
               style: GoogleFonts.inter(
@@ -469,7 +469,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 size: 24,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(
               'History',
               style: GoogleFonts.spaceGrotesk(
@@ -478,7 +478,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: AppColors.onSurface,
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               'Recent repairs',
               style: GoogleFonts.inter(
@@ -615,7 +615,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: AppColors.onSurface,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               Text(
                 detail.isNotEmpty ? '$status · $detail' : status,
                 style: GoogleFonts.inter(
@@ -736,7 +736,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   : AppColors.onSurfaceVariant.withValues(alpha: 0.5),
               size: 24,
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               label,
               style: GoogleFonts.inter(

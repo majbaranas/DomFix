@@ -119,7 +119,7 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> with SingleTickerProv
                                     shape: BoxShape.circle,
                                   ),
                                 ),
-                                const SizedBox(width: 6),
+                                SizedBox(width: 6),
                                 Text(
                                   'Live',
                                   style: GoogleFonts.inter(
@@ -267,7 +267,7 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> with SingleTickerProv
                           );
                         },
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Text(
                         isConnected ? 'Connected' : 'Offline',
                         style: GoogleFonts.inter(
@@ -287,7 +287,7 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> with SingleTickerProv
       actions: [
         // Search
         IconButton(
-          icon: const Icon(Icons.search_rounded, color: AppColors.onSurface),
+          icon: Icon(Icons.search_rounded, color: AppColors.onSurface),
           onPressed: () async {
             final devices = await _iot.devicesStream().first;
             if (!mounted) return;
@@ -298,10 +298,10 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> with SingleTickerProv
             if (selected != null && mounted) _openDeviceSheet(selected);
           },
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: 8),
         // More actions menu
         PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert_rounded, color: AppColors.onSurface),
+          icon: Icon(Icons.more_vert_rounded, color: AppColors.onSurface),
           offset: const Offset(0, 40),
           color: AppColors.surfaceContainerHigh,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -326,7 +326,7 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> with SingleTickerProv
                     size: 20,
                     color: AppColors.neonAccent,
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Text(
                     'Demo Mode',
                     style: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurface),
@@ -338,8 +338,8 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> with SingleTickerProv
               value: 'history',
               child: Row(
                 children: [
-                  const Icon(Icons.history_rounded, size: 20, color: AppColors.onSurfaceVariant),
-                  const SizedBox(width: 12),
+                  Icon(Icons.history_rounded, size: 20, color: AppColors.onSurfaceVariant),
+                  SizedBox(width: 12),
                   Text(
                     'Activity Log',
                     style: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurface),
@@ -488,7 +488,7 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> with SingleTickerProv
                 color: AppColors.onSurfaceVariant.withValues(alpha: 0.5),
               ),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             Text(
               'No devices yet',
               style: GoogleFonts.spaceGrotesk(
@@ -497,7 +497,7 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> with SingleTickerProv
                 color: AppColors.onSurface,
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               'Turn on Demo mode to see sample devices, or add devices in Firebase RTDB.',
               textAlign: TextAlign.center,
@@ -531,7 +531,7 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> with SingleTickerProv
             offset: const Offset(0, 8),
           ),
           BoxShadow(
-            color: Colors.white.withValues(alpha: 0.1),
+            color: AppColors.glassHighlight,
             blurRadius: 1,
             spreadRadius: 1,
           ),

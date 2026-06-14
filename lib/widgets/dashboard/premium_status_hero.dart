@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../models/dashboard_metrics.dart';
 import 'premium_animations.dart';
 
@@ -46,7 +47,7 @@ class _PremiumStatusHeroState extends State<PremiumStatusHero> with SingleTicker
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppColors.space20),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space20),
       child: GestureDetector(
         onTap: () => widget.onStatusToggle(!widget.metrics.isOnline),
         child: Container(
@@ -59,7 +60,7 @@ class _PremiumStatusHeroState extends State<PremiumStatusHero> with SingleTicker
                 AppColors.neonAccent.withValues(alpha: 0.05),
               ],
             ),
-            borderRadius: BorderRadius.circular(AppColors.radiusLarge),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
             border: Border.all(
               color: AppColors.neonAccent.withValues(alpha: 0.3),
               width: 2,
@@ -73,7 +74,7 @@ class _PremiumStatusHeroState extends State<PremiumStatusHero> with SingleTicker
               ),
             ],
           ),
-          padding: const EdgeInsets.all(AppColors.space24),
+          padding: const EdgeInsets.all(AppSpacing.space24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -93,7 +94,7 @@ class _PremiumStatusHeroState extends State<PremiumStatusHero> with SingleTicker
                           letterSpacing: 0.5,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       // Animated status indicator
                       PremiumAnimations.buildPulseAnimation(
                         controller: _pulseController,
@@ -116,7 +117,7 @@ class _PremiumStatusHeroState extends State<PremiumStatusHero> with SingleTicker
                                     : null,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: 8),
                             Text(
                               widget.metrics.isOnline ? 'Online & Active' : 'Offline',
                               style: GoogleFonts.spaceGrotesk(
@@ -173,8 +174,8 @@ class _PremiumStatusHeroState extends State<PremiumStatusHero> with SingleTicker
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3,
-                  crossAxisSpacing: AppColors.space12,
-                  mainAxisSpacing: AppColors.space16,
+                  crossAxisSpacing: AppSpacing.space12,
+                  mainAxisSpacing: AppSpacing.space16,
                   childAspectRatio: 1.0,
                 ),
                 children: [
@@ -242,10 +243,10 @@ class _MetricTile extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surfaceContainer.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(AppColors.radiusMedium),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
         border: Border.all(color: AppColors.divider),
       ),
-      padding: const EdgeInsets.all(AppColors.space12),
+      padding: const EdgeInsets.all(AppSpacing.space12),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -275,7 +276,7 @@ class _MetricTile extends StatelessWidget {
               );
             },
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
             label,
             textAlign: TextAlign.center,

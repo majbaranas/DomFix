@@ -1,119 +1,90 @@
 import 'package:flutter/material.dart';
+import 'app_theme_manager.dart';
+import 'app_spacing.dart';
 
+class AppColors {
+  AppColors._();
 /// DomFix Design System — Premium Dark UI
 ///
 /// Pixel-accurate color mapping from the HTML/Tailwind reference design.
 /// High contrast, intentional accent usage, consistent spacing, zero visual noise.
-class AppColors {
-  AppColors._();
-
   // ─── Core Surfaces (from HTML design) ─────────────────
-  static const Color background              = Color(0xFF070B14);  // html: #070B14
-  static const Color surface                 = Color(0xFF101419);  // html: surface / #101419
-  static const Color surfaceDim              = Color(0xFF101419);
-  static const Color surfaceBright           = Color(0xFF36393F);
-
-  static const Color surfaceContainerLowest  = Color(0xFF0A0E13);  // html: surface-container-lowest
-  static const Color surfaceContainerLow     = Color(0xFF121826);  // spec: secondary surface
-  static const Color surfaceContainer        = Color(0xFF1C2025);  // html: surface-container
-  static const Color surfaceContainerHigh    = Color(0xFF1A2233);  // spec: surface elevated
-  static const Color surfaceContainerHighest = Color(0xFF31353B);  // html: surface-container-highest
-  static const Color surfaceVariant          = Color(0xFF31353B);
-
+  static Color get background => AppThemeManager.instance.isDarkMode ? Color(0xFF070B14) : Color(0xFFF8FAFC);
+  static Color get surface => AppThemeManager.instance.isDarkMode ? Color(0xFF101419) : Color(0xFFFFFFFF);
+  static Color get surfaceDim => AppThemeManager.instance.isDarkMode ? Color(0xFF101419) : Color(0xFFFFFFFF);
+  static Color get surfaceBright => AppThemeManager.instance.isDarkMode ? Color(0xFF36393F) : Color(0xFFFFFFFF);
+  static Color get surfaceContainerLowest => AppThemeManager.instance.isDarkMode ? Color(0xFF0A0E13) : Color(0xFFFFFFFF);
+  static Color get surfaceContainerLow => AppThemeManager.instance.isDarkMode ? Color(0xFF121826) : Color(0xFFF1F5F9);
+  static Color get surfaceContainer => AppThemeManager.instance.isDarkMode ? Color(0xFF1C2025) : Color(0xFFF8FAFC);
+  static Color get surfaceContainerHigh => AppThemeManager.instance.isDarkMode ? Color(0xFF1A2233) : Color(0xFFF1F5F9);
+  static Color get surfaceContainerHighest => AppThemeManager.instance.isDarkMode ? Color(0xFF31353B) : Color(0xFFE2E8F0);
+  static Color get surfaceVariant => AppThemeManager.instance.isDarkMode ? Color(0xFF31353B) : Color(0xFFF1F5F9);
   // ─── On Surface (Text) ─────────────────────────────────
-  static const Color onSurface              = Color(0xFFE0E2EA);  // html: on-surface / on-background
-  static const Color onSurfaceVariant       = Color(0xFFC5C9AC);  // html: on-surface-variant
-  static const Color onBackground           = Color(0xFFE0E2EA);
-
+  static Color get onSurface => AppThemeManager.instance.isDarkMode ? Color(0xFFE0E2EA) : Color(0xFF0F172A);
+  static Color get onSurfaceVariant => AppThemeManager.instance.isDarkMode ? Color(0xFFC5C9AC) : Color(0xFF64748B);
+  static Color get onBackground => AppThemeManager.instance.isDarkMode ? Color(0xFFE0E2EA) : Color(0xFF0F172A);
   // ─── Primary / Neon Accent ─────────────────────────────
-  static const Color primaryContainer       = Color(0xFFCDF200);  // html: primary-container
-  static const Color neonAccent             = Color(0xFFD9FF00);  // html: #D9FF00 accent
-  static const Color primaryFixed           = Color(0xFFCDF200);  // html: primary-fixed
-  static const Color primaryFixedDim        = Color(0xFFB4D400);  // html: primary-fixed-dim
-  static const Color onPrimary              = Color(0xFF2B3400);  // html: on-primary
-  static const Color onPrimaryFixed         = Color(0xFF181E00);  // html: on-primary-fixed
-  static const Color onPrimaryContainer     = Color(0xFF5A6B00);  // html: on-primary-container
-  static const Color inversePrimary         = Color(0xFF556500);  // html: inverse-primary
-  static const Color surfaceTint            = Color(0xFFB4D400);  // html: surface-tint
-
+  static Color get primaryContainer => AppThemeManager.instance.isDarkMode ? Color(0xFFCDF200) : Color(0xFFCDF200);
+  static Color get neonAccent => AppThemeManager.instance.isDarkMode ? Color(0xFFD9FF00) : Color(0xFFD9FF00);
+  static Color get primaryFixed => AppThemeManager.instance.isDarkMode ? Color(0xFFCDF200) : Color(0xFFCDF200);
+  static Color get primaryFixedDim => AppThemeManager.instance.isDarkMode ? Color(0xFFB4D400) : Color(0xFFB4D400);
+  static Color get onPrimary => AppThemeManager.instance.isDarkMode ? Color(0xFF2B3400) : Color(0xFF181E00);
+  static Color get onPrimaryFixed => AppThemeManager.instance.isDarkMode ? Color(0xFF181E00) : Color(0xFFFFFFFF);
+  static Color get onPrimaryContainer => AppThemeManager.instance.isDarkMode ? Color(0xFF5A6B00) : Color(0xFFFFFFFF);
+  static Color get inversePrimary => AppThemeManager.instance.isDarkMode ? Color(0xFF556500) : Color(0xFF556500);
+  static Color get surfaceTint => AppThemeManager.instance.isDarkMode ? Color(0xFFB4D400) : Color(0xFFB4D400);
   // ─── Secondary ─────────────────────────────────────────
-  static const Color secondary              = Color(0xFFC2C6D6);  // html: secondary
-  static const Color secondaryContainer     = Color(0xFF444956);  // html: secondary-container
-  static const Color onSecondary            = Color(0xFF2B303D);  // html: on-secondary
-  static const Color secondaryFixed         = Color(0xFFDEE2F3);  // html: secondary-fixed
-  static const Color secondaryFixedDim      = Color(0xFFC2C6D6);
-  static const Color onSecondaryContainer   = Color(0xFFB4B8C8);  // html: on-secondary-container
-  static const Color onSecondaryFixed       = Color(0xFF161B27);
-  static const Color onSecondaryFixedVariant = Color(0xFF424754);
-
+  static Color get secondary => AppThemeManager.instance.isDarkMode ? Color(0xFFC2C6D6) : Color(0xFF00B8FF);
+  static Color get secondaryContainer => AppThemeManager.instance.isDarkMode ? Color(0xFF444956) : Color(0xFFE0F2FE);
+  static Color get onSecondary => AppThemeManager.instance.isDarkMode ? Color(0xFF2B303D) : Color(0xFFFFFFFF);
+  static Color get secondaryFixed => AppThemeManager.instance.isDarkMode ? Color(0xFFDEE2F3) : Color(0xFF00B8FF);
+  static Color get secondaryFixedDim => AppThemeManager.instance.isDarkMode ? Color(0xFFC2C6D6) : Color(0xFF00B8FF);
+  static Color get onSecondaryContainer => AppThemeManager.instance.isDarkMode ? Color(0xFFB4B8C8) : Color(0xFF0369A1);
+  static Color get onSecondaryFixed => AppThemeManager.instance.isDarkMode ? Color(0xFF161B27) : Color(0xFFFFFFFF);
+  static Color get onSecondaryFixedVariant => AppThemeManager.instance.isDarkMode ? Color(0xFF424754) : Color(0xFFFFFFFF);
   // ─── Tertiary ──────────────────────────────────────────
-  static const Color tertiaryContainer      = Color(0xFFCEE6F2);  // html: tertiary-container
-  static const Color onTertiary             = Color(0xFF1C333D);
-  static const Color onTertiaryContainer    = Color(0xFF516872);
-
+  static Color get tertiaryContainer => AppThemeManager.instance.isDarkMode ? Color(0xFFCEE6F2) : Color(0xFFF1F5F9);
+  static Color get onTertiary => AppThemeManager.instance.isDarkMode ? Color(0xFF1C333D) : Color(0xFF0F172A);
+  static Color get onTertiaryContainer => AppThemeManager.instance.isDarkMode ? Color(0xFF516872) : Color(0xFF64748B);
   // ─── Error ─────────────────────────────────────────────
-  static const Color error                  = Color(0xFFFFB4AB);  // html: error
-  static const Color errorContainer         = Color(0xFF93000A);  // html: error-container
-  static const Color onError                = Color(0xFF690005);
-  static const Color onErrorContainer       = Color(0xFFFFDAD6);
-  static const Color emergency              = Color(0xFFFF4D4D);  // html: emergency accent
-  static const Color warning                = Color(0xFFFFB84D);  // amber gold
-
+  static Color get error => AppThemeManager.instance.isDarkMode ? Color(0xFFFFB4AB) : Color(0xFFEF4444);
+  static Color get errorContainer => AppThemeManager.instance.isDarkMode ? Color(0xFF93000A) : Color(0xFFFEE2E2);
+  static Color get onError => AppThemeManager.instance.isDarkMode ? Color(0xFF690005) : Color(0xFFFFFFFF);
+  static Color get onErrorContainer => AppThemeManager.instance.isDarkMode ? Color(0xFFFFDAD6) : Color(0xFFB91C1C);
+  static Color get emergency => AppThemeManager.instance.isDarkMode ? Color(0xFFFF4D4D) : Color(0xFFEF4444);
+  static Color get warning => AppThemeManager.instance.isDarkMode ? Color(0xFFFFB84D) : Color(0xFFF59E0B);
   // ─── Success ───────────────────────────────────────────
-  static const Color success                = Color(0xFF34C759);
-  static const Color successDim             = Color(0xFF1A3320);
-
+  static Color get success => AppThemeManager.instance.isDarkMode ? Color(0xFF34C759) : Color(0xFF10B981);
+  static Color get successDim => AppThemeManager.instance.isDarkMode ? Color(0xFF1A3320) : Color(0xFF059669);
   // ─── Outlines ──────────────────────────────────────────
-  static const Color outline                = Color(0xFF8F9378);  // html: outline
-  static const Color outlineVariant         = Color(0xFF454932);  // html: outline-variant
-
+  static Color get outline => AppThemeManager.instance.isDarkMode ? Color(0xFF8F9378) : Color(0xFFE2E8F0);
+  static Color get outlineVariant => AppThemeManager.instance.isDarkMode ? Color(0xFF454932) : Color(0xFFCBD5E1);
   // ─── Inverse ───────────────────────────────────────────
-  static const Color inverseSurface         = Color(0xFFE0E2EA);  // html: inverse-surface
-  static const Color inverseOnSurface       = Color(0xFF2D3136);  // html: inverse-on-surface
-
+  static Color get inverseSurface => AppThemeManager.instance.isDarkMode ? Color(0xFFE0E2EA) : Color(0xFF0F172A);
+  static Color get inverseOnSurface => AppThemeManager.instance.isDarkMode ? Color(0xFF2D3136) : Color(0xFFF8FAFC);
   // ─── Convenience aliases ───────────────────────────────
-  static Color get divider      => Colors.white.withValues(alpha: 0.05);
-  static Color get whiteBorder5 => Colors.white.withValues(alpha: 0.05);
-  static Color get whiteBorder3 => Colors.white.withValues(alpha: 0.03);
-
+  static Color get divider => AppThemeManager.instance.isDarkMode ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05);
+  static Color get whiteBorder5 => AppThemeManager.instance.isDarkMode ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05);
+  static Color get whiteBorder3 => AppThemeManager.instance.isDarkMode ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.05);
   // ─── Spacing System (8px grid) ─────────────────────────
-  static const double space4  = 4;
-  static const double space8  = 8;
-  static const double space12 = 12;
-  static const double space16 = 16;
-  static const double space20 = 20;
-  static const double space24 = 24;
-  static const double space32 = 32;
-  static const double space40 = 40;
-  static const double space48 = 48;
-
   // ─── Border Radius ─────────────────────────────────────
-  static const double radiusSmall  = 8;
-  static const double radiusMedium = 12;
-  static const double radiusLarge  = 16;
-  static const double radiusXL     = 24;
-  static const double radiusFull   = 999;
-
   // ─── Priority / Urgency Colors ─────────────────────────
-  static const Color lowPriority      = Color(0xFF4ECDC4);  // teal cyan
-  static const Color mediumPriority   = Color(0xFF79CFFF);  // sky blue
-  static const Color highPriority     = Color(0xFFFFB84D);  // amber gold
+  static Color get lowPriority => AppThemeManager.instance.isDarkMode ? Color(0xFF4ECDC4) : Color(0xFF10B981);
+  static Color get mediumPriority => AppThemeManager.instance.isDarkMode ? Color(0xFF79CFFF) : Color(0xFF00B8FF);
+  static Color get highPriority => AppThemeManager.instance.isDarkMode ? Color(0xFFFFB84D) : Color(0xFFF59E0B);
   // emergency is already defined above as Color(0xFFFF4D4D)
-
   // ─── Booking Status Colors ─────────────────────────────
-  static const Color statusPending    = Color(0xFFFFB84D);  // amber
-  static const Color statusAccepted   = Color(0xFF4ECDC4);  // teal
-  static const Color statusOnTheWay   = Color(0xFF79CFFF);  // sky
-  static const Color statusInProgress = Color(0xFF9E9BFF);  // lavender
-  static const Color statusCompleted  = Color(0xFF34C759);  // green (same as success)
-  static const Color statusCancelled  = Color(0xFFFF6B6B);  // soft red
-
+  static Color get statusPending => AppThemeManager.instance.isDarkMode ? Color(0xFFFFB84D) : Color(0xFFF59E0B);
+  static Color get statusAccepted => AppThemeManager.instance.isDarkMode ? Color(0xFF4ECDC4) : Color(0xFF00B8FF);
+  static Color get statusOnTheWay => AppThemeManager.instance.isDarkMode ? Color(0xFF79CFFF) : Color(0xFF3B82F6);
+  static Color get statusInProgress => AppThemeManager.instance.isDarkMode ? Color(0xFF9E9BFF) : Color(0xFF8B5CF6);
+  static Color get statusCompleted => AppThemeManager.instance.isDarkMode ? Color(0xFF34C759) : Color(0xFF10B981);
+  static Color get statusCancelled => AppThemeManager.instance.isDarkMode ? Color(0xFFFF6B6B) : Color(0xFFEF4444);
   // ─── Glassmorphism ─────────────────────────────────────
-  static Color get glassBackground => Colors.white.withValues(alpha: 0.04);
-  static Color get glassBorder     => Colors.white.withValues(alpha: 0.08);
-  static Color get glassHighlight  => Colors.white.withValues(alpha: 0.12);
-
+  static Color get glassBackground => AppThemeManager.instance.isDarkMode ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.05);
+  static Color get glassBorder => AppThemeManager.instance.isDarkMode ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05);
+  static Color get glassHighlight => AppThemeManager.instance.isDarkMode ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.05);
   // ─── Shimmer / Skeleton ────────────────────────────────
-  static const Color shimmerBase      = Color(0xFF1A1E25);
-  static const Color shimmerHighlight = Color(0xFF252A33);
+  static Color get shimmerBase => AppThemeManager.instance.isDarkMode ? Color(0xFF1A1E25) : Color(0xFFF1F5F9);
+  static Color get shimmerHighlight => AppThemeManager.instance.isDarkMode ? Color(0xFF252A33) : Color(0xFFFFFFFF);
 }

@@ -75,7 +75,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(Icons.chat_bubble_outline_rounded, size: 48, color: AppColors.onSurfaceVariant.withValues(alpha: 0.2)),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Text('No conversations yet', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.onSurfaceVariant.withValues(alpha: 0.5))),
           ]));
         }
@@ -154,13 +154,13 @@ class _ChatListItem extends StatelessWidget {
                     ? Image.network(photoUrl, fit: BoxFit.cover, errorBuilder: (_, _, _) => _avatar(name))
                     : _avatar(name)),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                     Expanded(child: Text(name, style: GoogleFonts.inter(fontSize: 15, fontWeight: isUnread ? FontWeight.w700 : FontWeight.w500, color: AppColors.onSurface), maxLines: 1, overflow: TextOverflow.ellipsis)),
                     Text(_formatTimestamp(timestamp), style: GoogleFonts.inter(fontSize: 11, color: isUnread ? AppColors.neonAccent : AppColors.onSurfaceVariant)),
                   ]),
-                  const SizedBox(height: 3),
+                  SizedBox(height: 3),
                   Row(children: [
                     Expanded(child: Text(lastMessage, style: GoogleFonts.inter(fontSize: 13, fontWeight: isUnread ? FontWeight.w500 : FontWeight.w400, color: isUnread ? AppColors.onSurface : AppColors.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis)),
                     if (unreadCount > 0) ...[
@@ -186,10 +186,10 @@ class _ChatListItem extends StatelessWidget {
 
   Widget _skeleton() => Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), child: Row(children: [
     Container(width: 48, height: 48, decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.surface)),
-    const SizedBox(width: 12),
+    SizedBox(width: 12),
     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Container(width: 100, height: 14, decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(4))),
-      const SizedBox(height: 6),
+      SizedBox(height: 6),
       Container(width: double.infinity, height: 12, decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(4))),
     ])),
   ]));

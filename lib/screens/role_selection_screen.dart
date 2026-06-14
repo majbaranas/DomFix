@@ -141,7 +141,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
             color: AppColors.primaryContainer,
           ),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         Text(
           'Choose Your Role',
           textAlign: TextAlign.center,
@@ -152,7 +152,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
             letterSpacing: -0.5,
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Text(
           'Select how you want to use DOMFIX',
           textAlign: TextAlign.center,
@@ -239,7 +239,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                 size: 28,
               ),
             ),
-            const SizedBox(width: 16),
+            SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,7 +254,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                           : AppColors.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(
                     subtitle,
                     style: GoogleFonts.inter(
@@ -335,7 +335,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                             : AppColors.onSurfaceVariant.withValues(alpha: 0.5),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Icon(
                       Icons.arrow_forward_rounded,
                       color: _selectedRole != null

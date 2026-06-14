@@ -30,7 +30,7 @@ class PremiumTechnicianCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surfaceContainerLow,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          border: Border.all(color: AppColors.whiteBorder5),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4, offset: const Offset(0, 2))],
         ),
         child: Column(
@@ -68,12 +68,12 @@ class PremiumTechnicianCard extends StatelessWidget {
                       ),
                   ],
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: 16),
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(name, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.onSurface),
                         maxLines: 1, overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 2),
+                    SizedBox(height: 2),
                     Text(job,
                         style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.onSurfaceVariant),
                         maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -114,7 +114,7 @@ class PremiumTechnicianCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: AppColors.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                    border: Border.all(color: AppColors.whiteBorder5),
                   ),
                   child: Center(child: Text('Profile', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.onSurface))),
                 ),
@@ -172,7 +172,7 @@ class PremiumMessageTile extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.surfaceContainerLow.withValues(alpha: 0.60),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              border: Border.all(color: AppColors.whiteBorder5),
             ),
             child: Row(children: [
               // Avatar with online indicator
@@ -182,7 +182,7 @@ class PremiumMessageTile extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: isAi ? AppColors.neonAccent.withValues(alpha: 0.05) : AppColors.surfaceContainerHigh,
-                    border: Border.all(color: isAi ? AppColors.neonAccent.withValues(alpha: 0.10) : Colors.white.withValues(alpha: 0.10)),
+                    border: Border.all(color: isAi ? AppColors.neonAccent.withValues(alpha: 0.10) : AppColors.glassHighlight),
                   ),
                   child: ClipOval(
                     child: isAi
@@ -205,7 +205,7 @@ class PremiumMessageTile extends StatelessWidget {
                     ),
                   ),
               ]),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -214,7 +214,7 @@ class PremiumMessageTile extends StatelessWidget {
                         maxLines: 1, overflow: TextOverflow.ellipsis)),
                     Text(timeStr, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.onSurfaceVariant)),
                   ]),
-                  const SizedBox(height: 2),
+                  SizedBox(height: 2),
                   Text(lastMessage,
                       style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.onSurfaceVariant),
                       maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -279,7 +279,7 @@ class SuggestionCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surfaceContainer,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.03)),
+          border: Border.all(color: AppColors.whiteBorder3),
         ),
         child: Stack(children: [
           // Background icon
@@ -288,9 +288,9 @@ class SuggestionCard extends StatelessWidget {
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(title, style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.onSurface, height: 1.3),
                 maxLines: 2, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             Text(subtitle, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.onSurfaceVariant)),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 12),

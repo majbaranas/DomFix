@@ -361,13 +361,13 @@ class _NotificationPanelState extends State<_NotificationPanel>
                 color: AppColors.onSurfaceVariant.withValues(alpha: 0.35),
                 size: 32),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Text(msg,
               style: GoogleFonts.spaceGrotesk(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: AppColors.onSurfaceVariant.withValues(alpha: 0.55))),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Text("You're all caught up",
               style: GoogleFonts.inter(
                   fontSize: 13,
@@ -489,7 +489,7 @@ class _ChatCard extends StatelessWidget {
                                   color: AppColors.onSurfaceVariant
                                       .withValues(alpha: 0.45))),
                       ]),
-                      const SizedBox(height: 3),
+                      SizedBox(height: 3),
                       Row(children: [
                         Expanded(
                           child: Text(lastMsg,
@@ -533,7 +533,7 @@ class _ChatCard extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Icon(Icons.arrow_forward_ios_rounded,
               color: AppColors.onSurfaceVariant.withValues(alpha: 0.3),
               size: 13),
@@ -593,7 +593,7 @@ class _BookingCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(13)),
             child: Icon(icon, color: color, size: 22),
           ),
-          const SizedBox(width: 13),
+          SizedBox(width: 13),
           Expanded(
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -627,7 +627,7 @@ class _BookingCard extends StatelessWidget {
                         ),
                       ),
                   ]),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(body,
                       style: GoogleFonts.inter(
                           fontSize: 13,
@@ -732,7 +732,7 @@ class _SkeletonCardState extends State<_SkeletonCard>
                   color: AppColors.shimmerHighlight,
                   borderRadius: BorderRadius.circular(13)),
             ),
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
             Expanded(
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -743,7 +743,7 @@ class _SkeletonCardState extends State<_SkeletonCard>
                         decoration: BoxDecoration(
                             color: AppColors.shimmerHighlight,
                             borderRadius: BorderRadius.circular(6))),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     Container(
                         height: 10,
                         width: 140,

@@ -133,7 +133,7 @@ class _AudioRecorderWidgetState extends State<AudioRecorderWidget> {
               child: const Icon(Icons.close, color: Colors.red, size: 20),
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           // Recording animation
           Container(
             width: 12,
@@ -150,7 +150,7 @@ class _AudioRecorderWidgetState extends State<AudioRecorderWidget> {
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           // Duration
           Text(
             _formatDuration(_recordDuration),
