@@ -28,9 +28,11 @@ class DashboardService {
       final now = DateTime.now();
       final todayStart = DateTime(now.year, now.month, now.day);
       final weekStart = todayStart.subtract(Duration(days: now.weekday - 1));
+      final monthStart = DateTime(now.year, now.month, 1);
 
       double todayEarnings = 0;
       double weeklyEarnings = 0;
+      double monthlyEarnings = 0;
       int activeJobs = 0;
       int completedJobs = 0;
       int totalJobs = 0;
@@ -47,6 +49,9 @@ class DashboardService {
         }
         if (booking.scheduledAt.isAfter(weekStart)) {
           weeklyEarnings += booking.technicianFee;
+        }
+        if (booking.scheduledAt.isAfter(monthStart)) {
+          monthlyEarnings += booking.technicianFee;
         }
       }
 
@@ -72,6 +77,7 @@ class DashboardService {
           DashboardMetrics(
             todayEarnings: todayEarnings,
             weeklyEarnings: weeklyEarnings,
+            monthlyEarnings: monthlyEarnings,
             activeJobsCount: activeJobs,
             completedJobsCount: completedJobs,
             completionRate: completionRate,

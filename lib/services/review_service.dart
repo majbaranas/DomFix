@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/booking_model.dart';
 import '../models/review_model.dart';
-import 'firebase_storage_service.dart';
+import 'cloudinary_service.dart';
 import 'technician_ranking_service.dart';
 
 class ReviewService {
@@ -15,7 +15,7 @@ class ReviewService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseStorageService _storageService = FirebaseStorageService();
+  final CloudinaryService _storageService = CloudinaryService();
 
   Stream<List<BookingModel>> watchPendingBookingReviews(String clientId) {
     if (clientId.trim().isEmpty) {

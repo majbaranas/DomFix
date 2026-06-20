@@ -138,7 +138,7 @@ service cloud.firestore {
                       request.resource.data.technicianId == request.auth.uid &&
                       request.resource.data.bookingId is string &&
                       exists(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)) &&
-                      get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.status == 'completed' &&
+                      get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.status in ['in_progress', 'completed'] &&
                       get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.technicianId == request.auth.uid;
       allow update, delete: if false;
     }

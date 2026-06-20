@@ -253,14 +253,9 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
                         pendingCount: pendingCount,
                       ),
                       const SizedBox(height: 18),
-                      _buildActiveJobSection(
-                        profile: profile,
-                        activeRequest: activeRequest,
-                      ),
-                      const SizedBox(height: 18),
-                      _buildRequestsSection(
-                        profile: profile,
-                        requests: pendingRequests,
+                      _buildJobsOverviewSection(
+                        pendingCount: pendingCount,
+                        activeCount: activeCount,
                       ),
                       const SizedBox(height: 18),
                       _buildWeeklyEarnings(metrics),
@@ -333,7 +328,7 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionHeader(
-          title: 'Today',
+          title: 'Performance',
           subtitle: 'At a glance',
         ),
         SizedBox(height: 12),
@@ -349,8 +344,8 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
                 case 0:
                   return _SummaryCard(
                     width: 152,
-                    label: 'Earnings today',
-                    value: _money(metrics.todayEarnings),
+                    label: 'Monthly earnings',
+                    value: _money(metrics.monthlyEarnings),
                     icon: Icons.payments_rounded,
                     color: AppColors.neonAccent,
                   );
@@ -382,6 +377,76 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
                   );
               }
             },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildJobsOverviewSection({
+    required int pendingCount,
+    required int activeCount,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(
+          title: 'Jobs Overview',
+          subtitle: 'Manage all your work and requests',
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _SummaryCard(
+                width: double.infinity,
+                label: 'Pending Requests',
+                value: '$pendingCount',
+                icon: Icons.inbox_rounded,
+                color: Colors.amberAccent,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _SummaryCard(
+                width: double.infinity,
+                label: 'Active Jobs',
+                value: '$activeCount',
+                icon: Icons.work_rounded,
+                color: AppColors.neonAccent,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton(
+            onPressed: () => widget.onNavigateTab(2),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.surfaceContainerHigh,
+              foregroundColor: AppColors.onSurface,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: AppColors.divider),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.list_alt_rounded, size: 20, color: AppColors.onSurfaceVariant),
+                const SizedBox(width: 8),
+                Text(
+                  'View All Jobs',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -1133,10 +1198,12 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
     final weekStart = todayStart.subtract(Duration(days: now.weekday - 1));
+    final monthStart = DateTime(now.year, now.month, 1);
     final rating = (profileData?['rating'] as num?)?.toDouble() ?? 0.0;
 
     double todayEarnings = 0;
     double weeklyEarnings = 0;
+    double monthlyEarnings = 0;
     int activeJobs = 0;
     int completedJobs = 0;
     int totalJobs = 0;
@@ -1165,6 +1232,9 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
             weeklyData[dayIndex] += booking.technicianFee;
           }
         }
+        if (effectiveDate.isAfter(monthStart)) {
+          monthlyEarnings += booking.technicianFee;
+        }
       }
     }
 
@@ -1175,6 +1245,7 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
     return DashboardMetrics(
       todayEarnings: todayEarnings,
       weeklyEarnings: weeklyEarnings,
+      monthlyEarnings: monthlyEarnings,
       activeJobsCount: activeJobs,
       completedJobsCount: completedJobs,
       completionRate: completionRate,

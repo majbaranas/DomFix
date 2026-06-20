@@ -11,7 +11,10 @@ import '../theme/app_colors.dart';
 import '../theme/app_theme_manager.dart';
 import '../widgets/notification_panel.dart';
 import '../widgets/scroll_reveal.dart';
+import '../models/booking_model.dart';
+import '../services/booking_service.dart';
 import 'chat_screen.dart';
+import 'client_bookings_screen.dart';
 import 'main_layout.dart';
 import 'nearby_technicians_map_screen.dart';
 import 'technician_profile_screen.dart';
@@ -163,6 +166,12 @@ class _HomeScreenContentState extends State<HomeScreenContent>
                   child: RevealItem(
                     delay: const Duration(milliseconds: 60),
                     child: _buildSearchBar(),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: RevealItem(
+                    delay: const Duration(milliseconds: 100),
+                    child: _buildMyBookingsCard(),
                   ),
                 ),
                 SliverToBoxAdapter(
@@ -385,6 +394,114 @@ class _HomeScreenContentState extends State<HomeScreenContent>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // ─── MY BOOKINGS ──────────────────────────────────────────
+  Widget _buildMyBookingsCard() {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+      child: StreamBuilder<List<BookingModel>>(
+        stream: FirebaseFirestore.instance.collection('bookings').where('clientId', isEqualTo: uid).snapshots().map((snapshot) => snapshot.docs.map((doc) => BookingModel.fromFirestore(doc)).toList()),
+        builder: (context, snapshot) {
+          final bookings = snapshot.data ?? [];
+          int activeCount = 0;
+          int pendingEstimatesCount = 0;
+          int ongoingServicesCount = 0;
+
+          for (final b in bookings) {
+            if (b.isActive) activeCount++;
+            if (b.normalizedStatus == 'quoted') pendingEstimatesCount++;
+            if (b.normalizedStatus == 'in_progress') ongoingServicesCount++;
+          }
+
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.divider),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.background.withValues(alpha: 0.5),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: AppColors.neonAccent.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(Icons.book_online_rounded, color: AppColors.neonAccent, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'MY BOOKINGS',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2,
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ClientBookingsScreen()),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.neonAccent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'View All',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.neonAccent,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _BookingStat(label: 'Active', count: activeCount, color: AppColors.neonAccent),
+                    Container(width: 1, height: 30, color: AppColors.divider),
+                    _BookingStat(label: 'Pending Quotes', count: pendingEstimatesCount, color: Colors.amberAccent),
+                    Container(width: 1, height: 30, color: AppColors.divider),
+                    _BookingStat(label: 'Ongoing jobs', count: ongoingServicesCount, color: AppColors.success),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -1301,6 +1418,38 @@ class _RecentChatTile extends StatelessWidget {
           color: AppColors.neonAccent,
         ),
       ),
+    );
+  }
+}
+
+class _BookingStat extends StatelessWidget {
+  const _BookingStat({required this.label, required this.count, required this.color});
+  final String label;
+  final int count;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          '$count',
+          style: GoogleFonts.spaceGrotesk(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: count > 0 ? color : AppColors.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: AppColors.onSurfaceVariant,
+          ),
+        ),
+      ],
     );
   }
 }

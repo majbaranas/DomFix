@@ -1,6 +1,7 @@
 class DashboardMetrics {
   final double todayEarnings;
   final double weeklyEarnings;
+  final double monthlyEarnings;
   final int activeJobsCount;
   final int completedJobsCount;
   final double completionRate;
@@ -15,6 +16,7 @@ class DashboardMetrics {
   const DashboardMetrics({
     required this.todayEarnings,
     required this.weeklyEarnings,
+    required this.monthlyEarnings,
     required this.activeJobsCount,
     required this.completedJobsCount,
     required this.completionRate,
@@ -30,6 +32,7 @@ class DashboardMetrics {
   factory DashboardMetrics.empty() => DashboardMetrics(
     todayEarnings: 0,
     weeklyEarnings: 0,
+    monthlyEarnings: 0,
     activeJobsCount: 0,
     completedJobsCount: 0,
     completionRate: 0,

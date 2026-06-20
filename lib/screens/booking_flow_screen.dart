@@ -8,7 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/booking_service.dart';
-import '../services/firebase_storage_service.dart';
+import '../services/cloudinary_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/live_status_badge.dart';
 import 'booking_confirmation_screen.dart';
@@ -76,7 +76,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
 
   // ─── Services ───────────────────────────────────────────
   final _bookingService = BookingService.instance;
-  final _storageService = FirebaseStorageService();
+  final _storageService = CloudinaryService();
   final _imagePicker = ImagePicker();
 
   // ─── Controllers ────────────────────────────────────────

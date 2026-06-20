@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 import '../services/notification_service.dart';
 import '../widgets/notification_panel.dart';
-import 'ai_chat_screen.dart';
+
 import 'find_pros_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -660,10 +660,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final iconSize = buttonSize * 0.40;
 
     return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const AIChatScreen()),
-      ),
+      onTap: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('AI Chat not available')),
+        );
+      },
       child: Container(
         width: buttonSize,
         height: buttonSize,

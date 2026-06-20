@@ -66,6 +66,18 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen>
                     _buildTechnicians(),
                     const SizedBox(height: 24),
                     _buildEmergency(),
+                    const SizedBox(height: 120),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          _buildHeader(),
+        ],
+      ),
+    );
+  }
+
   Widget _ambientGlow() {
     return Positioned(
       top: 0, left: 0, right: 0,

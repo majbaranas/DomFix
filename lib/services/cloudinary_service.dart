@@ -244,6 +244,71 @@ class CloudinaryService {
     }
   }
 
+  /// Upload a booking image to Cloudinary
+  Future<String> uploadBookingImage({
+    required String bookingId,
+    required File imageFile,
+    bool compress = true,
+    Function(double)? onProgress,
+  }) async {
+    try {
+      debugPrint('═══════════════════════════════════════');
+      debugPrint('[Cloudinary] 🧾 BOOKING IMAGE UPLOAD STARTED');
+      debugPrint('[Cloudinary] Booking ID: $bookingId');
+      debugPrint('[Cloudinary] File path: ${imageFile.path}');
+      
+      // Verify file exists
+      if (!await imageFile.exists()) {
+        throw Exception('Booking image file does not exist');
+      }
+      
+      File fileToUpload = imageFile;
+      
+      // Compress image if needed
+      if (compress) {
+        debugPrint('[Cloudinary] Compressing image...');
+        final compressedFile = await _compressImage(imageFile);
+        if (compressedFile != null) {
+          fileToUpload = compressedFile;
+          final originalSize = await imageFile.length();
+          final compressedSize = await compressedFile.length();
+          debugPrint('[Cloudinary] Original: ${originalSize} bytes');
+          debugPrint('[Cloudinary] Compressed: ${compressedSize} bytes');
+        }
+      }
+      
+      // Check file size
+      final fileSize = await fileToUpload.length();
+      debugPrint('[Cloudinary] File size: $fileSize bytes');
+      
+      if (fileSize > _maxImageSize) {
+        throw Exception('Image size exceeds ${_maxImageSize ~/ (1024 * 1024)} MB limit');
+      }
+      
+      // Upload to Cloudinary
+      final url = await _uploadToCloudinary(
+        file: fileToUpload,
+        uploadUrl: _imageUploadUrl,
+        folder: 'booking_images/$bookingId',
+        resourceType: 'image',
+        onProgress: onProgress,
+      );
+      
+      debugPrint('[Cloudinary] ✅ SUCCESS!');
+      debugPrint('[Cloudinary] URL: $url');
+      debugPrint('═══════════════════════════════════════');
+      
+      return url;
+    } catch (e, stackTrace) {
+      debugPrint('═══════════════════════════════════════');
+      debugPrint('[Cloudinary] ❌ BOOKING IMAGE UPLOAD FAILED');
+      debugPrint('[Cloudinary] Error: $e');
+      debugPrint('[Cloudinary] StackTrace: $stackTrace');
+      debugPrint('═══════════════════════════════════════');
+      rethrow;
+    }
+  }
+
   /// Core upload method to Cloudinary
   /// Uses SIGNED uploads (no preset required)
   Future<String> _uploadToCloudinary({
