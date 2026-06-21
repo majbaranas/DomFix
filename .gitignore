@@ -80,3 +80,6 @@ app.*.map.json
 # Firebase cache
 .firebase/
 .firebaserc
+
+# Node
+/node_modules/

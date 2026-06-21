@@ -30,6 +30,15 @@ class BookingModel {
   final String? technicianEstimatedDuration;
   final String? technicianNote;
 
+  // Inspection Workflow Fields
+  final double? inspectionFee;
+  final String? inspectionMessage;
+  final String? preferredVisitDate;
+  final String? preferredVisitTime;
+  final DateTime? inspectionRequestedAt;
+  final DateTime? inspectionAcceptedAt;
+  final DateTime? inspectionCompletedAt;
+
   const BookingModel({
     required this.id,
     required this.chatId,
@@ -57,6 +66,13 @@ class BookingModel {
     this.technicianEstimatedPrice,
     this.technicianEstimatedDuration,
     this.technicianNote,
+    this.inspectionFee,
+    this.inspectionMessage,
+    this.preferredVisitDate,
+    this.preferredVisitTime,
+    this.inspectionRequestedAt,
+    this.inspectionAcceptedAt,
+    this.inspectionCompletedAt,
   });
 
   String get normalizedStatus => status.toLowerCase().trim();
@@ -71,8 +87,16 @@ class BookingModel {
         normalizedStatus == 'arrived' ||
         normalizedStatus == 'in_progress' ||
         normalizedStatus == 'in progress' ||
-        normalizedStatus == 'completed_pending_confirmation';
+        normalizedStatus == 'completed_pending_confirmation' ||
+        normalizedStatus == 'inspection_requested' ||
+        normalizedStatus == 'inspection_accepted' ||
+        normalizedStatus == 'inspection_completed';
   }
+
+  bool get isInspectionFlow =>
+      normalizedStatus == 'inspection_requested' ||
+      normalizedStatus == 'inspection_accepted' ||
+      normalizedStatus == 'inspection_completed';
 
   factory BookingModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -110,6 +134,13 @@ class BookingModel {
       technicianEstimatedPrice: (data['technicianEstimatedPrice'] as num?)?.toDouble(),
       technicianEstimatedDuration: data['technicianEstimatedDuration'] as String?,
       technicianNote: data['technicianNote'] as String?,
+      inspectionFee: (data['inspectionFee'] as num?)?.toDouble(),
+      inspectionMessage: data['inspectionMessage'] as String?,
+      preferredVisitDate: data['preferredVisitDate'] as String?,
+      preferredVisitTime: data['preferredVisitTime'] as String?,
+      inspectionRequestedAt: (data['inspectionRequestedAt'] as Timestamp?)?.toDate(),
+      inspectionAcceptedAt: (data['inspectionAcceptedAt'] as Timestamp?)?.toDate(),
+      inspectionCompletedAt: (data['inspectionCompletedAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -141,6 +172,13 @@ class BookingModel {
       if (technicianEstimatedPrice != null) 'technicianEstimatedPrice': technicianEstimatedPrice,
       if (technicianEstimatedDuration != null) 'technicianEstimatedDuration': technicianEstimatedDuration,
       if (technicianNote != null) 'technicianNote': technicianNote,
+      if (inspectionFee != null) 'inspectionFee': inspectionFee,
+      if (inspectionMessage != null) 'inspectionMessage': inspectionMessage,
+      if (preferredVisitDate != null) 'preferredVisitDate': preferredVisitDate,
+      if (preferredVisitTime != null) 'preferredVisitTime': preferredVisitTime,
+      if (inspectionRequestedAt != null) 'inspectionRequestedAt': Timestamp.fromDate(inspectionRequestedAt!),
+      if (inspectionAcceptedAt != null) 'inspectionAcceptedAt': Timestamp.fromDate(inspectionAcceptedAt!),
+      if (inspectionCompletedAt != null) 'inspectionCompletedAt': Timestamp.fromDate(inspectionCompletedAt!),
     };
   }
 

@@ -122,14 +122,19 @@ class _ExpertCardState extends State<ExpertCard> {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  widget.imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: AppColors.surfaceContainerHigh,
-                    child: const Icon(Icons.person, color: Colors.white54, size: 24),
-                  ),
-                ),
+                child: widget.imageUrl.isNotEmpty
+                    ? Image.network(
+                        widget.imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: AppColors.surfaceContainerHigh,
+                          child: const Icon(Icons.person, color: Colors.white54, size: 24),
+                        ),
+                      )
+                    : Container(
+                        color: AppColors.surfaceContainerHigh,
+                        child: const Icon(Icons.person, color: Colors.white54, size: 24),
+                      ),
               ),
             ),
             Positioned(

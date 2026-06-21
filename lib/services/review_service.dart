@@ -101,6 +101,7 @@ class ReviewService {
         final status = (bookingData['status'] ?? '').toString().toLowerCase();
         final clientId = (bookingData['clientId'] ?? '').toString();
         if (status != 'completed') {
+          print('[ReviewService] ❌ Job status is not completed. Actual status: "$status"');
           throw Exception('Only completed jobs can be reviewed.');
         }
         if (clientId != user.uid) {

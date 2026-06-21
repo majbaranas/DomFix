@@ -11,6 +11,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../services/chat_service.dart';
 import '../models/booking_model.dart';
+import '../services/booking_service.dart';
 import '../models/dashboard_metrics.dart';
 import '../widgets/dashboard/dashboard_header.dart';
 import '../widgets/dashboard/live_status_card.dart';
@@ -23,6 +24,7 @@ import '../widgets/job_completion_dialog.dart';
 import 'technician_premium_dashboard.dart';
 import 'settings_screen.dart';
 import 'messages_screen.dart';
+import 'technician_review_screen.dart';
 import 'booking_details_screen.dart';
 import 'chat_screen.dart';
 
@@ -268,6 +270,12 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
       case 'rejected':
       case 'cancelled':
         return 'Cancelled';
+      case 'inspection_requested':
+        return 'Inspection Req.';
+      case 'inspection_accepted':
+        return 'Inspection Appr.';
+      case 'inspection_completed':
+        return 'Pending Quote';
       default:
         return 'Pending';
     }
@@ -315,12 +323,18 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
     if (lower == 'on the way') return 'on_the_way';
     if (lower == 'pending_quote') return 'pending_quote';
     if (lower == 'quote_sent') return 'quote_sent';
+    if (lower == 'inspection_requested') return 'inspection_requested';
+    if (lower == 'inspection_accepted') return 'inspection_accepted';
+    if (lower == 'inspection_completed') return 'inspection_completed';
     return lower;
   }
 
   bool _isPending(_TechnicianQueueItem item) {
     final normalized = _normalizeStatus(item.status);
-    return normalized == 'pending' || normalized == 'pending_quote';
+    return normalized == 'pending' ||
+        normalized == 'pending_quote' ||
+        normalized == 'inspection_requested' ||
+        normalized == 'inspection_completed';
   }
 
   bool _isActive(_TechnicianQueueItem item) {
@@ -330,7 +344,8 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
           normalized == 'confirmed' ||
           normalized == 'on_the_way' ||
           normalized == 'arrived' ||
-          normalized == 'in_progress';
+          normalized == 'in_progress' ||
+          normalized == 'inspection_accepted';
     }
     return normalized == 'accepted' ||
         normalized == 'on_the_way' ||
@@ -371,15 +386,14 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
     if (item.isBooking) {
       final current = _normalizeStatus(item.status);
       
-      // If it's a pending quote, navigate to details screen instead of inline advance
-      if (current == 'pending_quote') {
+      // If it's a pending quote or inspection completed, navigate to review screen
+      if (current == 'pending_quote' || current == 'inspection_completed') {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => BookingDetailsScreen(
+            builder: (_) => TechnicianReviewScreen(
               booking: item.booking!,
               distanceKm: item.distanceKm,
-              etaMinutes: item.etaMinutes,
             ),
           ),
         );
@@ -388,9 +402,9 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
 
       final next = switch (current) {
         'pending' => 'accepted',
-        'accepted' || 'confirmed' => 'on_the_way',
+        'accepted' || 'confirmed' || 'inspection_accepted' => 'on_the_way',
         'on_the_way' => 'arrived',
-        'arrived' => 'in_progress',
+        'arrived' => item.booking?.isInspectionFlow == true ? 'inspection_completed' : 'in_progress',
         'in_progress' => 'completed_pending_confirmation', // New completion flow
         _ => current,
       };
@@ -407,6 +421,14 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
               await _updateBookingStatus(item.booking!, 'completed_pending_confirmation');
             },
           ),
+        );
+      } else if (next == 'inspection_completed') {
+        await BookingService.instance.completeInspection(
+          bookingId: item.booking!.id,
+          clientId: item.clientId,
+          technicianId: FirebaseAuth.instance.currentUser!.uid,
+          technicianName: 'Technician', // Will use existing name
+          serviceName: item.serviceTitle,
         );
       } else {
         await _updateBookingStatus(item.booking!, next);
@@ -677,11 +699,12 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
         return 'Accept';
       case 'accepted':
       case 'confirmed':
+      case 'inspection_accepted':
         return 'On the way';
       case 'on_the_way':
         return 'Arrived';
       case 'arrived':
-        return 'Start job';
+        return item.booking?.isInspectionFlow == true ? 'Finish Inspect' : 'Start job';
       case 'in_progress':
         return 'Complete';
       default:
@@ -709,11 +732,12 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
         return Icons.check_rounded;
       case 'accepted':
       case 'confirmed':
+      case 'inspection_accepted':
         return Icons.navigation_rounded;
       case 'on_the_way':
         return Icons.location_on_rounded;
       case 'arrived':
-        return Icons.play_arrow_rounded;
+        return item.booking?.isInspectionFlow == true ? Icons.fact_check_rounded : Icons.play_arrow_rounded;
       case 'in_progress':
         return Icons.check_circle_rounded;
       default:
@@ -984,9 +1008,13 @@ class _TechnicianQueueItem {
     };
   }
 
-  bool get isPending =>
-      status.toLowerCase().trim() == 'pending' ||
-      status.toLowerCase().trim() == 'pending_quote';
+  bool get isPending {
+    final normalized = status.toLowerCase().trim();
+    return normalized == 'pending' ||
+        normalized == 'pending_quote' ||
+        normalized == 'inspection_requested' ||
+        normalized == 'inspection_completed';
+  }
 
   bool get isActive {
     final normalized = status.toLowerCase().trim();
@@ -996,7 +1024,8 @@ class _TechnicianQueueItem {
           normalized == 'confirmed' ||
           normalized == 'on_the_way' ||
           normalized == 'arrived' ||
-          normalized == 'in_progress';
+          normalized == 'in_progress' ||
+          normalized == 'inspection_accepted';
     }
     return normalized == 'accepted' || normalized == 'in_progress';
   }
@@ -1170,11 +1199,11 @@ class _QueueCard extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: _ActionButton(
-                        label: item.status.toLowerCase().trim() == 'pending_quote' ? 'Review' : 'Accept',
-                        icon: item.status.toLowerCase().trim() == 'pending_quote' ? Icons.visibility_rounded : Icons.check_rounded,
+                        label: (item.status.toLowerCase().trim() == 'pending_quote' || item.status.toLowerCase().trim() == 'inspection_completed') ? 'Review Request' : 'Accept',
+                        icon: (item.status.toLowerCase().trim() == 'pending_quote' || item.status.toLowerCase().trim() == 'inspection_completed') ? Icons.visibility_rounded : Icons.check_rounded,
                         color: AppColors.neonAccent,
                         filled: true,
-                        onTap: onAccept,
+                        onTap: (item.status.toLowerCase().trim() == 'pending_quote' || item.status.toLowerCase().trim() == 'inspection_completed') ? onPrimaryAction : onAccept,
                       ),
                     ),
                   ] else ...[

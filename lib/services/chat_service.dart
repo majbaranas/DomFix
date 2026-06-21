@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/message_model.dart';
+import 'notification_api_service.dart';
 
 /// ChatService handles all Firestore operations for chat functionality
 /// Provides methods for sending messages, retrieving messages, and managing chats
@@ -116,6 +117,20 @@ class ChatService {
       debugPrint('[ChatService] ✅ Message sent successfully!');
       debugPrint('[ChatService] Message ID: ${messageRef.id}');
       debugPrint('[ChatService] Full path: chats/$chatId/messages/${messageRef.id}');
+
+      // Send push notification to the receiver
+      final senderName = _auth.currentUser?.displayName ?? 'Someone';
+      NotificationApiService.sendPushNotification(
+        receiverId: receiverId,
+        title: senderName,
+        body: text.trim(),
+        data: {
+          'type': 'chat_message',
+          'chatId': chatId,
+          'senderId': currentUserId,
+        },
+      );
+
       debugPrint('═══════════════════════════════════════');
     } catch (e, stackTrace) {
       debugPrint('═══════════════════════════════════════');
@@ -211,6 +226,20 @@ class ChatService {
       debugPrint('[ChatService] ✅ $type message sent successfully');
       debugPrint('[ChatService] Message ID: ${messageRef.id}');
       debugPrint('[ChatService] Full path: chats/$chatId/messages/${messageRef.id}');
+
+      // Send push notification to the receiver
+      final senderName = _auth.currentUser?.displayName ?? 'Someone';
+      NotificationApiService.sendPushNotification(
+        receiverId: receiverId,
+        title: senderName,
+        body: lastMessagePreview,
+        data: {
+          'type': 'chat_message',
+          'chatId': chatId,
+          'senderId': currentUserId,
+        },
+      );
+
       debugPrint('═══════════════════════════════════════');
     } catch (e, stackTrace) {
       debugPrint('═══════════════════════════════════════');

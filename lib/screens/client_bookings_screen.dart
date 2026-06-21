@@ -212,6 +212,11 @@ class _BookingCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           if (isActiveTab) _DeliveryTimeline(booking: booking),
+          if (isActiveTab && booking.normalizedStatus == 'inspection_requested')
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: _InspectionCard(booking: booking),
+            ),
           if (isActiveTab && booking.normalizedStatus == 'quote_sent')
             Padding(
               padding: const EdgeInsets.only(top: 16),
@@ -262,6 +267,11 @@ class _DeliveryTimeline extends StatelessWidget {
     // Define the sequence of steps
     final steps = [
       {'key': 'pending_quote', 'label': 'Request Sent'},
+      if (booking.isInspectionFlow) ...[
+        {'key': 'inspection_requested', 'label': 'Inspection Requested'},
+        {'key': 'inspection_accepted', 'label': 'Inspection Scheduled'},
+        {'key': 'inspection_completed', 'label': 'Inspection Done'},
+      ],
       {'key': 'quote_sent', 'label': 'Estimate Sent'},
       {'key': 'accepted', 'label': 'Accepted'},
       {'key': 'in_progress', 'label': 'Work Started'},
@@ -270,17 +280,24 @@ class _DeliveryTimeline extends StatelessWidget {
     ];
 
     int currentIndex = 0;
-    if (status == 'completed') currentIndex = 5;
-    else if (status == 'completed_pending_confirmation') currentIndex = 4;
-    else if (status == 'in_progress') currentIndex = 3;
-    else if (status == 'accepted') currentIndex = 2;
-    else if (status == 'quote_sent') currentIndex = 1;
+    final keys = steps.map((e) => e['key']).toList();
+    
+    if (status == 'completed') currentIndex = keys.indexOf('completed');
+    else if (status == 'completed_pending_confirmation') currentIndex = keys.indexOf('completed_pending_confirmation');
+    else if (status == 'in_progress') currentIndex = keys.indexOf('in_progress');
+    else if (status == 'accepted') currentIndex = keys.indexOf('accepted');
+    else if (status == 'quote_sent') currentIndex = keys.indexOf('quote_sent');
+    else if (status == 'inspection_completed') currentIndex = keys.indexOf('inspection_completed');
+    else if (status == 'inspection_accepted') currentIndex = keys.indexOf('inspection_accepted');
+    else if (status == 'inspection_requested') currentIndex = keys.indexOf('inspection_requested');
     else if (status == 'pending_quote' || status == 'pending') currentIndex = 0;
     else {
       // For legacy statuses
-      if (status == 'confirmed') currentIndex = 2;
-      else if (status == 'on_the_way' || status == 'arrived') currentIndex = 2;
+      if (status == 'confirmed') currentIndex = keys.indexOf('accepted');
+      else if (status == 'on_the_way' || status == 'arrived') currentIndex = keys.indexOf('accepted');
     }
+    
+    if (currentIndex == -1) currentIndex = 0; // Fallback
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -380,6 +397,151 @@ class _TimelineItem extends StatelessWidget {
   }
 }
 
+class _InspectionCard extends StatelessWidget {
+  const _InspectionCard({required this.booking});
+
+  final BookingModel booking;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerHigh.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.statusPending.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Inspection Requested',
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppColors.onSurface,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${booking.technicianName} would like to inspect the problem before sending an accurate estimate.',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: AppColors.onSurfaceVariant.withValues(alpha: 0.8),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (booking.inspectionFee != null && booking.inspectionFee! > 0)
+            _InfoRow('Visit Fee', '${booking.inspectionFee!.toStringAsFixed(0)} MAD'),
+          if (booking.preferredVisitDate != null && booking.preferredVisitDate!.isNotEmpty)
+            _InfoRow('Preferred Date', booking.preferredVisitDate!),
+          if (booking.preferredVisitTime != null && booking.preferredVisitTime!.isNotEmpty)
+            _InfoRow('Preferred Time', booking.preferredVisitTime!),
+          if (booking.inspectionMessage != null && booking.inspectionMessage!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Divider(color: AppColors.whiteBorder5),
+            const SizedBox(height: 8),
+            Text(
+              'Message from technician',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              booking.inspectionMessage!,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: AppColors.onSurface,
+                height: 1.4,
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _ActionButton(
+                  label: 'Decline',
+                  icon: Icons.close_rounded,
+                  color: AppColors.onSurfaceVariant,
+                  onTap: () => _decline(context),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _ActionButton(
+                  label: 'Accept Visit',
+                  icon: Icons.check_rounded,
+                  color: AppColors.neonAccent,
+                  filled: true,
+                  onTap: () => _accept(context),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _InfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurfaceVariant)),
+          Text(value, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _accept(BuildContext context) async {
+    HapticFeedback.mediumImpact();
+    try {
+      await BookingService.instance.acceptInspection(
+        bookingId: booking.id,
+        clientId: booking.clientId,
+        technicianId: booking.technicianId,
+        technicianName: booking.technicianName,
+        serviceName: booking.serviceName,
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Inspection visit accepted')));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  Future<void> _decline(BuildContext context) async {
+    HapticFeedback.lightImpact();
+    try {
+      await BookingService.instance.declineInspection(
+        bookingId: booking.id,
+        clientId: booking.clientId,
+        technicianId: booking.technicianId,
+        technicianName: booking.technicianName,
+        serviceName: booking.serviceName,
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Inspection request declined')));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+}
+
 class _EstimateCard extends StatelessWidget {
   const _EstimateCard({required this.booking});
 
@@ -406,13 +568,24 @@ class _EstimateCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
+          if (booking.estimatedPriceMin != null && booking.estimatedPriceMin! > 0)
+            _CostRow('Labor Cost', booking.estimatedPriceMin!),
+          if (booking.estimatedPriceMax != null && booking.estimatedPriceMax! > 0)
+            _CostRow('Material Cost', booking.estimatedPriceMax!),
+          if ((booking.estimatedPriceMin != null && booking.estimatedPriceMin! > 0) ||
+              (booking.estimatedPriceMax != null && booking.estimatedPriceMax! > 0)) ...[
+            const SizedBox(height: 8),
+            Divider(color: AppColors.neonAccent.withValues(alpha: 0.2)),
+            const SizedBox(height: 8),
+          ],
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Estimated Price',
+                'Total Price',
                 style: GoogleFonts.inter(
                   fontSize: 14,
+                  fontWeight: FontWeight.w700,
                   color: AppColors.onSurfaceVariant,
                 ),
               ),

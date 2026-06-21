@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../models/booking_model.dart';
 import 'chat_service.dart';
+import 'notification_api_service.dart';
 import 'review_service.dart';
 
 class BookingService {
@@ -334,6 +336,19 @@ class BookingService {
       print('[BookingService] 💾 Committing batch...');
       await batch.commit();
       print('[BookingService] ✅ Booking created successfully');
+
+      // Send push notification to technician
+      NotificationApiService.sendPushNotification(
+        receiverId: technicianId,
+        title: 'New Booking Request',
+        body: '${FirebaseAuth.instance.currentUser?.displayName ?? 'A client'} requested a $serviceName.',
+        data: {
+          'type': 'new_booking',
+          'bookingId': booking.id,
+          'chatId': chatId,
+        },
+      );
+
       return booking;
     } catch (e, stackTrace) {
       print('[BookingService] ❌ ERROR committing batch: $e');
@@ -384,12 +399,17 @@ class BookingService {
       },
     );
 
-    // Create notification for client
-    if (notificationData != null) {
+    // Create notification — senderId must be the authenticated user so
+    // Firestore rules (`senderId == request.auth.uid`) are satisfied
+    // regardless of whether it's the technician or the client calling.
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (notificationData != null && currentUid != null) {
+      // Notification goes to whichever participant is NOT the caller.
+      final recipientId = currentUid == clientId ? technicianId : clientId;
       final notifRef = _firestore.collection('notifications').doc();
       batch.set(notifRef, {
-        'recipientId': clientId,
-        'senderId': technicianId,
+        'recipientId': recipientId,
+        'senderId': currentUid,
         'type': notificationData['type'],
         'title': notificationData['title'],
         'body': notificationData['body'],
@@ -405,6 +425,21 @@ class BookingService {
 
     await batch.commit();
     print('[BookingService] ✅ Booking status updated');
+
+    if (notificationData != null && currentUid != null) {
+      final recipientId = currentUid == clientId ? technicianId : clientId;
+      NotificationApiService.sendPushNotification(
+        receiverId: recipientId,
+        title: notificationData['title'] ?? 'Booking Update',
+        body: notificationData['body'] ?? 'Your booking status has changed.',
+        data: {
+          'type': notificationData['type'] ?? 'status_update',
+          'bookingId': bookingId,
+          'chatId': chatId,
+          'status': normalizedStatus,
+        },
+      );
+    }
     
     // If status changed to 'completed', increment technician's completed jobs
     if (normalizedStatus == 'completed') {
@@ -424,6 +459,30 @@ class BookingService {
           'type': 'quote_sent',
           'title': 'Estimate Received',
           'body': '$technicianName sent an estimate for your $serviceName request.',
+        };
+      case 'inspection_requested':
+        return {
+          'type': 'inspection_requested',
+          'title': 'Inspection Requested',
+          'body': '$technicianName would like to inspect before estimating your $serviceName.',
+        };
+      case 'inspection_accepted':
+        return {
+          'type': 'inspection_accepted',
+          'title': 'Inspection Accepted',
+          'body': 'You accepted the inspection visit for $serviceName.',
+        };
+      case 'inspection_declined':
+        return {
+          'type': 'inspection_declined',
+          'title': 'Inspection Declined',
+          'body': 'The inspection request for $serviceName was declined.',
+        };
+      case 'inspection_completed':
+        return {
+          'type': 'inspection_completed',
+          'title': 'Inspection Completed',
+          'body': '$technicianName completed the inspection for $serviceName. An estimate will follow.',
         };
       case 'accepted':
         return {
@@ -477,6 +536,8 @@ class BookingService {
     required double price,
     required String duration,
     String? note,
+    double? laborCost,
+    double? materialCost,
   }) async {
     final chatId = chatIdFor(clientId, technicianId);
     final batch = _firestore.batch();
@@ -486,6 +547,8 @@ class BookingService {
       'technicianEstimatedPrice': price,
       'technicianEstimatedDuration': duration,
       if (note != null && note.isNotEmpty) 'technicianNote': note,
+      if (laborCost != null) 'estimatedPriceMin': laborCost,
+      if (materialCost != null) 'estimatedPriceMax': materialCost,
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
@@ -598,5 +661,169 @@ class BookingService {
       bookings.sort((a, b) => a.compareByPriority(b));
       return bookings;
     });
+  }
+
+  // ─── Inspection Workflow ─────────────────────────────────
+
+  Future<void> requestInspection({
+    required String bookingId,
+    required String clientId,
+    required String technicianId,
+    required String technicianName,
+    required String serviceName,
+    double? inspectionFee,
+    required String inspectionMessage,
+    String? preferredVisitDate,
+    String? preferredVisitTime,
+  }) async {
+    final chatId = chatIdFor(clientId, technicianId);
+    final batch = _firestore.batch();
+
+    batch.update(_firestore.collection('bookings').doc(bookingId), {
+      'status': 'inspection_requested',
+      if (inspectionFee != null) 'inspectionFee': inspectionFee,
+      'inspectionMessage': inspectionMessage,
+      if (preferredVisitDate != null) 'preferredVisitDate': preferredVisitDate,
+      if (preferredVisitTime != null) 'preferredVisitTime': preferredVisitTime,
+      'inspectionRequestedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    batch.update(_firestore.collection('chats').doc(chatId), {
+      'bookingStatus': 'inspection_requested',
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    final notifRef = _firestore.collection('notifications').doc();
+    batch.set(notifRef, {
+      'recipientId': clientId,
+      'senderId': technicianId,
+      'type': 'inspection_requested',
+      'title': 'Inspection Requested',
+      'body': '$technicianName would like to inspect before estimating your $serviceName.',
+      'bookingId': bookingId,
+      'chatId': chatId,
+      'status': 'inspection_requested',
+      'serviceName': serviceName,
+      'isRead': false,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+  }
+
+  Future<void> acceptInspection({
+    required String bookingId,
+    required String clientId,
+    required String technicianId,
+    required String technicianName,
+    required String serviceName,
+  }) async {
+    final chatId = chatIdFor(clientId, technicianId);
+    final batch = _firestore.batch();
+
+    batch.update(_firestore.collection('bookings').doc(bookingId), {
+      'status': 'inspection_accepted',
+      'inspectionAcceptedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    batch.update(_firestore.collection('chats').doc(chatId), {
+      'bookingStatus': 'inspection_accepted',
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    final notifRef = _firestore.collection('notifications').doc();
+    batch.set(notifRef, {
+      'recipientId': technicianId,
+      'senderId': clientId,
+      'type': 'inspection_accepted',
+      'title': 'Inspection Accepted',
+      'body': 'Client accepted the inspection visit for $serviceName.',
+      'bookingId': bookingId,
+      'chatId': chatId,
+      'status': 'inspection_accepted',
+      'serviceName': serviceName,
+      'isRead': false,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+  }
+
+  Future<void> declineInspection({
+    required String bookingId,
+    required String clientId,
+    required String technicianId,
+    required String technicianName,
+    required String serviceName,
+  }) async {
+    await updateBookingStatus(
+      bookingId: bookingId,
+      newStatus: 'rejected',
+      clientId: clientId,
+      technicianId: technicianId,
+      technicianName: technicianName,
+      serviceName: serviceName,
+    );
+  }
+
+  Future<void> completeInspection({
+    required String bookingId,
+    required String clientId,
+    required String technicianId,
+    required String technicianName,
+    required String serviceName,
+  }) async {
+    final chatId = chatIdFor(clientId, technicianId);
+    final batch = _firestore.batch();
+
+    batch.update(_firestore.collection('bookings').doc(bookingId), {
+      'status': 'inspection_completed',
+      'inspectionCompletedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    batch.update(_firestore.collection('chats').doc(chatId), {
+      'bookingStatus': 'inspection_completed',
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    final notifRef = _firestore.collection('notifications').doc();
+    batch.set(notifRef, {
+      'recipientId': clientId,
+      'senderId': technicianId,
+      'type': 'inspection_completed',
+      'title': 'Inspection Completed',
+      'body': '$technicianName completed the inspection for $serviceName. An estimate will follow.',
+      'bookingId': bookingId,
+      'chatId': chatId,
+      'status': 'inspection_completed',
+      'serviceName': serviceName,
+      'isRead': false,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+  }
+
+  Future<void> rejectRequest({
+    required String bookingId,
+    required String clientId,
+    required String technicianId,
+    required String technicianName,
+    required String serviceName,
+  }) async {
+    await updateBookingStatus(
+      bookingId: bookingId,
+      newStatus: 'rejected',
+      clientId: clientId,
+      technicianId: technicianId,
+      technicianName: technicianName,
+      serviceName: serviceName,
+    );
   }
 }

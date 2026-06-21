@@ -249,14 +249,30 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
                         itemCount: widget.booking.imageUrls.length,
                         separatorBuilder: (_, __) => const SizedBox(width: 12),
                         itemBuilder: (context, index) {
+                          final url = widget.booking.imageUrls[index];
                           return ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              widget.booking.imageUrls[index],
-                              width: 120,
-                              height: 120,
-                              fit: BoxFit.cover,
-                            ),
+                            child: url.isNotEmpty
+                                ? Image.network(
+                                    url,
+                                    width: 120,
+                                    height: 120,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      width: 120,
+                                      height: 120,
+                                      color: AppColors.surfaceContainerHigh,
+                                      child: Icon(Icons.broken_image_rounded,
+                                          color: AppColors.onSurfaceVariant, size: 28),
+                                    ),
+                                  )
+                                : Container(
+                                    width: 120,
+                                    height: 120,
+                                    color: AppColors.surfaceContainerHigh,
+                                    child: Icon(Icons.image_not_supported_rounded,
+                                        color: AppColors.onSurfaceVariant, size: 28),
+                                  ),
                           );
                         },
                       ),
