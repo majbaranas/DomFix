@@ -40,6 +40,7 @@ dependencies:
   firebase_database: ^11.3.10
   rxdart: ^0.28.0
   speech_to_text: ^7.0.0
+  timeago: ^3.7.1
 
 dev_dependencies:
   flutter_test:

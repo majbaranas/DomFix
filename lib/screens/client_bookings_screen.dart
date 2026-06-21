@@ -212,7 +212,7 @@ class _BookingCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           if (isActiveTab) _DeliveryTimeline(booking: booking),
-          if (isActiveTab && booking.normalizedStatus == 'quoted')
+          if (isActiveTab && booking.normalizedStatus == 'quote_sent')
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _EstimateCard(booking: booking),
@@ -261,8 +261,8 @@ class _DeliveryTimeline extends StatelessWidget {
 
     // Define the sequence of steps
     final steps = [
-      {'key': 'pending', 'label': 'Request Sent'},
-      {'key': 'quoted', 'label': 'Estimate Sent'},
+      {'key': 'pending_quote', 'label': 'Request Sent'},
+      {'key': 'quote_sent', 'label': 'Estimate Sent'},
       {'key': 'accepted', 'label': 'Accepted'},
       {'key': 'in_progress', 'label': 'Work Started'},
       {'key': 'completed_pending_confirmation', 'label': 'Awaiting Confirmation'},
@@ -274,8 +274,8 @@ class _DeliveryTimeline extends StatelessWidget {
     else if (status == 'completed_pending_confirmation') currentIndex = 4;
     else if (status == 'in_progress') currentIndex = 3;
     else if (status == 'accepted') currentIndex = 2;
-    else if (status == 'quoted') currentIndex = 1;
-    else if (status == 'pending') currentIndex = 0;
+    else if (status == 'quote_sent') currentIndex = 1;
+    else if (status == 'pending_quote' || status == 'pending') currentIndex = 0;
     else {
       // For legacy statuses
       if (status == 'confirmed') currentIndex = 2;
@@ -406,24 +406,18 @@ class _EstimateCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Divider(color: AppColors.whiteBorder5),
-          ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Total',
+                'Estimated Price',
                 style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.onSurface,
+                  fontSize: 14,
+                  color: AppColors.onSurfaceVariant,
                 ),
               ),
               Text(
-                '${booking.estimatedPriceMax > 0 ? booking.estimatedPriceMax.toStringAsFixed(0) : booking.estimatedPriceMin.toStringAsFixed(0)} MAD',
+                '${(booking.technicianEstimatedPrice ?? 0).toStringAsFixed(0)} MAD',
                 style: GoogleFonts.spaceGrotesk(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
@@ -444,7 +438,7 @@ class _EstimateCard extends StatelessWidget {
                 ),
               ),
               Text(
-                booking.estimatedDurationMinutes > 0 ? '${booking.estimatedDurationMinutes} mins' : 'TBD',
+                booking.technicianEstimatedDuration ?? 'TBD',
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -453,6 +447,27 @@ class _EstimateCard extends StatelessWidget {
               ),
             ],
           ),
+          if (booking.technicianNote != null && booking.technicianNote!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Divider(color: AppColors.whiteBorder5),
+            const SizedBox(height: 8),
+            Text(
+              'Note from ${booking.technicianName}',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              booking.technicianNote!,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: AppColors.onSurface,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Row(
             children: [

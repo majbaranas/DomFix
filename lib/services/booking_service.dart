@@ -195,11 +195,13 @@ class BookingService {
     required String description,
     required String urgency,
     required List<String> imageUrls,
-    required int estimatedDurationMinutes,
-    required double estimatedPriceMin,
-    required double estimatedPriceMax,
-    required double technicianFee,
-    required double platformFee,
+    double? clientLat,
+    double? clientLng,
+    int estimatedDurationMinutes = 60,
+    double estimatedPriceMin = 0,
+    double estimatedPriceMax = 0,
+    double technicianFee = 0,
+    double platformFee = 0,
   }) async {
     print('[BookingService] 🔵 createBooking called');
     print('[BookingService]   clientId: $clientId');
@@ -243,7 +245,7 @@ class BookingService {
       scheduledTimeLabel: scheduledTimeLabel,
       description: description,
       urgency: urgency,
-      status: 'pending',
+      status: 'pending_quote',
       imageUrls: imageUrls,
       estimatedDurationMinutes: estimatedDurationMinutes,
       estimatedPriceMin: estimatedPriceMin,
@@ -251,6 +253,8 @@ class BookingService {
       technicianFee: technicianFee,
       platformFee: platformFee,
       createdAt: DateTime.now(),
+      clientLat: clientLat,
+      clientLng: clientLng,
     );
 
     print('[BookingService] 📝 Creating batch write...');
@@ -269,7 +273,7 @@ class BookingService {
         'technicianId': technicianId,
         'technicianName': technicianName,
         'bookingId': booking.id,
-        'bookingStatus': 'pending',
+        'bookingStatus': 'pending_quote',
         'accessLevel': 'full',
         'canShareImages': true,
         'canUseVoiceNotes': true,
@@ -291,7 +295,7 @@ class BookingService {
             'We sent your $serviceName request to $technicianName and unlocked chat.',
         'bookingId': booking.id,
         'chatId': chatId,
-        'status': 'pending',
+        'status': 'pending_quote',
         'serviceName': serviceName,
         'urgency': urgency,
         'metadata': {
@@ -313,7 +317,7 @@ class BookingService {
         'body': '$serviceName requested for $scheduledTimeLabel',
         'bookingId': booking.id,
         'chatId': chatId,
-        'status': 'pending',
+        'status': 'pending_quote',
         'serviceName': serviceName,
         'urgency': urgency,
         'metadata': {
@@ -415,17 +419,23 @@ class BookingService {
     required String serviceName,
   }) {
     switch (newStatus) {
+      case 'quote_sent':
+        return {
+          'type': 'quote_sent',
+          'title': 'Estimate Received',
+          'body': '$technicianName sent an estimate for your $serviceName request.',
+        };
       case 'accepted':
         return {
           'type': 'booking_accepted',
           'title': 'Booking accepted',
-          'body': '$technicianName accepted your $serviceName booking.',
+          'body': 'You accepted the estimate for $serviceName.',
         };
       case 'rejected':
         return {
           'type': 'booking_rejected',
           'title': 'Booking declined',
-          'body': '$technicianName declined your $serviceName request.',
+          'body': 'The $serviceName request was declined.',
         };
       case 'on_the_way':
         return {
@@ -439,15 +449,119 @@ class BookingService {
           'title': 'Job started',
           'body': '$technicianName has started working on your $serviceName.',
         };
+      case 'completed_pending_confirmation':
+        return {
+          'type': 'job_completed_pending',
+          'title': 'Job completed',
+          'body': '$technicianName finished the job. Please confirm.',
+        };
       case 'completed':
         return {
           'type': 'job_completed',
-          'title': 'Job completed',
+          'title': 'Job confirmed',
           'body': 'Your $serviceName job has been completed successfully.',
         };
       default:
         return null;
     }
+  }
+
+  // ─── Marketplace Actions ────────────────────────────────
+
+  Future<void> sendQuote({
+    required String bookingId,
+    required String clientId,
+    required String technicianId,
+    required String technicianName,
+    required String serviceName,
+    required double price,
+    required String duration,
+    String? note,
+  }) async {
+    final chatId = chatIdFor(clientId, technicianId);
+    final batch = _firestore.batch();
+
+    batch.update(_firestore.collection('bookings').doc(bookingId), {
+      'status': 'quote_sent',
+      'technicianEstimatedPrice': price,
+      'technicianEstimatedDuration': duration,
+      if (note != null && note.isNotEmpty) 'technicianNote': note,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    batch.update(_firestore.collection('chats').doc(chatId), {
+      'bookingStatus': 'quote_sent',
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    final notifRef = _firestore.collection('notifications').doc();
+    batch.set(notifRef, {
+      'recipientId': clientId,
+      'senderId': technicianId,
+      'type': 'quote_sent',
+      'title': 'Estimate Received',
+      'body': '$technicianName sent an estimate for your $serviceName request.',
+      'bookingId': bookingId,
+      'chatId': chatId,
+      'status': 'quote_sent',
+      'serviceName': serviceName,
+      'isRead': false,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+  }
+
+  Future<void> acceptQuote({
+    required String bookingId,
+    required String clientId,
+    required String technicianId,
+    required String technicianName,
+    required String serviceName,
+  }) async {
+    await updateBookingStatus(
+      bookingId: bookingId,
+      newStatus: 'accepted',
+      clientId: clientId,
+      technicianId: technicianId,
+      technicianName: technicianName,
+      serviceName: serviceName,
+    );
+  }
+
+  Future<void> rejectQuote({
+    required String bookingId,
+    required String clientId,
+    required String technicianId,
+    required String technicianName,
+    required String serviceName,
+  }) async {
+    await updateBookingStatus(
+      bookingId: bookingId,
+      newStatus: 'rejected',
+      clientId: clientId,
+      technicianId: technicianId,
+      technicianName: technicianName,
+      serviceName: serviceName,
+    );
+  }
+
+  Future<void> confirmCompletion({
+    required String bookingId,
+    required String clientId,
+    required String technicianId,
+    required String technicianName,
+    required String serviceName,
+  }) async {
+    await updateBookingStatus(
+      bookingId: bookingId,
+      newStatus: 'completed',
+      clientId: clientId,
+      technicianId: technicianId,
+      technicianName: technicianName,
+      serviceName: serviceName,
+    );
   }
 
   // ─── Query Methods ──────────────────────────────────────

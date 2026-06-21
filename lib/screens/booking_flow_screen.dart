@@ -46,7 +46,7 @@ class BookingFlowScreen extends StatefulWidget {
 class _BookingFlowScreenState extends State<BookingFlowScreen>
     with TickerProviderStateMixin {
   // ─── Constants ──────────────────────────────────────────
-  static const int _totalSteps = 8;
+  static const int _totalSteps = 7;
   static const int _descriptionMaxLength = 500;
   static const int _descriptionMinLength = 10;
   static const int _descriptionMinWords = 2;
@@ -58,7 +58,6 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
     'Describe',
     'Photos',
     'Priority',
-    'Estimate',
     'Review',
     'Confirm',
   ];
@@ -69,7 +68,6 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
     Icons.description_rounded,
     Icons.photo_camera_rounded,
     Icons.priority_high_rounded,
-    Icons.payments_rounded,
     Icons.checklist_rounded,
     Icons.verified_rounded,
   ];
@@ -242,9 +240,8 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
         return text.isNotEmpty && _validateDescription(text) == null;
       case 3: // Photos — optional
       case 4: // Priority — always has default
-      case 5: // Estimate — read-only
-      case 6: // Review — read-only
-      case 7: // Confirm
+      case 5: // Review — read-only
+      case 6: // Confirm
         return true;
       default:
         return false;
@@ -253,55 +250,18 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
 
   String get _continueLabel {
     switch (_currentStep) {
-      case 5:
+      case 4:
         return 'Review booking';
-      case 6:
+      case 5:
         return 'Confirm booking';
-      case 7:
+      case 6:
         return 'Done';
       default:
         return 'Continue';
     }
   }
 
-  // ─── Estimation Engine ──────────────────────────────────
-
-  _BookingEstimate _buildEstimate() {
-    final service = _selectedService ?? _serviceOptions.first;
-    final serviceLower = service.toLowerCase();
-    final baseDuration = serviceLower.contains('diagnostic')
-        ? 45
-        : serviceLower.contains('installation')
-            ? 120
-            : serviceLower.contains('wiring')
-                ? 150
-                : serviceLower.contains('maintenance')
-                    ? 75
-                    : 90;
-
-    final urgencyMultiplier = switch (_urgency) {
-      'High' => 1.18,
-      'Emergency' => 1.42,
-      _ => 1.0,
-    };
-
-    final experienceModifier = widget.experienceYears >= 5 ? 0.92 : 1.0;
-    final ratingModifier = widget.technicianRating >= 4.8 ? 0.95 : 1.0;
-    final technicianFee =
-        (42 + baseDuration * 0.58) * urgencyMultiplier * experienceModifier;
-    final platformFee = (technicianFee * 0.12).clamp(6.0, 18.0);
-    final totalBase = technicianFee + platformFee;
-    final minPrice = totalBase * 0.9 * ratingModifier;
-    final maxPrice = totalBase * 1.18 * urgencyMultiplier;
-
-    return _BookingEstimate(
-      durationMinutes: baseDuration,
-      priceMin: minPrice,
-      priceMax: maxPrice,
-      technicianFee: technicianFee,
-      platformFee: platformFee,
-    );
-  }
+  // ─── Estimation Engine removed for marketplace flow ──────
 
   // ─── Image Picking ──────────────────────────────────────
 
@@ -368,7 +328,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
 
     HapticFeedback.selectionClick();
 
-    if (_currentStep == 6) {
+    if (_currentStep == 5) {
       _confirmBooking();
       return;
     }
@@ -447,7 +407,6 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
         uploadedImages.add(url);
       }
 
-      final estimate = _buildEstimate();
       final scheduledAt = DateTime(
         _selectedDate.year,
         _selectedDate.month,
@@ -455,6 +414,15 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
         _selectedTime!.hour,
         _selectedTime!.minute,
       );
+
+      double? clientLat;
+      double? clientLng;
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (userDoc.exists) {
+        final userData = userDoc.data()!;
+        clientLat = (userData['lat'] as num?)?.toDouble() ?? (userData['location']?['lat'] as num?)?.toDouble();
+        clientLng = (userData['lng'] as num?)?.toDouble() ?? (userData['location']?['lng'] as num?)?.toDouble();
+      }
 
       final booking = await BookingService.instance.createBooking(
         bookingId: bookingId,
@@ -468,22 +436,24 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
         description: description,
         urgency: _urgency,
         imageUrls: uploadedImages,
-        estimatedDurationMinutes: estimate.durationMinutes,
-        estimatedPriceMin: estimate.priceMin,
-        estimatedPriceMax: estimate.priceMax,
-        technicianFee: estimate.technicianFee,
-        platformFee: estimate.platformFee,
+        estimatedDurationMinutes: 0,
+        estimatedPriceMin: 0,
+        estimatedPriceMax: 0,
+        technicianFee: 0,
+        platformFee: 0,
+        clientLat: clientLat,
+        clientLng: clientLng,
       );
 
       if (!mounted) return;
 
-      // Navigate to step 8 (confirmation) inline
+      // Navigate to step 7 (confirmation) inline
       setState(() {
-        _currentStep = 7;
+        _currentStep = 6;
         _isSubmitting = false;
       });
       _pageController.animateToPage(
-        7,
+        6,
         duration: const Duration(milliseconds: 350),
         curve: Curves.easeOutCubic,
       );
@@ -599,13 +569,12 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                   _buildStep3Description(),
                   _buildStep4Photos(),
                   _buildStep5Priority(),
-                  _buildStep6Estimate(),
-                  _buildStep7Review(),
-                  _buildStep8Confirmation(),
+                  _buildStep6Review(),
+                  _buildStep7Confirmation(),
                 ],
               ),
             ),
-            if (_currentStep < 7) _buildBottomBar(),
+            if (_currentStep < 6) _buildBottomBar(),
           ],
         ),
       ),
@@ -1830,163 +1799,14 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
     );
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // STEP 6 — INTELLIGENT ESTIMATION
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  Widget _buildStep6Estimate() {
-    final estimate = _buildEstimate();
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _SectionHeader(
-            title: 'Price estimate',
-            subtitle:
-                'Transparent pricing is shown before confirmation so the booking feels clear and trustworthy.',
-          ),
-          SizedBox(height: 20),
-
-          // ─── Main Price Card ────────────────────────────
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.surface,
-                  AppColors.surfaceContainerHigh.withValues(alpha: 0.5),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: AppColors.glassBorder),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: AppColors.neonAccent.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Icon(
-                        Icons.payments_outlined,
-                        color: AppColors.neonAccent,
-                      ),
-                    ),
-                    SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${estimate.priceMin.toStringAsFixed(0)} – ${estimate.priceMax.toStringAsFixed(0)} MAD',
-                            style: GoogleFonts.spaceGrotesk(
-                              fontSize: 26,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.onSurface,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Estimated price range',
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              color: AppColors.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  height: 1,
-                  color: AppColors.divider,
-                ),
-                const SizedBox(height: 16),
-                _EstimateRow(
-                  icon: Icons.timer_outlined,
-                  label: 'Estimated duration',
-                  value: '${estimate.durationMinutes} min',
-                ),
-                const SizedBox(height: 14),
-                _EstimateRow(
-                  icon: Icons.person_outline_rounded,
-                  label: 'Technician fee',
-                  value: '${estimate.technicianFee.toStringAsFixed(0)} MAD',
-                ),
-                const SizedBox(height: 14),
-                _EstimateRow(
-                  icon: Icons.shield_outlined,
-                  label: 'Platform fee',
-                  value: '${estimate.platformFee.toStringAsFixed(0)} MAD',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // ─── Selection Summary ──────────────────────────
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.glassBackground,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.glassBorder),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'YOUR SELECTION',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1,
-                    color: AppColors.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _SummaryLine(
-                  icon: Icons.build_circle_outlined,
-                  label: _selectedService ?? 'Service',
-                ),
-                const SizedBox(height: 8),
-                _SummaryLine(
-                  icon: Icons.schedule_rounded,
-                  label:
-                      '${_formatDate(_selectedDate)} · ${_selectedTime != null ? _formatTimeOfDay(_selectedTime!) : 'Time'}',
-                ),
-                const SizedBox(height: 8),
-                _SummaryLine(
-                  icon: Icons.priority_high_rounded,
-                  label: '$_urgency priority',
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // STEP 7 — BOOKING REVIEW
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // STEP 6 — BOOKING REVIEW
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  Widget _buildStep7Review() {
-    final estimate = _buildEstimate();
+  Widget _buildStep6Review() {
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -2136,12 +1956,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
                   value: _descriptionController.text.trim(),
                   onEdit: () => _jumpToStep(2),
                 ),
-                const SizedBox(height: 12),
-                _ReviewRow(
-                  label: 'Estimated range',
-                  value:
-                      '${estimate.priceMin.toStringAsFixed(0)} – ${estimate.priceMax.toStringAsFixed(0)} MAD',
-                ),
+
                 if (_selectedImages.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   _ReviewRow(
@@ -2159,10 +1974,10 @@ class _BookingFlowScreenState extends State<BookingFlowScreen>
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // STEP 8 — CONFIRMATION (inline)
+  // STEP 7 — CONFIRMATION (inline)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  Widget _buildStep8Confirmation() {
+  Widget _buildStep7Confirmation() {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
       child: Column(

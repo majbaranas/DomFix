@@ -22,6 +22,13 @@ class BookingModel {
   final double platformFee;
   final DateTime createdAt;
   final DateTime? updatedAt;
+  
+  // New Marketplace Fields
+  final double? clientLat;
+  final double? clientLng;
+  final double? technicianEstimatedPrice;
+  final String? technicianEstimatedDuration;
+  final String? technicianNote;
 
   const BookingModel({
     required this.id,
@@ -45,18 +52,26 @@ class BookingModel {
     required this.platformFee,
     required this.createdAt,
     this.updatedAt,
+    this.clientLat,
+    this.clientLng,
+    this.technicianEstimatedPrice,
+    this.technicianEstimatedDuration,
+    this.technicianNote,
   });
 
   String get normalizedStatus => status.toLowerCase().trim();
 
   bool get isActive {
-    return normalizedStatus == 'pending' ||
+    return normalizedStatus == 'pending_quote' ||
+        normalizedStatus == 'quote_sent' ||
+        normalizedStatus == 'pending' ||
         normalizedStatus == 'confirmed' ||
         normalizedStatus == 'accepted' ||
         normalizedStatus == 'on_the_way' ||
         normalizedStatus == 'arrived' ||
         normalizedStatus == 'in_progress' ||
-        normalizedStatus == 'in progress';
+        normalizedStatus == 'in progress' ||
+        normalizedStatus == 'completed_pending_confirmation';
   }
 
   factory BookingModel.fromFirestore(DocumentSnapshot doc) {
@@ -90,6 +105,11 @@ class BookingModel {
       platformFee: (data['platformFee'] as num?)?.toDouble() ?? 0.0,
       createdAt: createdAt,
       updatedAt: updatedAt,
+      clientLat: (data['clientLat'] as num?)?.toDouble(),
+      clientLng: (data['clientLng'] as num?)?.toDouble(),
+      technicianEstimatedPrice: (data['technicianEstimatedPrice'] as num?)?.toDouble(),
+      technicianEstimatedDuration: data['technicianEstimatedDuration'] as String?,
+      technicianNote: data['technicianNote'] as String?,
     );
   }
 
@@ -116,6 +136,11 @@ class BookingModel {
       'platformFee': platformFee,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
+      if (clientLat != null) 'clientLat': clientLat,
+      if (clientLng != null) 'clientLng': clientLng,
+      if (technicianEstimatedPrice != null) 'technicianEstimatedPrice': technicianEstimatedPrice,
+      if (technicianEstimatedDuration != null) 'technicianEstimatedDuration': technicianEstimatedDuration,
+      if (technicianNote != null) 'technicianNote': technicianNote,
     };
   }
 

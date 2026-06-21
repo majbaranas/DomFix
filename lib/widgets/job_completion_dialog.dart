@@ -71,7 +71,7 @@ class _JobCompletionDialogState extends State<JobCompletionDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Job completed successfully!',
+            'Job completed! Pending client confirmation.',
             style: GoogleFonts.inter(),
           ),
           backgroundColor: AppColors.success,
@@ -119,7 +119,8 @@ class _JobCompletionDialogState extends State<JobCompletionDialog> {
             ),
             SizedBox(height: 16),
             Text(
-              'Complete Job',
+              'Complete Job & Request Payment',
+              textAlign: TextAlign.center,
               style: GoogleFonts.spaceGrotesk(
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
@@ -128,7 +129,7 @@ class _JobCompletionDialogState extends State<JobCompletionDialog> {
             ),
             SizedBox(height: 8),
             Text(
-              'Add photos of your work (optional)',
+              'Add photos of your work to ask the client to confirm and pay.',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 14,
@@ -322,7 +323,7 @@ class _JobCompletionDialogState extends State<JobCompletionDialog> {
                                 ),
                               )
                             : Text(
-                                'Finish Job',
+                                'Send & Finish',
                                 style: GoogleFonts.inter(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,

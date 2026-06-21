@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:latlong2/latlong.dart';
 import '../services/technician_location_service.dart';
 import '../services/dashboard_service.dart';
 import '../services/notification_service.dart';
@@ -22,6 +23,7 @@ import '../widgets/job_completion_dialog.dart';
 import 'technician_premium_dashboard.dart';
 import 'settings_screen.dart';
 import 'messages_screen.dart';
+import 'booking_details_screen.dart';
 import 'chat_screen.dart';
 
 class TechnicianHomeScreen extends StatefulWidget {
@@ -311,11 +313,14 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
     final lower = status.toLowerCase().trim();
     if (lower == 'in progress') return 'in_progress';
     if (lower == 'on the way') return 'on_the_way';
+    if (lower == 'pending_quote') return 'pending_quote';
+    if (lower == 'quote_sent') return 'quote_sent';
     return lower;
   }
 
   bool _isPending(_TechnicianQueueItem item) {
-    return _normalizeStatus(item.status) == 'pending';
+    final normalized = _normalizeStatus(item.status);
+    return normalized == 'pending' || normalized == 'pending_quote';
   }
 
   bool _isActive(_TechnicianQueueItem item) {
@@ -365,25 +370,41 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
   Future<void> _advanceRequest(_TechnicianQueueItem item) async {
     if (item.isBooking) {
       final current = _normalizeStatus(item.status);
+      
+      // If it's a pending quote, navigate to details screen instead of inline advance
+      if (current == 'pending_quote') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BookingDetailsScreen(
+              booking: item.booking!,
+              distanceKm: item.distanceKm,
+              etaMinutes: item.etaMinutes,
+            ),
+          ),
+        );
+        return;
+      }
+
       final next = switch (current) {
         'pending' => 'accepted',
         'accepted' || 'confirmed' => 'on_the_way',
         'on_the_way' => 'arrived',
         'arrived' => 'in_progress',
-        'in_progress' => 'completed', // Will show completion dialog
+        'in_progress' => 'completed_pending_confirmation', // New completion flow
         _ => current,
       };
       if (next == current) return;
       
       // Show completion dialog before marking as completed
-      if (next == 'completed') {
+      if (next == 'completed_pending_confirmation') {
         await showDialog(
           context: context,
           barrierDismissible: false,
           builder: (context) => JobCompletionDialog(
             booking: item.booking!,
             onComplete: () async {
-              await _updateBookingStatus(item.booking!, 'completed');
+              await _updateBookingStatus(item.booking!, 'completed_pending_confirmation');
             },
           ),
         );
@@ -540,11 +561,13 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
   List<_TechnicianQueueItem> _mergeRequests(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> jobDocs,
     List<QueryDocumentSnapshot<Map<String, dynamic>>> bookingDocs,
+    LatLng? techLocation,
   ) {
     final items = <_TechnicianQueueItem>[
       ...jobDocs.map(_TechnicianQueueItem.fromJobDoc),
       ...bookingDocs.map((doc) => _TechnicianQueueItem.fromBooking(
             BookingModel.fromFirestore(doc),
+            techLocation,
           )),
     ];
     items.sort(_compareRequests);
@@ -733,28 +756,41 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
           ),
           const SizedBox(height: 16),
           Expanded(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _firestore
-                  .collection('jobs')
-                  .where('technicianId', isEqualTo: uid)
-                  .snapshots(),
-              builder: (context, jobsSnapshot) {
-                final jobDocs = jobsSnapshot.data?.docs ?? const [];
+            child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: _firestore.collection('technician_locations').doc(uid).snapshots(),
+              builder: (context, techLocSnapshot) {
+                LatLng? techLocation;
+                final techData = techLocSnapshot.data?.data();
+                if (techData != null) {
+                  final lat = (techData['lat'] as num?)?.toDouble() ?? (techData['location']?['lat'] as num?)?.toDouble();
+                  final lng = (techData['lng'] as num?)?.toDouble() ?? (techData['location']?['lng'] as num?)?.toDouble();
+                  if (lat != null && lng != null) {
+                    techLocation = LatLng(lat, lng);
+                  }
+                }
+
                 return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                   stream: _firestore
-                      .collection('bookings')
+                      .collection('jobs')
                       .where('technicianId', isEqualTo: uid)
                       .snapshots(),
-                  builder: (context, bookingsSnapshot) {
-                    final bookingDocs = bookingsSnapshot.data?.docs ?? const [];
-                    final items = _mergeRequests(jobDocs, bookingDocs);
-                    final pending = items.where(_isPending).toList();
-                    final active = items.where(_isActive).toList();
-                    final allEmpty = pending.isEmpty && active.isEmpty;
+                  builder: (context, jobsSnapshot) {
+                    final jobDocs = jobsSnapshot.data?.docs ?? const [];
+                    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: _firestore
+                          .collection('bookings')
+                          .where('technicianId', isEqualTo: uid)
+                          .snapshots(),
+                      builder: (context, bookingsSnapshot) {
+                        final bookingDocs = bookingsSnapshot.data?.docs ?? const [];
+                        final items = _mergeRequests(jobDocs, bookingDocs, techLocation);
+                        final pending = items.where(_isPending).toList();
+                        final active = items.where(_isActive).toList();
+                        final allEmpty = pending.isEmpty && active.isEmpty;
 
-                    if (jobsSnapshot.connectionState == ConnectionState.waiting &&
-                        bookingsSnapshot.connectionState ==
-                            ConnectionState.waiting) {
+                        if (jobsSnapshot.connectionState == ConnectionState.waiting &&
+                            bookingsSnapshot.connectionState ==
+                                ConnectionState.waiting) {
                       return Center(
                         child: CircularProgressIndicator(
                           color: AppColors.neonAccent,
@@ -808,11 +844,13 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
                   },
                 );
               },
-            ),
-          ),
-        ],
+            );
+          },
+        ),
       ),
-    );
+    ],
+  ),
+);
   }
 }
 
@@ -829,6 +867,8 @@ class _TechnicianQueueItem {
   final DateTime updatedAt;
   final double distanceKm;
   final String? estimatedPrice;
+  final String description;
+  final List<String> imageUrls;
 
   const _TechnicianQueueItem._({
     required this.id,
@@ -841,6 +881,8 @@ class _TechnicianQueueItem {
     required this.updatedAt,
     required this.distanceKm,
     required this.estimatedPrice,
+    required this.description,
+    required this.imageUrls,
     this.booking,
     this.jobData,
   });
@@ -869,10 +911,20 @@ class _TechnicianQueueItem {
       updatedAt: updatedAt,
       distanceKm: (data['distance'] as num?)?.toDouble() ?? 0.0,
       estimatedPrice: data['estimatedPrice']?.toString(),
+      description: data['problemDescription']?.toString() ?? '',
+      imageUrls: List<String>.from(data['imageUrls'] ?? const []),
     );
   }
 
-  factory _TechnicianQueueItem.fromBooking(BookingModel booking) {
+  factory _TechnicianQueueItem.fromBooking(BookingModel booking, LatLng? techLocation) {
+    double distance = 0.0;
+    if (techLocation != null && booking.clientLat != null && booking.clientLng != null) {
+      distance = TechnicianLocationService.distanceKmPublic(
+        techLocation,
+        LatLng(booking.clientLat!, booking.clientLng!),
+      );
+    }
+
     return _TechnicianQueueItem._(
       id: booking.id,
       isBooking: true,
@@ -883,10 +935,12 @@ class _TechnicianQueueItem {
       status: booking.status,
       createdAt: booking.createdAt,
       updatedAt: booking.updatedAt ?? booking.createdAt,
-      distanceKm: 0.0,
+      distanceKm: distance,
       estimatedPrice: booking.technicianFee > 0
           ? booking.technicianFee.toStringAsFixed(0)
           : null,
+      description: booking.description,
+      imageUrls: booking.imageUrls,
     );
   }
 
@@ -930,17 +984,26 @@ class _TechnicianQueueItem {
     };
   }
 
-  bool get isPending => status.toLowerCase().trim() == 'pending';
+  bool get isPending =>
+      status.toLowerCase().trim() == 'pending' ||
+      status.toLowerCase().trim() == 'pending_quote';
+
   bool get isActive {
     final normalized = status.toLowerCase().trim();
     if (isBooking) {
       return normalized == 'accepted' ||
+          normalized == 'quote_sent' ||
           normalized == 'confirmed' ||
           normalized == 'on_the_way' ||
           normalized == 'arrived' ||
           normalized == 'in_progress';
     }
     return normalized == 'accepted' || normalized == 'in_progress';
+  }
+
+  int get etaMinutes {
+    if (distanceKm <= 0) return 0;
+    return ((distanceKm / 30.0) * 60).round();
   }
 }
 
@@ -1053,6 +1116,19 @@ class _QueueCard extends StatelessWidget {
                   ),
                 ],
               ),
+              if (item.description.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  item.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: AppColors.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+                ),
+              ],
               SizedBox(height: 12),
               Wrap(
                 spacing: 8,
@@ -1060,8 +1136,14 @@ class _QueueCard extends StatelessWidget {
                 children: [
                   _Pill(icon: Icons.schedule_rounded, label: timeAgo),
                   _Pill(icon: Icons.circle_outlined, label: statusLabel),
-                  _Pill(icon: Icons.payments_rounded, label: priceText),
-                  _Pill(icon: Icons.route_rounded, label: secondaryText),
+                  if (item.distanceKm > 0)
+                    _Pill(icon: Icons.location_on_rounded, label: '${item.distanceKm.toStringAsFixed(1)} km'),
+                  if (item.etaMinutes > 0)
+                    _Pill(icon: Icons.directions_car_rounded, label: '${item.etaMinutes} min'),
+                  if (item.imageUrls.isNotEmpty)
+                    _Pill(icon: Icons.photo_camera_rounded, label: '${item.imageUrls.length} photos'),
+                  if (!item.isPending && priceText != 'Estimate pending')
+                    _Pill(icon: Icons.payments_rounded, label: priceText),
                 ],
               ),
               const SizedBox(height: 14),
@@ -1088,8 +1170,8 @@ class _QueueCard extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: _ActionButton(
-                        label: 'Accept',
-                        icon: Icons.check_rounded,
+                        label: item.status.toLowerCase().trim() == 'pending_quote' ? 'Review' : 'Accept',
+                        icon: item.status.toLowerCase().trim() == 'pending_quote' ? Icons.visibility_rounded : Icons.check_rounded,
                         color: AppColors.neonAccent,
                         filled: true,
                         onTap: onAccept,

@@ -85,13 +85,15 @@ class DomfixGlassBottomNav extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: List.generate(
                     destinations.length,
-                    (i) => _GlassNavTab(
-                      item: destinations[i],
-                      selected: currentIndex == i,
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        onTap(i);
-                      },
+                    (i) => Expanded(
+                      child: _GlassNavTab(
+                        item: destinations[i],
+                        selected: currentIndex == i,
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          onTap(i);
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -141,8 +143,8 @@ class _GlassNavTab extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutCubic,
-        padding: EdgeInsets.symmetric(
-          horizontal: selected ? 16 : 12,
+        padding: const EdgeInsets.symmetric(
+          horizontal: 2,
           vertical: 8,
         ),
         decoration: BoxDecoration(
@@ -202,9 +204,12 @@ class _GlassNavTab extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               item.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: AppStyles.caption.copyWith(
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                 color: color,
+                fontSize: 10,
               ),
             ),
           ],
