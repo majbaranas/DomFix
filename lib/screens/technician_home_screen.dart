@@ -27,6 +27,7 @@ import 'messages_screen.dart';
 import 'technician_review_screen.dart';
 import 'booking_details_screen.dart';
 import 'chat_screen.dart';
+import 'technician_my_profile_screen.dart';
 
 class TechnicianHomeScreen extends StatefulWidget {
   const TechnicianHomeScreen({super.key});
@@ -233,11 +234,24 @@ class TechnicianJobsScreen extends StatefulWidget {
   State<TechnicianJobsScreen> createState() => _TechnicianJobsScreenState();
 }
 
-class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
+class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final NotificationService _notificationService = NotificationService.instance;
   final Map<String, Future<DocumentSnapshot<Map<String, dynamic>>>>
       _clientFutureCache = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 4, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   Future<DocumentSnapshot<Map<String, dynamic>>> _clientDoc(String userId) {
     return _clientFutureCache.putIfAbsent(
@@ -769,7 +783,7 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Live requests update automatically. Emergency jobs appear first.',
+                  'Live requests update automatically.',
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     color: AppColors.onSurfaceVariant,
@@ -778,6 +792,8 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 16),
+          _buildTabBar(),
           const SizedBox(height: 16),
           Expanded(
             child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -810,71 +826,183 @@ class _TechnicianJobsScreenState extends State<TechnicianJobsScreen> {
                         final items = _mergeRequests(jobDocs, bookingDocs, techLocation);
                         final pending = items.where(_isPending).toList();
                         final active = items.where(_isActive).toList();
-                        final allEmpty = pending.isEmpty && active.isEmpty;
-
+                        final completed = items.where((i) => _normalizeStatus(i.status) == 'completed').toList();
+                        
                         if (jobsSnapshot.connectionState == ConnectionState.waiting &&
-                            bookingsSnapshot.connectionState ==
-                                ConnectionState.waiting) {
-                      return Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.neonAccent,
-                        ),
-                      );
-                    }
+                            bookingsSnapshot.connectionState == ConnectionState.waiting) {
+                          return Center(
+                            child: CircularProgressIndicator(color: AppColors.neonAccent),
+                          );
+                        }
 
-                    if (allEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        return TabBarView(
+                          controller: _tabController,
                           children: [
-                            Icon(
-                              Icons.inbox_rounded,
-                              size: 48,
-                              color: AppColors.onSurfaceVariant
-                                  .withValues(alpha: 0.2),
-                            ),
-                            SizedBox(height: 12),
-                            Text(
-                              'No requests yet',
-                              style: GoogleFonts.inter(
-                                fontSize: 15,
-                                color: AppColors.onSurfaceVariant,
-                              ),
-                            ),
+                            _buildTabContent(pending, 'No pending requests', false),
+                            _buildTabContent(active, 'No active jobs', true),
+                            _buildCompletedTab(completed),
+                            _buildHistoryTab(items),
                           ],
-                        ),
-                      );
-                    }
-
-                    return ListView(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.only(bottom: 24),
-                      children: [
-                        _buildSection(
-                          title: 'Active Jobs',
-                          subtitle: 'Work that needs attention right now',
-                          items: active,
-                          emptyIsActive: true,
-                        ),
-                        const SizedBox(height: 18),
-                        _buildSection(
-                          title: 'New Requests',
-                          subtitle: 'Accept or decline with one tap',
-                          items: pending,
-                          emptyIsActive: false,
-                        ),
-                      ],
+                        );
+                      },
                     );
                   },
                 );
               },
-            );
-          },
-        ),
+            ),
+          ),
+        ],
       ),
-    ],
-  ),
-);
+    );
+  }
+
+  Widget _buildTabBar() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.whiteBorder5),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        indicator: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.neonAccent.withValues(alpha: 0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.neonAccent.withValues(alpha: 0.1),
+              blurRadius: 8,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        labelColor: AppColors.neonAccent,
+        unselectedLabelColor: AppColors.onSurfaceVariant,
+        labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+        unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 13),
+        dividerColor: Colors.transparent,
+        indicatorSize: TabBarIndicatorSize.tab,
+        tabs: const [
+          Tab(text: 'Pending'),
+          Tab(text: 'Active'),
+          Tab(text: 'Done'),
+          Tab(text: 'History'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabContent(List<_TechnicianQueueItem> items, String emptyMessage, bool emptyIsActive) {
+    if (items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.inbox_rounded,
+              size: 48,
+              color: AppColors.onSurfaceVariant.withValues(alpha: 0.2),
+            ),
+            SizedBox(height: 12),
+            Text(
+              emptyMessage,
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      itemCount: items.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return _QueueCard(
+          item: item,
+          clientFuture: _clientDoc(item.clientId),
+          timeAgo: _timeAgo(item.updatedAt),
+          statusLabel: _statusLabel(item.status),
+          urgencyLabel: item.urgency,
+          urgencyColor: _urgencyColor(item.urgency),
+          onAccept: () => _acceptRequest(item),
+          onDecline: () => _declineRequest(item),
+          onPrimaryAction: () => _advanceRequest(item),
+          primaryActionLabel: _primaryActionLabel(item),
+          primaryActionIcon: _primaryActionIcon(item),
+          onMessage: (name) => _openChat(item.clientId, name),
+        );
+      },
+    );
+  }
+
+  Widget _buildCompletedTab(List<_TechnicianQueueItem> items) {
+    if (items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.check_circle_outline_rounded, size: 48, color: AppColors.onSurfaceVariant.withValues(alpha: 0.2)),
+            SizedBox(height: 12),
+            Text('No completed jobs', style: GoogleFonts.inter(fontSize: 15, color: AppColors.onSurfaceVariant)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      itemCount: items.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return _CompletedJobCard(
+          item: item,
+          clientFuture: _clientDoc(item.clientId),
+          timeAgo: _timeAgo(item.updatedAt),
+        );
+      },
+    );
+  }
+
+  Widget _buildHistoryTab(List<_TechnicianQueueItem> items) {
+    if (items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.history_rounded, size: 48, color: AppColors.onSurfaceVariant.withValues(alpha: 0.2)),
+            SizedBox(height: 12),
+            Text('No history available', style: GoogleFonts.inter(fontSize: 15, color: AppColors.onSurfaceVariant)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      itemCount: items.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return _HistoryBookingCard(
+          item: item,
+          clientFuture: _clientDoc(item.clientId),
+          statusLabel: _statusLabel(item.status),
+          dateLabel: '${item.createdAt.day}/${item.createdAt.month}/${item.createdAt.year}',
+        );
+      },
+    );
   }
 }
 
@@ -1331,15 +1459,137 @@ class TechnicianProfileScreen extends StatelessWidget {
   const TechnicianProfileScreen({super.key});
   @override
   Widget build(BuildContext context) {
-    return SafeArea(child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('My Profile', style: GoogleFonts.spaceGrotesk(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
-      SizedBox(height: 24),
-      Center(child: Column(children: [
-        Container(width: 80, height: 80, decoration: BoxDecoration(color: AppColors.surface, shape: BoxShape.circle),
-          child: Icon(Icons.person_rounded, size: 40, color: AppColors.onSurfaceVariant)),
-        SizedBox(height: 12),
-        Text('Professional Technician', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
-      ])),
-    ])));
+    return const TechnicianMyProfileScreen();
+  }
+}
+
+class _CompletedJobCard extends StatelessWidget {
+  const _CompletedJobCard({
+    required this.item,
+    required this.clientFuture,
+    required this.timeAgo,
+  });
+
+  final _TechnicianQueueItem item;
+  final Future<DocumentSnapshot<Map<String, dynamic>>> clientFuture;
+  final String timeAgo;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.whiteBorder5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.check_circle_rounded, color: AppColors.success, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.serviceTitle,
+                      style: GoogleFonts.spaceGrotesk(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.onSurface),
+                    ),
+                    const SizedBox(height: 2),
+                    FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                      future: clientFuture,
+                      builder: (context, snapshot) {
+                        final data = snapshot.data?.data();
+                        final name = data?['name'] ?? data?['fullName'] ?? 'Client';
+                        return Text('Completed for $name', style: GoogleFonts.inter(fontSize: 13, color: AppColors.onSurfaceVariant));
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              Text(timeAgo, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.onSurfaceVariant)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HistoryBookingCard extends StatelessWidget {
+  const _HistoryBookingCard({
+    required this.item,
+    required this.clientFuture,
+    required this.statusLabel,
+    required this.dateLabel,
+  });
+
+  final _TechnicianQueueItem item;
+  final Future<DocumentSnapshot<Map<String, dynamic>>> clientFuture;
+  final String statusLabel;
+  final String dateLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.serviceTitle,
+                  style: GoogleFonts.spaceGrotesk(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.onSurface),
+                ),
+                const SizedBox(height: 4),
+                FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  future: clientFuture,
+                  builder: (context, snapshot) {
+                    final data = snapshot.data?.data();
+                    final name = data?['name'] ?? data?['fullName'] ?? 'Client';
+                    return Text(name, style: GoogleFonts.inter(fontSize: 13, color: AppColors.onSurfaceVariant));
+                  },
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.onSurfaceVariant),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(dateLabel, style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant.withValues(alpha: 0.6))),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

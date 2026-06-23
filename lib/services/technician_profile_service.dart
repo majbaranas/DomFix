@@ -279,6 +279,10 @@ class TechnicianProfileService {
     List<String>? specialties,
     bool? isAvailable,
     Map<String, dynamic>? workingHours,
+    int? yearsOfExperience,
+    List<String>? portfolioUrls,
+    String? liveStatus,
+    DateTime? lastSeen,
   }) async {
     print('📝 Updating profile for: $uid');
     
@@ -296,6 +300,9 @@ class TechnicianProfileService {
       userUpdates['isAvailable'] = isAvailable;
       userUpdates['availabilityEnabled'] = isAvailable;
     }
+    if (liveStatus != null) userUpdates['liveStatus'] = liveStatus;
+    if (lastSeen != null) userUpdates['lastSeen'] = Timestamp.fromDate(lastSeen);
+    
     if (normalizedSpecialties != null && normalizedSpecialties.isNotEmpty) {
       userUpdates['speciality'] = normalizedSpecialties.first;
       userUpdates['servicesProvided'] = normalizedSpecialties;
@@ -314,6 +321,8 @@ class TechnicianProfileService {
       profileUpdates['primarySpecialty'] = normalizedSpecialties.isNotEmpty ? normalizedSpecialties.first : 'Technician';
     }
     if (workingHours != null) profileUpdates['workingHours'] = workingHours;
+    if (yearsOfExperience != null) profileUpdates['yearsOfExperience'] = yearsOfExperience;
+    if (portfolioUrls != null) profileUpdates['portfolioUrls'] = portfolioUrls;
     if (isAvailable != null) {
       profileUpdates['isAvailable'] = isAvailable;
       profileUpdates['availabilityEnabled'] = isAvailable;
@@ -575,6 +584,100 @@ class TechnicianProfileService {
   /// Clear all cached profiles
   void clearCache() {
     _profileCache.clear();
+  }
+
+  /// Self-Healing Sync: Recalculates exact stats (completed jobs & reviews) from the collections
+  /// and updates technician_stats and users atomcially.
+  Future<void> syncTechnicianStats(String uid) async {
+    print('🔄 [TechnicianProfileService] Running self-healing sync for stats: $uid');
+    try {
+      // 1. Calculate actual completed bookings
+      final bookingsSnap = await _firestore
+          .collection('bookings')
+          .where('technicianId', isEqualTo: uid)
+          .where('status', isEqualTo: 'completed')
+          .get();
+      final actualCompletedJobs = bookingsSnap.docs.length;
+
+      // 2. Calculate actual reviews
+      final reviewsSnap = await _firestore
+          .collection('reviews')
+          .where('technicianId', isEqualTo: uid)
+          .get();
+      
+      int ratingSum = 0;
+      double qualityScoreSum = 0.0;
+      final actualReviewCount = reviewsSnap.docs.length;
+
+      for (final doc in reviewsSnap.docs) {
+        final data = doc.data();
+        final rating = (data['rating'] as num?)?.toInt() ?? 0;
+        final comment = (data['comment'] as String?)?.trim() ?? '';
+        ratingSum += rating;
+        final commentBonus = comment.length >= 12 ? 0.2 : 0.0;
+        qualityScoreSum += (rating / 5.0) + commentBonus;
+      }
+
+      final averageRating = actualReviewCount > 0 
+          ? double.parse((ratingSum / actualReviewCount).toStringAsFixed(2))
+          : 0.0;
+      final reviewQualityScore = actualReviewCount > 0
+          ? double.parse((qualityScoreSum / actualReviewCount).toStringAsFixed(2))
+          : 0.0;
+
+      // 3. Update technician_stats
+      final statsRef = _firestore.collection('technician_stats').doc(uid);
+      final statsSnap = await statsRef.get();
+      final statsData = statsSnap.exists ? statsSnap.data()! : <String, dynamic>{};
+      
+      final profileCompletionBonus = (statsData['profileCompletionBonus'] as num?)?.toDouble() ?? 0.0;
+      final responseSpeedScore = (statsData['responseSpeedScore'] as num?)?.toDouble() ?? 0.0;
+      final profileCompletenessScore = (statsData['profileCompletenessScore'] as num?)?.toDouble() ?? profileCompletionBonus;
+      final activityScore = (statsData['activityScore'] as num?)?.toDouble() ?? 100.0;
+      final availabilityScore = (statsData['availabilityScore'] as num?)?.toDouble() ?? 0.0;
+      final availabilityEnabled = statsData['availabilityEnabled'] != false;
+
+      final rankScore = TechnicianRankingService.calculateRankScore(
+        averageRating: averageRating,
+        totalReviews: actualReviewCount,
+        completedJobs: actualCompletedJobs,
+        responseSpeedScore: responseSpeedScore,
+        profileCompletenessScore: profileCompletenessScore,
+        activityScore: activityScore,
+        availabilityScore: availabilityScore,
+        availabilityEnabled: availabilityEnabled,
+      );
+
+      final batch = _firestore.batch();
+
+      batch.set(statsRef, {
+        'technicianId': uid,
+        'completedJobs': actualCompletedJobs,
+        'averageRating': averageRating,
+        'totalReviews': actualReviewCount,
+        'ratingSum': ratingSum,
+        'reviewQualityScore': reviewQualityScore,
+        'rankScore': rankScore,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // 4. Synchronize with users collection
+      batch.set(_firestore.collection('users').doc(uid), {
+        'jobsCompleted': actualCompletedJobs,
+        'rating': averageRating,
+        'averageRating': averageRating,
+        'reviewCount': actualReviewCount,
+        'rankScore': rankScore,
+        'updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await batch.commit();
+      _profileCache.remove(uid);
+
+      print('✅ [TechnicianProfileService] Sync complete! Jobs: $actualCompletedJobs, Reviews: $actualReviewCount, Rating: $averageRating');
+    } catch (e) {
+      print('❌ [TechnicianProfileService] Error syncing stats: $e');
+    }
   }
 }
 

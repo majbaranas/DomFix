@@ -309,6 +309,96 @@ class CloudinaryService {
     }
   }
 
+  /// Upload a user profile photo to Cloudinary
+  Future<String> uploadProfilePhoto({
+    required String uid,
+    required File imageFile,
+    bool compress = true,
+    Function(double)? onProgress,
+  }) async {
+    try {
+      debugPrint('═══════════════════════════════════════');
+      debugPrint('[Cloudinary] 👤 PROFILE PHOTO UPLOAD STARTED');
+      debugPrint('[Cloudinary] UID: $uid');
+      
+      if (!await imageFile.exists()) {
+        throw Exception('Profile photo file does not exist');
+      }
+      
+      File fileToUpload = imageFile;
+      
+      if (compress) {
+        final compressedFile = await _compressImage(imageFile);
+        if (compressedFile != null) fileToUpload = compressedFile;
+      }
+      
+      final fileSize = await fileToUpload.length();
+      if (fileSize > _maxImageSize) {
+        throw Exception('Image size exceeds limit');
+      }
+      
+      final url = await _uploadToCloudinary(
+        file: fileToUpload,
+        uploadUrl: _imageUploadUrl,
+        folder: 'profile_photos/$uid',
+        resourceType: 'image',
+        onProgress: onProgress,
+      );
+      
+      debugPrint('[Cloudinary] ✅ SUCCESS! URL: $url');
+      debugPrint('═══════════════════════════════════════');
+      return url;
+    } catch (e) {
+      debugPrint('[Cloudinary] ❌ PROFILE PHOTO UPLOAD FAILED: $e');
+      rethrow;
+    }
+  }
+
+  /// Upload a portfolio photo to Cloudinary
+  Future<String> uploadPortfolioPhoto({
+    required String uid,
+    required File imageFile,
+    bool compress = true,
+    Function(double)? onProgress,
+  }) async {
+    try {
+      debugPrint('═══════════════════════════════════════');
+      debugPrint('[Cloudinary] 📸 PORTFOLIO PHOTO UPLOAD STARTED');
+      debugPrint('[Cloudinary] UID: $uid');
+      
+      if (!await imageFile.exists()) {
+        throw Exception('Portfolio photo file does not exist');
+      }
+      
+      File fileToUpload = imageFile;
+      
+      if (compress) {
+        final compressedFile = await _compressImage(imageFile);
+        if (compressedFile != null) fileToUpload = compressedFile;
+      }
+      
+      final fileSize = await fileToUpload.length();
+      if (fileSize > _maxImageSize) {
+        throw Exception('Image size exceeds limit');
+      }
+      
+      final url = await _uploadToCloudinary(
+        file: fileToUpload,
+        uploadUrl: _imageUploadUrl,
+        folder: 'portfolio_photos/$uid',
+        resourceType: 'image',
+        onProgress: onProgress,
+      );
+      
+      debugPrint('[Cloudinary] ✅ SUCCESS! URL: $url');
+      debugPrint('═══════════════════════════════════════');
+      return url;
+    } catch (e) {
+      debugPrint('[Cloudinary] ❌ PORTFOLIO PHOTO UPLOAD FAILED: $e');
+      rethrow;
+    }
+  }
+
   /// Core upload method to Cloudinary
   /// Uses SIGNED uploads (no preset required)
   Future<String> _uploadToCloudinary({
