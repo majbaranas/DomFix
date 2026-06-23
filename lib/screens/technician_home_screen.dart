@@ -1308,12 +1308,16 @@ class _ActionButton extends StatelessWidget {
               color: filled ? AppColors.onPrimary : color,
             ),
             SizedBox(width: 6),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: filled ? AppColors.onPrimary : color,
+            Flexible(
+              child: Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: filled ? AppColors.onPrimary : color,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

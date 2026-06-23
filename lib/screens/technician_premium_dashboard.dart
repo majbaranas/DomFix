@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:rxdart/rxdart.dart';
 
 import '../models/booking_model.dart';
 import '../models/dashboard_metrics.dart';
@@ -13,6 +14,32 @@ import '../services/notification_service.dart';
 import '../services/technician_location_service.dart';
 import '../theme/app_colors.dart';
 import 'chat_screen.dart';
+
+class _DashboardData {
+  final _TechnicianProfileSnapshot profile;
+  final List<BookingModel> bookings;
+  final List<_JobRequest> jobs;
+  final DashboardMetrics metrics;
+  final List<_DashboardRequest> pendingRequests;
+  final _DashboardRequest? activeRequest;
+  final List<ActivityItem> activities;
+  final int pendingCount;
+  final int activeCount;
+  final int completedToday;
+
+  const _DashboardData({
+    required this.profile,
+    required this.bookings,
+    required this.jobs,
+    required this.metrics,
+    required this.pendingRequests,
+    required this.activeRequest,
+    required this.activities,
+    required this.pendingCount,
+    required this.activeCount,
+    required this.completedToday,
+  });
+}
 
 class TechnicianPremiumDashboard extends StatefulWidget {
   const TechnicianPremiumDashboard({super.key, required this.onNavigateTab});
@@ -38,6 +65,7 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
   Stream<DocumentSnapshot<Map<String, dynamic>>>? _profileStream;
   Stream<List<BookingModel>>? _bookingsStream;
   Stream<QuerySnapshot<Map<String, dynamic>>>? _jobsStream;
+  Stream<_DashboardData>? _dashboardStream;
 
   bool _isOnline = false;
   bool _loadingAvailability = true;
@@ -164,43 +192,39 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
   Widget build(BuildContext context) {
     final currentUid = _auth.currentUser?.uid;
     if (currentUid != null &&
-        (_uid != currentUid ||
-            _profileStream == null ||
-            _bookingsStream == null ||
-            _jobsStream == null)) {
+        (_uid != currentUid || _profileStream == null)) {
       _configureStreams();
     }
 
     final uid = _uid ?? currentUid;
-    if (uid == null || _profileStream == null || _bookingsStream == null || _jobsStream == null) {
+    if (uid == null || _profileStream == null) {
       return const SizedBox.shrink();
     }
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: _profileStream,
       builder: (context, profileSnapshot) {
-        final profile = _TechnicianProfileSnapshot.fromData(
-          profileSnapshot.data?.data(),
-        );
-
         return StreamBuilder<List<BookingModel>>(
           stream: _bookingsStream,
           initialData: const <BookingModel>[],
           builder: (context, bookingsSnapshot) {
-            final bookings = bookingsSnapshot.data ?? const <BookingModel>[];
-
             return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: _jobsStream,
               builder: (context, jobsSnapshot) {
-                final jobs = _parseJobs(
-                  jobsSnapshot.data?.docs ??
-                      const <QueryDocumentSnapshot<Map<String, dynamic>>>[],
+                final profile = _TechnicianProfileSnapshot.fromData(
+                  profileSnapshot.data?.data(),
                 );
+                final bookings = bookingsSnapshot.data ?? const <BookingModel>[];
+                final jobs = _parseJobs(
+                  jobsSnapshot.data?.docs ?? const [],
+                );
+                
                 final metrics = _buildMetrics(
                   profileData: profileSnapshot.data?.data(),
                   jobs: jobs,
                   bookings: bookings,
                 );
+                
                 final pendingJobs = jobs
                     .where((job) => job.normalizedStatus == 'pending')
                     .toList();
@@ -211,11 +235,11 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
                 final activeBookings = bookings
                     .where((booking) => _isActiveBooking(booking.status))
                     .toList();
-                final pendingCount =
-                    pendingJobs.length + pendingBookings.length;
+                
+                final pendingCount = pendingJobs.length + pendingBookings.length;
                 final activeCount = activeJobs.length + activeBookings.length;
-                final completedToday =
-                    _completedToday(jobs: jobs, bookings: bookings);
+                final completedToday = _completedToday(jobs: jobs, bookings: bookings);
+                
                 final pendingRequests = _combineRequests(
                   jobs: pendingJobs,
                   bookings: pendingBookings,
@@ -224,43 +248,79 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
                   jobs: activeJobs,
                   bookings: activeBookings,
                 );
-                final activities =
-                    _buildActivities(jobs: jobs, bookings: bookings);
 
-                return RefreshIndicator(
-                  onRefresh: _refresh,
-                  color: AppColors.neonAccent,
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(
-                      parent: BouncingScrollPhysics(),
-                    ),
-                    padding: EdgeInsets.fromLTRB(
-                      20,
-                      MediaQuery.of(context).padding.top + 12,
-                      20,
-                      28,
-                    ),
-                    children: [
-                      _buildHeader(
-                        profile: profile,
-                        pendingCount: pendingCount,
-                        activeCount: activeCount,
+                var activities = _buildActivities(jobs: jobs, bookings: bookings);
+                activities.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+                final recentActivities = activities.take(5).toList();
+
+                _DashboardRequest? heroRequest = activeRequest;
+                if (heroRequest == null && pendingRequests.isNotEmpty) {
+                  heroRequest = pendingRequests.first;
+                }
+
+                final data = _DashboardData(
+                  profile: profile,
+                  bookings: bookings,
+                  jobs: jobs,
+                  metrics: metrics,
+                  pendingRequests: pendingRequests,
+                  activeRequest: heroRequest,
+                  activities: recentActivities,
+                  pendingCount: pendingCount,
+                  activeCount: activeCount,
+                  completedToday: completedToday,
+                );
+        
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          color: AppColors.neonAccent,
+          child: CustomScrollView(
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            slivers: [
+              _buildAppBar(data.profile, data.pendingCount, data.activeCount),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                  child: _buildNextActionHero(data.profile, data.activeRequest),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: _buildQuickActions(),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                          child: Text(
+                            'Statistics',
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.onSurface,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 18),
-                      _buildTodaySummary(
-                        metrics: metrics,
-                        completedToday: completedToday,
-                        pendingCount: pendingCount,
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        sliver: _buildStatisticsGrid(
+                          metrics: data.metrics,
+                          completedToday: data.completedToday,
+                          pendingCount: data.pendingCount,
+                          activeCount: data.activeCount,
+                        ),
                       ),
-                      const SizedBox(height: 18),
-                      _buildJobsOverviewSection(
-                        pendingCount: pendingCount,
-                        activeCount: activeCount,
-                      ),
-                      const SizedBox(height: 18),
-                      _buildWeeklyEarnings(metrics),
-                      const SizedBox(height: 18),
-                      _buildActivitySection(activities),
+                      if (data.pendingRequests.isNotEmpty || data.activities.isNotEmpty)
+                        SliverToBoxAdapter(
+                          child: _buildTodaySchedule(
+                            profile: data.profile,
+                            pendingRequests: data.pendingRequests,
+                            activities: data.activities,
+                          ),
+                        ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 120)),
                     ],
                   ),
                 );
@@ -272,369 +332,412 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
     );
   }
 
-  Widget _buildHeader({
-    required _TechnicianProfileSnapshot profile,
-    required int pendingCount,
-    required int activeCount,
-  }) {
-    return Row(
-      children: [
-        _Avatar(name: profile.displayName, imageUrl: profile.photoUrl),
-        SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildAppBar(
+    _TechnicianProfileSnapshot profile,
+    int pendingCount,
+    int activeCount,
+  ) {
+    return SliverToBoxAdapter(
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+          child: Row(
             children: [
-              Text(
-                '${_greeting()}, ${_firstName(profile.displayName)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.onSurface,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Good ${DateTime.now().hour < 12 ? 'morning' : DateTime.now().hour < 17 ? 'afternoon' : 'evening'}',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.onSurfaceVariant.withValues(alpha: 0.8),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _firstName(profile.displayName),
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.onSurface,
+                        letterSpacing: -1,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 6),
-              InkWell(
-                onTap: _loadingAvailability || _updatingAvailability
-                    ? null
-                    : _toggleAvailability,
-                borderRadius: BorderRadius.circular(999),
-                child: _StatusBadge(
-                  isOnline: _isOnline,
-                  isBusy: _loadingAvailability || _updatingAvailability,
+              const SizedBox(width: 12),
+              // Online status pill
+              GestureDetector(
+                onTap: _updatingAvailability ? null : _toggleAvailability,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _isOnline
+                        ? AppColors.success.withValues(alpha: 0.12)
+                        : AppColors.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: _isOnline
+                          ? AppColors.success.withValues(alpha: 0.3)
+                          : AppColors.whiteBorder5,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _isOnline
+                              ? AppColors.success
+                              : AppColors.onSurfaceVariant,
+                          boxShadow: _isOnline
+                              ? [
+                                  BoxShadow(
+                                    color: AppColors.success.withValues(alpha: 0.6),
+                                    blurRadius: 8,
+                                  ),
+                                ]
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _isOnline ? 'Online' : 'Offline',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: _isOnline
+                              ? AppColors.success
+                              : AppColors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
+              const SizedBox(width: 12),
+              // Avatar
+              _Avatar(name: profile.displayName, imageUrl: profile.photoUrl),
             ],
           ),
         ),
-        const SizedBox(width: 8),
-        _IconCircleButton(
-          icon: Icons.notifications_none_rounded,
-          badgeCount: pendingCount,
-          onTap: () => _showNotificationSheet(pendingCount, activeCount),
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _buildTodaySummary({
-    required DashboardMetrics metrics,
-    required int completedToday,
-    required int pendingCount,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SectionHeader(
-          title: 'Performance',
-          subtitle: 'At a glance',
-        ),
-        SizedBox(height: 12),
-        SizedBox(
-          height: 112,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: 4,
-            separatorBuilder: (context, index) => SizedBox(width: 10),
-            itemBuilder: (context, index) {
-              switch (index) {
-                case 0:
-                  return _SummaryCard(
-                    width: 152,
-                    label: 'Monthly earnings',
-                    value: _money(metrics.monthlyEarnings),
-                    icon: Icons.payments_rounded,
-                    color: AppColors.neonAccent,
-                  );
-                case 1:
-                  return _SummaryCard(
-                    width: 152,
-                    label: 'Jobs completed',
-                    value: '$completedToday',
-                    icon: Icons.check_circle_rounded,
-                    color: AppColors.success,
-                  );
-                case 2:
-                  return _SummaryCard(
-                    width: 152,
-                    label: 'Rating',
-                    value: metrics.customerRating > 0
-                        ? metrics.customerRating.toStringAsFixed(1)
-                        : 'New',
-                    icon: Icons.star_rounded,
-                    color: Colors.amberAccent,
-                  );
-                default:
-                  return _SummaryCard(
-                    width: 152,
-                    label: 'Pending jobs',
-                    value: '$pendingCount',
-                    icon: Icons.pending_actions_rounded,
-                    color: Colors.cyanAccent,
-                  );
-              }
-            },
-          ),
-        ),
-      ],
-    );
-  }
+  Widget _buildNextActionHero(
+    _TechnicianProfileSnapshot profile,
+    _DashboardRequest? activeRequest,
+  ) {
+    final Widget content;
 
-  Widget _buildJobsOverviewSection({
-    required int pendingCount,
-    required int activeCount,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SectionHeader(
-          title: 'Jobs Overview',
-          subtitle: 'Manage all your work and requests',
+    if (activeRequest == null) {
+      content = Container(
+        key: const ValueKey('idle'),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: AppColors.whiteBorder5),
+          gradient: _isOnline
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.neonAccent.withValues(alpha: 0.08),
+                    Colors.transparent,
+                  ],
+                )
+              : null,
         ),
-        const SizedBox(height: 10),
-        Row(
+        child: Column(
           children: [
-            Expanded(
-              child: _SummaryCard(
-                width: double.infinity,
-                label: 'Pending Requests',
-                value: '$pendingCount',
-                icon: Icons.inbox_rounded,
-                color: Colors.amberAccent,
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _isOnline
+                    ? AppColors.neonAccent.withValues(alpha: 0.12)
+                    : AppColors.surfaceContainerHighest.withValues(alpha: 0.5),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _isOnline ? Icons.radar_rounded : Icons.wifi_off_rounded,
+                color: _isOnline ? AppColors.neonAccent : AppColors.onSurfaceVariant,
+                size: 32,
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _SummaryCard(
-                width: double.infinity,
-                label: 'Active Jobs',
-                value: '$activeCount',
-                icon: Icons.work_rounded,
-                color: AppColors.neonAccent,
+            const SizedBox(height: 16),
+            Text(
+              _isOnline ? 'Ready for Work' : 'You\'re offline',
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppColors.onSurface,
+                letterSpacing: -0.5,
               ),
             ),
+            const SizedBox(height: 6),
+            Text(
+              _isOnline
+                  ? 'Waiting for new requests...'
+                  : 'Go online to start receiving jobs',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.onSurfaceVariant.withValues(alpha: 0.8),
+              ),
+            ),
+            if (!_isOnline) ...[
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: _ActionButton(
+                  label: 'Go Online',
+                  icon: Icons.power_settings_new_rounded,
+                  color: AppColors.neonAccent,
+                  filled: true,
+                  onTap: _toggleAvailability,
+                ),
+              ),
+            ],
           ],
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: ElevatedButton(
-            onPressed: () => widget.onNavigateTab(2),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.surfaceContainerHigh,
-              foregroundColor: AppColors.onSurface,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: AppColors.divider),
+      );
+    } else {
+      content = Container(
+        key: ValueKey('active_${activeRequest.id}'),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: AppColors.whiteBorder5),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.neonAccent.withValues(alpha: 0.15),
+              Colors.transparent,
+            ],
+          ),
+        ),
+        child: _ActiveRequestCard(
+          request: activeRequest,
+          profileLocation: profile.location,
+          clientFuture: _userDoc(activeRequest.clientId),
+          onNavigate: (destination) => _openNavigation(destination),
+          onMessage: (clientName) => _openMessage(activeRequest.clientId, clientName),
+          onCall: (phone) => _callClient(phone),
+          primaryActionLabel: activeRequest.isJob
+              ? (activeRequest.isStarted ? 'Complete job' : 'Start job')
+              : _bookingPrimaryActionLabel(activeRequest.status),
+          primaryActionIcon: activeRequest.isJob
+              ? (activeRequest.isStarted
+                    ? Icons.check_circle_rounded
+                    : Icons.play_arrow_rounded)
+              : _bookingPrimaryActionIcon(activeRequest.status),
+          onPrimaryAction: activeRequest.isJob
+              ? (activeRequest.isStarted
+                    ? () => _completeJob(activeRequest.job!)
+                    : () => _startJob(activeRequest.job!))
+              : () => _advanceBooking(activeRequest.booking!),
+        ),
+      );
+    }
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 400),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
+      transitionBuilder: (child, animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.05),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        );
+      },
+      child: content,
+    );
+  }
+
+  Widget _buildQuickActions() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            child: Text(
+              'Quick Actions',
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppColors.onSurface,
+                letterSpacing: -0.5,
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+          ),
+          SizedBox(
+            height: 120,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              physics: const BouncingScrollPhysics(),
               children: [
-                Icon(Icons.list_alt_rounded, size: 20, color: AppColors.onSurfaceVariant),
-                const SizedBox(width: 8),
-                Text(
-                  'View All Jobs',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                _QuickActionItem(
+                  icon: Icons.event_available_rounded,
+                  label: 'Availability',
+                  color: AppColors.success,
+                  onTap: () => _toggleAvailability(),
+                ),
+                _QuickActionItem(
+                  icon: Icons.calendar_month_rounded,
+                  label: 'Calendar',
+                  color: const Color(0xFFFDC830), // Yellow
+                  onTap: () => widget.onNavigateTab(2),
+                ),
+                _QuickActionItem(
+                  icon: Icons.history_rounded,
+                  label: 'History',
+                  color: const Color(0xFF00C9FF), // Cyan
+                  onTap: () => widget.onNavigateTab(2),
+                ),
+                _QuickActionItem(
+                  icon: Icons.analytics_rounded,
+                  label: 'Analytics',
+                  color: const Color(0xFFFF512F), // Red/Orange
+                  onTap: () {},
+                ),
+                _QuickActionItem(
+                  icon: Icons.support_agent_rounded,
+                  label: 'Support',
+                  color: Colors.indigoAccent,
+                  onTap: () {},
                 ),
               ],
             ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActiveJobSection({
-    required _TechnicianProfileSnapshot profile,
-    required _DashboardRequest? activeRequest,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _SectionHeader(
-          title: 'Active job',
-          subtitle: 'The next action should be obvious',
-        ),
-        const SizedBox(height: 10),
-        if (activeRequest == null)
-          const _EmptyStateCard(
-            icon: Icons.work_outline_rounded,
-            title: 'No active job',
-            message: 'Accepted jobs and bookings will appear here.',
-          )
-        else
-          _ActiveRequestCard(
-            request: activeRequest,
-            profileLocation: profile.location,
-            clientFuture: _userDoc(activeRequest.clientId),
-            onNavigate: (destination) => _openNavigation(destination),
-            onMessage: (clientName) =>
-                _openMessage(activeRequest.clientId, clientName),
-            onCall: (phone) => _callClient(phone),
-            primaryActionLabel: activeRequest.isJob
-                ? (activeRequest.isStarted ? 'Complete job' : 'Start job')
-                : _bookingPrimaryActionLabel(activeRequest.status),
-            primaryActionIcon: activeRequest.isJob
-                ? (activeRequest.isStarted
-                      ? Icons.check_circle_rounded
-                      : Icons.play_arrow_rounded)
-                : _bookingPrimaryActionIcon(activeRequest.status),
-            onPrimaryAction: activeRequest.isJob
-                ? (activeRequest.isStarted
-                      ? () => _completeJob(activeRequest.job!)
-                      : () => _startJob(activeRequest.job!))
-                : () => _advanceBooking(activeRequest.booking!),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildRequestsSection({
-    required _TechnicianProfileSnapshot profile,
-    required List<_DashboardRequest> requests,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SectionHeader(
-          title: 'New requests',
-          subtitle: 'Simple accept or decline actions',
-          trailing: TextButton(
-            onPressed: () => widget.onNavigateTab(2),
-            child: Text(
-              'View all',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.neonAccent,
-              ),
-            ),
-          ),
-        ),
-        SizedBox(height: 10),
-        if (requests.isEmpty)
-          const _EmptyStateCard(
-            icon: Icons.inbox_outlined,
-            title: 'No new requests',
-            message: 'You are clear for now.',
-          )
-        else
-          Column(
-            children: [
-              ...requests.take(3).map(
-                    (request) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                        child: _RequestCard(
-                          request: request,
-                          profileLocation: profile.location,
-                          clientFuture: _userDoc(request.clientId),
-                          onAccept: request.isJob
-                              ? () => _acceptJob(request.job!)
-                              : () => _acceptBooking(request.booking!),
-                          onDecline: request.isJob
-                              ? () => _declineJob(request.job!)
-                              : () => _declineBooking(request.booking!),
-                      ),
-                    ),
-                  ),
-              if (requests.length > 3)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    onPressed: () => widget.onNavigateTab(2),
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      minimumSize: const Size(0, 32),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: Text(
-                      'See more requests',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-      ],
-    );
-  }
-
-  Widget _buildWeeklyEarnings(DashboardMetrics metrics) {
-    return _SurfaceCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _SectionHeader(
-                  title: 'Weekly earnings',
-                  subtitle: _money(metrics.weeklyEarnings),
-                ),
-              ),
-              _IconCircleButton(
-                icon: Icons.trending_up_rounded,
-                onTap: () => _showEarningsSheet(metrics),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          _WeeklyEarningsChart(values: metrics.weeklyEarningsData),
         ],
       ),
     );
   }
 
-  Widget _buildActivitySection(List<ActivityItem> activities) {
-    final visibleActivities = activities.take(4).toList();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _SectionHeader(
-          title: 'Recent activity',
-          subtitle: 'Lightweight history of what happened',
+  Widget _buildStatisticsGrid({
+    required DashboardMetrics metrics,
+    required int completedToday,
+    required int pendingCount,
+    required int activeCount,
+  }) {
+    return SliverGrid(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 0.85,
+      ),
+      delegate: SliverChildListDelegate([
+        _PremiumStatCard(
+          label: 'Pending',
+          value: '$pendingCount',
+          icon: Icons.schedule_rounded,
+          color: const Color(0xFFFDC830), // Yellow
         ),
-        SizedBox(height: 10),
-        if (activities.isEmpty)
-          const _EmptyStateCard(
-            icon: Icons.history_rounded,
-            title: 'No recent activity',
-            message: 'Completed work and messages will appear here.',
-          )
-        else
-          _SurfaceCard(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Column(
-              children: List.generate(
-                visibleActivities.length,
-                (index) => Column(
-                  children: [
-                    _ActivityRow(activity: visibleActivities[index]),
-                    if (index < visibleActivities.length - 1)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 48),
-                        child: Divider(color: AppColors.divider, height: 18),
-                      ),
-                  ],
-                ),
+        _PremiumStatCard(
+          label: 'Active',
+          value: '$activeCount',
+          icon: Icons.play_circle_fill_rounded,
+          color: const Color(0xFF00C9FF), // Cyan
+        ),
+        _PremiumStatCard(
+          label: 'Completed',
+          value: '$completedToday',
+          icon: Icons.check_circle_rounded,
+          color: AppColors.success,
+        ),
+        _PremiumStatCard(
+          label: 'Rating',
+          value: metrics.customerRating > 0 ? metrics.customerRating.toStringAsFixed(1) : 'New',
+          icon: Icons.star_rounded,
+          color: const Color(0xFFFF512F), // Red/Orange
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildTodaySchedule({
+    required _TechnicianProfileSnapshot profile,
+    required List<_DashboardRequest> pendingRequests,
+    required List<ActivityItem> activities,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (pendingRequests.isNotEmpty) ...[
+            Text(
+              'PENDING REQUESTS',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+                color: AppColors.onSurfaceVariant,
               ),
             ),
-          ),
-      ],
+            const SizedBox(height: 16),
+            ...pendingRequests.take(2).map((req) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _RequestCard(
+                request: req,
+                profileLocation: profile.location,
+                clientFuture: _userDoc(req.clientId),
+                onAccept: req.isJob
+                    ? () => _acceptJob(req.job!)
+                    : () => _acceptBooking(req.booking!),
+                onDecline: req.isJob
+                    ? () => _declineJob(req.job!)
+                    : () => _declineBooking(req.booking!),
+              ),
+            )),
+            const SizedBox(height: 16),
+          ],
+          if (activities.isNotEmpty) ...[
+            Text(
+              'RECENT ACTIVITY',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...activities.take(3).map((act) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _CompactTimelineItem(
+                title: act.title,
+                subtitle: act.description,
+                time: _timeAgo(act.timestamp),
+                statusColor: AppColors.success,
+              ),
+            )),
+          ],
+        ],
+      ),
     );
   }
 
@@ -1395,7 +1498,7 @@ class _TechnicianPremiumDashboardState extends State<TechnicianPremiumDashboard>
     }
 
     items.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-    return items.take(4).toList();
+    return items;
   }
 
   static bool _isActiveBooking(String status) {
@@ -2904,6 +3007,232 @@ class _PulsingEmergencyBorderState extends State<_PulsingEmergencyBorder>
         );
       },
       child: widget.child,
+    );
+  }
+}
+
+class _QuickActionItem extends StatelessWidget {
+  const _QuickActionItem({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 130,
+      margin: const EdgeInsets.only(right: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.whiteBorder5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap();
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: 22),
+                ),
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: AppColors.onSurface,
+                    height: 1.2,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PremiumStatCard extends StatelessWidget {
+  const _PremiumStatCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: AppColors.whiteBorder5),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withValues(alpha: 0.15),
+            Colors.transparent,
+          ],
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerHighest.withValues(alpha: 0.5),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(height: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.onSurface,
+                      letterSpacing: -1,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.onSurfaceVariant.withValues(alpha: 0.8),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactTimelineItem extends StatelessWidget {
+  const _CompactTimelineItem({
+    required this.title,
+    required this.subtitle,
+    required this.time,
+    required this.statusColor,
+  });
+
+  final String title;
+  final String subtitle;
+  final String time;
+  final Color statusColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.whiteBorder5),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 40,
+            decoration: BoxDecoration(
+              color: statusColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.onSurface,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            time,
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
