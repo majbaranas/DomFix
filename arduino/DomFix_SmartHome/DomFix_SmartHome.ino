@@ -101,6 +101,8 @@ void connectWiFi() {
 }
 
 // ================= HTTP HANDLERS =================
+
+
 void handleRoot() {
   server.send(200, "text/html", index_html);
 }
@@ -148,6 +150,9 @@ void handleStatus() {
 }
 
 // ================= FIREBASE INIT =================
+
+
+
 void connectFirebase() {
   config.api_key = API_KEY;
   config.database_url = DATABASE_URL;

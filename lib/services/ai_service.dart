@@ -88,36 +88,53 @@ class AiService {
     _activeClient = null;
   }
 
+  /// Direct Groq API key — development fallback only.
+  /// In production, the backend proxies all AI requests.
   String get _groqApiKey {
     const key = String.fromEnvironment('DOMFIX_GROQ_API_KEY', defaultValue: '');
     return key;
   }
 
+  /// Returns true when using direct Groq mode (dev only).
+  bool get _isDirectGroq => _groqApiKey.isNotEmpty;
+
+  /// Backend URL — configurable via dart-define.
+  /// Priority: DOMFIX_BACKEND_URL > DOMFIX_AI_BASE_URL > localhost:3000
   String get _baseUrl {
-    const override = String.fromEnvironment(
+    // 1. Explicit backend URL (production)
+    const backendUrl = String.fromEnvironment(
+      'DOMFIX_BACKEND_URL',
+      defaultValue: '',
+    );
+    if (backendUrl.isNotEmpty) {
+      return backendUrl.endsWith('/')
+          ? backendUrl.substring(0, backendUrl.length - 1)
+          : backendUrl;
+    }
+
+    // 2. Legacy override
+    const legacyOverride = String.fromEnvironment(
       'DOMFIX_AI_BASE_URL',
       defaultValue: '',
     );
-    if (override.isNotEmpty) {
-      return override.endsWith('/')
-          ? override.substring(0, override.length - 1)
-          : override;
+    if (legacyOverride.isNotEmpty) {
+      return legacyOverride.endsWith('/')
+          ? legacyOverride.substring(0, legacyOverride.length - 1)
+          : legacyOverride;
     }
 
-    if (_groqApiKey.isNotEmpty) {
+    // 3. Direct Groq mode (development only)
+    if (_isDirectGroq) {
       return 'https://api.groq.com/openai/v1/chat/completions';
     }
 
-    final projectId = Firebase.app().options.projectId;
-    if (projectId.isEmpty) {
-      throw StateError('Missing Firebase project configuration for the AI backend.');
-    }
-
-    return 'https://us-central1-$projectId.cloudfunctions.net';
+    // 4. Default: local backend (using host machine's Wi-Fi IP for physical devices)
+    debugPrint('[AiService] ⚠️ No DOMFIX_BACKEND_URL set — using http://192.168.1.188:3000 (local dev)');
+    return 'http://192.168.1.188:3000';
   }
 
   Uri _endpoint(String path) {
-    if (_groqApiKey.isNotEmpty) {
+    if (_isDirectGroq) {
       return Uri.parse(_baseUrl);
     }
     return Uri.parse('$_baseUrl/$path');
@@ -143,9 +160,12 @@ class AiService {
       );
     }
 
-    final isDirectGroq = _groqApiKey.isNotEmpty;
+    final isDirectGroq = _isDirectGroq;
     final token = isDirectGroq ? _groqApiKey : await _getIdToken();
     
+    debugPrint('[AiService] Mode: ${isDirectGroq ? "Direct Groq (dev)" : "Backend proxy"}');
+    debugPrint('[AiService] Base URL: $_baseUrl');
+
     // Convert to OpenAI format for direct Groq API
     final payload = isDirectGroq 
         ? {
@@ -198,10 +218,20 @@ class AiService {
   }
 
   Future<AiChatResult> _sendJson(Map<String, dynamic> payload, String token, bool isDirectGroq) async {
+    final uri = isDirectGroq ? _endpoint('') : _endpoint('api/ai/chat');
+
+    // --- DEBUG LOGGING ---
+    debugPrint('================ AI SERVICE REQUEST (JSON) ================');
+    debugPrint('Request URL: $uri');
+    debugPrint('Direct Groq Mode: $isDirectGroq');
+    debugPrint('Method: POST');
+    debugPrint('Authorization: Bearer ${token.length > 8 ? '${token.substring(0, 4)}****${token.substring(token.length - 4)}' : '****'}');
+    debugPrint('===========================================================');
+
     final response = await _withRetry(() async {
       return http
           .post(
-            isDirectGroq ? _endpoint('') : _endpoint('groqChat'),
+            uri,
             headers: {
               'Authorization': 'Bearer $token',
               'Content-Type': 'application/json',
@@ -213,6 +243,13 @@ class AiService {
     });
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
+      // --- DEBUG ERROR LOGGING ---
+      debugPrint('================ AI SERVICE ERROR (JSON) ================');
+      debugPrint('Request URL: $uri');
+      debugPrint('Status Code: ${response.statusCode}');
+      debugPrint('Response Body: ${response.body.length > 500 ? response.body.substring(0, 500) : response.body}');
+      debugPrint('=========================================================');
+
       throw AiServiceException(
         code: 'http_${response.statusCode}',
         message: _extractErrorMessage(response.body),
@@ -224,6 +261,7 @@ class AiService {
     final result = _parseResult(decoded, isDirectGroq);
 
     if (result.reply.isEmpty) {
+      debugPrint('[AiService] ⚠️ Empty reply. Response body: ${response.body.length > 300 ? response.body.substring(0, 300) : response.body}');
       throw const AiServiceException(
         code: 'empty_response',
         message: 'The AI service returned an empty response.',
@@ -231,6 +269,7 @@ class AiService {
       );
     }
 
+    debugPrint('[AiService] ✅ JSON response received (${result.reply.length} chars, model: ${result.model})');
     return result;
   }
 
@@ -248,8 +287,20 @@ class AiService {
       final client = http.Client();
       _activeClient = client;
       try {
+        final uri = isDirectGroq ? _endpoint('') : _endpoint('api/ai/chat/stream');
+        
+        // --- DEBUG LOGGING ---
+        debugPrint('================ AI SERVICE REQUEST ================');
+        debugPrint('Base URL: $_baseUrl');
+        debugPrint('Endpoint: $uri');
+        debugPrint('Direct Groq Mode: $isDirectGroq');
+        debugPrint('Authorization Header: Bearer ${token.length > 8 ? '${token.substring(0, 4)}****${token.substring(token.length - 4)}' : '****'}');
+        debugPrint('Method: POST');
+        debugPrint('Headers: {Content-Type: application/json, Accept: text/event-stream}');
+        debugPrint('====================================================');
+
         final response = await _withRetry(() {
-          final request = http.Request('POST', isDirectGroq ? _endpoint('') : _endpoint('groqChatStream'))
+          final request = http.Request('POST', uri)
             ..headers.addAll({
               'Authorization': 'Bearer $token',
               'Content-Type': 'application/json',
@@ -262,6 +313,15 @@ class AiService {
 
         if (response.statusCode < 200 || response.statusCode >= 300) {
           final body = await response.stream.bytesToString();
+          
+          // --- DEBUG LOGGING ---
+          debugPrint('================ AI SERVICE ERROR ================');
+          debugPrint('Request URL: $uri');
+          debugPrint('Method: POST');
+          debugPrint('Status Code: ${response.statusCode}');
+          debugPrint('Response Body: $body');
+          debugPrint('==================================================');
+
           throw AiServiceException(
             code: 'http_${response.statusCode}',
             message: _extractErrorMessage(body),
@@ -414,10 +474,15 @@ class AiService {
   }
 
   String _extractErrorMessage(String body) {
+    debugPrint('[AiService] Raw error body: ${body.length > 500 ? body.substring(0, 500) : body}');
     try {
       final decoded = jsonDecode(body);
       if (decoded is Map<String, dynamic> && decoded['error'] != null) {
-        return decoded['error'].toString();
+        final errorValue = decoded['error'];
+        if (errorValue is Map<String, dynamic> && errorValue['message'] != null) {
+          return errorValue['message'].toString();
+        }
+        return errorValue.toString();
       }
     } catch (_) {
       // Fall through to a generic message.
@@ -426,7 +491,7 @@ class AiService {
     return 'The AI service is temporarily unavailable. Please try again in a moment.';
   }
 
-  AiServiceException normalizeError(Object error) {
+  AiServiceException normalizeError(Object error, [StackTrace? stackTrace]) {
     if (error is AiServiceException) {
       return error;
     }
@@ -440,6 +505,17 @@ class AiService {
         lower.contains('502') ||
         lower.contains('503') ||
         lower.contains('504');
+
+    // --- DEBUG LOGGING ---
+    debugPrint('================ AI SERVICE EXCEPTION ================');
+    debugPrint('Error: $message');
+    debugPrint('Retryable: $retryable');
+    if (stackTrace != null) {
+      debugPrint('StackTrace: $stackTrace');
+    } else {
+      debugPrint('StackTrace: ${StackTrace.current}');
+    }
+    debugPrint('======================================================');
 
     if (lower.contains('canceled') ||
         lower.contains('cancelled') ||

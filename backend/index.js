@@ -255,14 +255,390 @@ app.get('/api/check-token/:userId', async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// ─── AI PROXY ENDPOINTS ────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+const https = require('https');
+const { getAuth } = require('firebase-admin/auth');
+
+// ── Rate Limiter (in-memory, per-user) ─────────────────────────
+const aiRateLimits = new Map();
+const AI_RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+const AI_RATE_LIMIT_MAX = 20; // 20 requests per minute
+
+function checkAiRateLimit(uid) {
+  const now = Date.now();
+  let entry = aiRateLimits.get(uid);
+  if (!entry || now - entry.windowStart > AI_RATE_LIMIT_WINDOW_MS) {
+    entry = { windowStart: now, count: 0 };
+    aiRateLimits.set(uid, entry);
+  }
+  entry.count += 1;
+  return entry.count <= AI_RATE_LIMIT_MAX;
+}
+
+// Clean up stale entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [uid, entry] of aiRateLimits) {
+    if (now - entry.windowStart > AI_RATE_LIMIT_WINDOW_MS * 2) {
+      aiRateLimits.delete(uid);
+    }
+  }
+}, 300_000);
+
+// ── Firebase Auth Middleware ──────────────────────────────────
+async function verifyFirebaseToken(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing or invalid Authorization header.' });
+  }
+  const idToken = authHeader.substring(7);
+  try {
+    const decoded = await getAuth().verifyIdToken(idToken);
+    req.uid = decoded.uid;
+    next();
+  } catch (err) {
+    console.log(`[AI] ❌ Auth failed: ${err.message}`);
+    return res.status(401).json({ error: 'Invalid or expired authentication token.' });
+  }
+}
+
+// ── DomFix System Prompt ──────────────────────────────────────
+const DOMFIX_SYSTEM_PROMPT = `You are DomFix AI, a friendly and knowledgeable home repair and maintenance assistant. You help users with:
+- Diagnosing household problems (plumbing, electrical, HVAC, appliances)
+- Finding the right type of technician for their issue
+- Providing step-by-step DIY repair guides when safe
+- Estimating repair costs and timelines
+- Smart home device troubleshooting
+- Energy efficiency and maintenance tips
+
+Guidelines:
+- Be concise but thorough
+- Always prioritize safety — recommend a professional for electrical, gas, or structural work
+- When suggesting a fix, mention required tools and skill level
+- Use clear formatting with steps when explaining procedures
+- If you're unsure, say so and recommend consulting a licensed professional
+- Respond in the same language the user writes in`;
+
+const GROQ_API_HOST = 'api.groq.com';
+const GROQ_API_PATH = '/openai/v1/chat/completions';
+const GROQ_MODEL = 'llama3-70b-8192';
+
+// ── Input Sanitization ────────────────────────────────────────
+function sanitizeMessages(messages) {
+  if (!Array.isArray(messages)) return [];
+  return messages
+    .filter(m => m && typeof m.role === 'string' && typeof m.content === 'string')
+    .map(m => ({
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      content: m.content.substring(0, 4000), // Cap message length
+    }))
+    .slice(-20); // Keep last 20 messages max
+}
+
+// ── Helper: call Groq (JSON mode) ─────────────────────────────
+function callGroqJson(messages, retryCount = 0) {
+  return new Promise((resolve, reject) => {
+    const groqKey = process.env.GROQ_API_KEY;
+    if (!groqKey) {
+      return reject(new Error('GROQ_API_KEY environment variable is not set.'));
+    }
+
+    const model = retryCount > 0 ? 'llama-3.1-8b-instant' : GROQ_MODEL;
+    const body = JSON.stringify({
+      model: model,
+      messages: messages,
+      stream: false,
+      temperature: 0.7,
+      max_tokens: 2048,
+    });
+
+    const options = {
+      hostname: GROQ_API_HOST,
+      path: GROQ_API_PATH,
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${groqKey}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      timeout: 30000,
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          try {
+            resolve(JSON.parse(data));
+          } catch (e) {
+            reject(new Error('Invalid JSON response from AI provider.'));
+          }
+        } else {
+          let errMsg = data;
+          try { errMsg = JSON.parse(data).error?.message || data; } catch {}
+          
+          if (retryCount < 2) {
+             console.log(`[Groq JSON] Retry ${retryCount + 1} after error: ${errMsg}`);
+             resolve(callGroqJson(messages, retryCount + 1));
+          } else {
+             const err = new Error(`Groq API error: ${errMsg}`);
+             err.statusCode = res.statusCode;
+             reject(err);
+          }
+        }
+      });
+    });
+
+    req.on('timeout', () => { 
+      req.destroy(); 
+      if (retryCount < 2) resolve(callGroqJson(messages, retryCount + 1));
+      else reject(new Error('AI provider request timed out.'));
+    });
+    req.on('error', (e) => {
+      if (retryCount < 2) resolve(callGroqJson(messages, retryCount + 1));
+      else reject(new Error(`AI provider connection failed: ${e.message}`));
+    });
+    req.write(body);
+    req.end();
+  });
+}
+
+// ── POST /api/ai/chat — JSON response ─────────────────────────
+app.post('/api/ai/chat', verifyFirebaseToken, async (req, res) => {
+  const requestId = Date.now().toString(36);
+  console.log(`[${requestId}] 🤖 POST /api/ai/chat — uid: ${req.uid}`);
+
+  // Rate limit
+  if (!checkAiRateLimit(req.uid)) {
+    console.log(`[${requestId}] ⚠️ Rate limited: ${req.uid}`);
+    return res.status(429).json({ error: 'Too many requests. Please wait a moment.' });
+  }
+
+  try {
+    const userMessages = sanitizeMessages(req.body.messages);
+    if (userMessages.length === 0) {
+      return res.status(400).json({ error: 'No valid messages provided.' });
+    }
+
+    const fullMessages = [
+      { role: 'system', content: DOMFIX_SYSTEM_PROMPT },
+      ...userMessages,
+    ];
+
+    const groqResponse = await callGroqJson(fullMessages);
+
+    const choices = groqResponse.choices || [];
+    const content = choices[0]?.message?.content || '';
+
+    const result = {
+      reply: content.trim(),
+      proTip: '',
+      specialist: 'DomFix AI',
+      model: groqResponse.model || GROQ_MODEL,
+      usage: groqResponse.usage || null,
+    };
+
+    console.log(`[${requestId}] ✅ AI response: ${result.reply.substring(0, 80)}...`);
+    res.status(200).json(result);
+  } catch (err) {
+    console.error(`[${requestId}] ❌ AI chat error: ${err.message}`);
+    const status = err.statusCode === 429 ? 429 : (err.statusCode >= 400 && err.statusCode < 500) ? err.statusCode : 500;
+    res.status(status).json({ error: err.message || 'The AI service is temporarily unavailable.' });
+  }
+});
+
+// ── POST /api/ai/chat/stream — SSE streaming ──────────────────
+app.post('/api/ai/chat/stream', verifyFirebaseToken, async (req, res) => {
+  const requestId = Date.now().toString(36);
+  console.log(`[${requestId}] 🤖 POST /api/ai/chat/stream — uid: ${req.uid}`);
+
+  if (!checkAiRateLimit(req.uid)) {
+    console.log(`[${requestId}] ⚠️ Rate limited: ${req.uid}`);
+    return res.status(429).json({ error: 'Too many requests. Please wait a moment.' });
+  }
+
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!groqKey) {
+    console.error(`[${requestId}] ❌ GROQ_API_KEY not set`);
+    return res.status(500).json({ error: 'AI service is not configured.' });
+  }
+
+  const userMessages = sanitizeMessages(req.body.messages);
+  if (userMessages.length === 0) {
+    return res.status(400).json({ error: 'No valid messages provided.' });
+  }
+
+  const fullMessages = [
+    { role: 'system', content: DOMFIX_SYSTEM_PROMPT },
+    ...userMessages,
+  ];
+
+  function attemptStream(retryCount = 0) {
+    const model = retryCount > 0 ? 'llama-3.1-8b-instant' : GROQ_MODEL;
+    const body = JSON.stringify({
+      model: model,
+      messages: fullMessages,
+      stream: true,
+      temperature: 0.7,
+      max_tokens: 2048,
+    });
+
+    const options = {
+      hostname: GROQ_API_HOST,
+      path: GROQ_API_PATH,
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${groqKey}`,
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+      },
+      timeout: 30000,
+    };
+
+    let headersWritten = false;
+    let fullReply = '';
+    let groqModel = model;
+    let groqUsage = null;
+
+    const groqReq = https.request(options, (groqRes) => {
+      if (groqRes.statusCode >= 300) {
+        let errBody = '';
+        groqRes.on('data', c => errBody += c);
+        groqRes.on('end', () => {
+          let errMsg = errBody;
+          try { errMsg = JSON.parse(errBody).error?.message || errBody; } catch {}
+          console.error(`[${requestId}] ❌ Groq stream error ${groqRes.statusCode}: ${errMsg}`);
+          
+          if (retryCount < 2) {
+            console.log(`[${requestId}] 🔄 Retrying stream (attempt ${retryCount + 1})...`);
+            attemptStream(retryCount + 1);
+          } else {
+             if (!headersWritten) {
+               res.status(groqRes.statusCode).json({ error: errMsg });
+             } else {
+               res.write(`data: ${JSON.stringify({ error: errMsg })}\n\n`);
+               res.end();
+             }
+          }
+        });
+        return;
+      }
+
+      // Success, write SSE headers if not already written
+      if (!headersWritten) {
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'X-Accel-Buffering': 'no',
+        });
+        headersWritten = true;
+      }
+
+      let buffer = '';
+      groqRes.on('data', (chunk) => {
+        buffer += chunk.toString();
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (!line.startsWith('data:')) continue;
+          const data = line.substring(5).trim();
+          if (data === '[DONE]') continue;
+          if (!data) continue;
+
+          try {
+            const parsed = JSON.parse(data);
+            const delta = parsed.choices?.[0]?.delta;
+            if (delta?.content) {
+              fullReply += delta.content;
+              // Forward partial reply in DomFix format
+              res.write(`data: ${JSON.stringify({ reply: fullReply })}\n\n`);
+            }
+            if (parsed.model) groqModel = parsed.model;
+            if (parsed.usage) groqUsage = parsed.usage;
+          } catch (_) {
+            // Ignore malformed chunks
+          }
+        }
+      });
+
+      groqRes.on('end', () => {
+        // Send final metadata chunk
+        const finalChunk = {
+          reply: fullReply.trim(),
+          proTip: '',
+          specialist: 'DomFix AI',
+          model: groqModel,
+          usage: groqUsage,
+        };
+        res.write(`data: ${JSON.stringify(finalChunk)}\n\n`);
+        res.write('data: [DONE]\n\n');
+        res.end();
+        console.log(`[${requestId}] ✅ Stream complete: ${fullReply.substring(0, 80)}...`);
+      });
+
+      groqRes.on('error', (e) => {
+        console.error(`[${requestId}] ❌ Groq stream read error: ${e.message}`);
+        res.write(`data: ${JSON.stringify({ error: 'Stream interrupted.' })}\n\n`);
+        res.end();
+      });
+    });
+
+    groqReq.on('timeout', () => {
+      groqReq.destroy();
+      console.error(`[${requestId}] ❌ Groq stream timeout`);
+      if (retryCount < 2 && !headersWritten) {
+        attemptStream(retryCount + 1);
+      } else {
+        if (!headersWritten) res.status(504).json({ error: 'AI provider timed out.' });
+        else {
+          res.write(`data: ${JSON.stringify({ error: 'AI provider timed out.' })}\n\n`);
+          res.end();
+        }
+      }
+    });
+
+    groqReq.on('error', (e) => {
+      console.error(`[${requestId}] ❌ Groq stream connection error: ${e.message}`);
+      if (retryCount < 2 && !headersWritten) {
+        attemptStream(retryCount + 1);
+      } else {
+        if (!headersWritten) res.status(502).json({ error: 'AI provider connection failed.' });
+        else if (!res.writableEnded) {
+          res.write(`data: ${JSON.stringify({ error: 'AI provider connection failed.' })}\n\n`);
+          res.end();
+        }
+      }
+    });
+
+    // Cleanup if client disconnects
+    res.on('close', () => {
+      groqReq.destroy();
+    });
+
+    groqReq.write(body);
+    groqReq.end();
+  }
+
+  attemptStream(0);
+});
+
 // Start Server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log('═══════════════════════════════════════');
-  console.log(`DomFix Notification Backend running on port ${PORT}`);
+  console.log(`DomFix Backend running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/`);
   console.log(`Notify endpoint: POST http://localhost:${PORT}/api/notify`);
-  console.log(`Test endpoint: GET http://localhost:${PORT}/api/test-notify/:userId`);
+  console.log(`AI chat:    POST http://localhost:${PORT}/api/ai/chat`);
+  console.log(`AI stream:  POST http://localhost:${PORT}/api/ai/chat/stream`);
+  console.log(`Test notify: GET http://localhost:${PORT}/api/test-notify/:userId`);
   console.log(`Token check: GET http://localhost:${PORT}/api/check-token/:userId`);
+  console.log(`GROQ_API_KEY: ${process.env.GROQ_API_KEY ? '✅ Set' : '❌ NOT SET'}`);
   console.log('═══════════════════════════════════════');
 });

@@ -12,12 +12,12 @@ import '../theme/app_theme_manager.dart';
 import '../widgets/notification_panel.dart';
 import '../widgets/scroll_reveal.dart';
 import '../models/booking_model.dart';
-import '../services/booking_service.dart';
 import 'chat_screen.dart';
 import 'client_bookings_screen.dart';
 import 'main_layout.dart';
 import 'nearby_technicians_map_screen.dart';
 import 'technician_profile_screen.dart';
+import '../widgets/dashboard/premium_ai_assistant_orb.dart';
 
 /// HomeScreenContent — the client home tab.
 ///
@@ -202,6 +202,7 @@ class _HomeScreenContentState extends State<HomeScreenContent>
               ],
             ),
           ),
+          const PremiumAIAssistantOrb(),
         ],
       ),
     );
